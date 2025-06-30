@@ -1,13 +1,18 @@
 
-import React, { useState } from 'react';
-import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { WooCommerceConfig } from '@/services/woocommerce';
+import { logger } from '@/services/logger';
 
 const Settings = () => {
+  const { config, testConnection, saveConfig, isConfigured } = useWooCommerceConfig();
+  
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'Minha Loja',
     storeUrl: 'https://minhaloja.com',
@@ -17,7 +22,7 @@ const Settings = () => {
     timezone: 'America/Sao_Paulo'
   });
 
-  const [wooSettings, setWooSettings] = useState({
+  const [wooSettings, setWooSettings] = useState<WooCommerceConfig>({
     apiUrl: '',
     consumerKey: '',
     consumerSecret: '',
@@ -38,6 +43,59 @@ const Settings = () => {
     paypalEnabled: false
   });
 
+  // Carregar configurações existentes
+  useEffect(() => {
+    if (config) {
+      setWooSettings(config);
+    }
+
+    // Carregar outras configurações do localStorage
+    const savedStoreSettings = localStorage.getItem('store_settings');
+    if (savedStoreSettings) {
+      setStoreSettings(JSON.parse(savedStoreSettings));
+    }
+
+    const savedNotifications = localStorage.getItem('notification_settings');
+    if (savedNotifications) {
+      setNotifications(JSON.parse(savedNotifications));
+    }
+
+    const savedPaymentSettings = localStorage.getItem('payment_settings');
+    if (savedPaymentSettings) {
+      setPaymentSettings(JSON.parse(savedPaymentSettings));
+    }
+  }, [config]);
+
+  const handleStoreSettingsSave = () => {
+    localStorage.setItem('store_settings', JSON.stringify(storeSettings));
+    logger.success('Configurações da Loja', 'Configurações da loja atualizadas');
+  };
+
+  const handleWooCommerceTest = async () => {
+    if (!wooSettings.apiUrl || !wooSettings.consumerKey || !wooSettings.consumerSecret) {
+      logger.error('Teste de Conexão', 'Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    logger.info('Teste de Conexão', 'Testando conexão com WooCommerce...');
+    testConnection.mutate(wooSettings);
+  };
+
+  const handleWooCommerceSave = () => {
+    saveConfig(wooSettings);
+    logger.success('WooCommerce', 'Configurações do WooCommerce salvas');
+  };
+
+  const handleNotificationsSave = () => {
+    localStorage.setItem('notification_settings', JSON.stringify(notifications));
+    logger.success('Notificações', 'Configurações de notificação atualizadas');
+  };
+
+  const handlePaymentsSave = () => {
+    localStorage.setItem('payment_settings', JSON.stringify(paymentSettings));
+    logger.success('Pagamentos', 'Configurações de pagamento atualizadas');
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -50,6 +108,12 @@ const Settings = () => {
             Configure as preferências do sistema e integrações
           </p>
         </div>
+        {isConfigured && (
+          <div className="flex items-center gap-2 text-success-600">
+            <CheckCircle className="w-5 h-5" />
+            <span className="text-sm font-medium">WooCommerce Conectado</span>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -99,7 +163,7 @@ const Settings = () => {
               />
             </div>
             
-            <Button className="w-full bg-gradient-primary hover:opacity-90">
+            <Button onClick={handleStoreSettingsSave} className="w-full bg-gradient-primary hover:opacity-90">
               Salvar Configurações
             </Button>
           </CardContent>
@@ -115,7 +179,7 @@ const Settings = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="apiUrl">URL da API</Label>
+              <Label htmlFor="apiUrl">URL da API *</Label>
               <Input
                 id="apiUrl"
                 placeholder="https://suaurl.com/wp-json/wc/v3/"
@@ -125,7 +189,7 @@ const Settings = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="consumerKey">Consumer Key</Label>
+              <Label htmlFor="consumerKey">Consumer Key *</Label>
               <Input
                 id="consumerKey"
                 type="password"
@@ -136,7 +200,7 @@ const Settings = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="consumerSecret">Consumer Secret</Label>
+              <Label htmlFor="consumerSecret">Consumer Secret *</Label>
               <Input
                 id="consumerSecret"
                 type="password"
@@ -152,14 +216,27 @@ const Settings = () => {
                 id="webhookSecret"
                 type="password"
                 placeholder="webhook_secret"
-                value={wooSettings.webhookSecret}
+                value={wooSettings.webhookSecret || ''}
                 onChange={(e) => setWooSettings({ ...wooSettings, webhookSecret: e.target.value })}
               />
             </div>
             
-            <Button className="w-full bg-gradient-success hover:opacity-90">
-              Testar Conexão
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleWooCommerceTest} 
+                className="flex-1 bg-gradient-success hover:opacity-90"
+                disabled={testConnection.isPending}
+              >
+                {testConnection.isPending ? 'Testando...' : 'Testar Conexão'}
+              </Button>
+              <Button 
+                onClick={handleWooCommerceSave}
+                variant="outline"
+                className="flex-1"
+              >
+                Salvar
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -223,6 +300,10 @@ const Settings = () => {
                 }
               />
             </div>
+
+            <Button onClick={handlePaymentsSave} className="w-full">
+              Salvar Configurações
+            </Button>
           </CardContent>
         </Card>
 
@@ -286,6 +367,10 @@ const Settings = () => {
                 }
               />
             </div>
+
+            <Button onClick={handleNotificationsSave} className="w-full">
+              Salvar Configurações
+            </Button>
           </CardContent>
         </Card>
       </div>

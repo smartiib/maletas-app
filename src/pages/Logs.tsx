@@ -1,139 +1,111 @@
 
-import React, { useState } from 'react';
-import { Search, Filter, Calendar, User, Activity, AlertCircle, CheckCircle, XCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Activity, Download, Trash2, Filter, Search, AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-interface LogEntry {
-  id: number;
-  action: string;
-  module: 'products' | 'orders' | 'customers' | 'system';
-  user: string;
-  description: string;
-  oldValue?: string;
-  newValue?: string;
-  ipAddress: string;
-  userAgent: string;
-  timestamp: string;
-  level: 'info' | 'warning' | 'error' | 'success';
-}
+import { logger, LogEntry } from '@/services/logger';
 
 const Logs = () => {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [filteredLogs, setFilteredLogs] = useState<LogEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedModule, setSelectedModule] = useState('Todos');
   const [selectedLevel, setSelectedLevel] = useState('Todos');
 
-  // Mock data - em produção viria do sistema de logs
-  const logs: LogEntry[] = [
-    {
-      id: 1,
-      action: 'PRODUCT_UPDATED',
-      module: 'products',
-      user: 'admin@loja.com',
-      description: 'Produto iPhone 14 Pro atualizado',
-      oldValue: 'Preço: R$ 5999,99',
-      newValue: 'Preço: R$ 5799,99',
-      ipAddress: '192.168.1.100',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      timestamp: '2024-01-15 14:30:25',
-      level: 'info'
-    },
-    {
-      id: 2,
-      action: 'ORDER_STATUS_CHANGED',
-      module: 'orders',
-      user: 'vendedor@loja.com',
-      description: 'Status do pedido #1001 alterado',
-      oldValue: 'Status: pending',
-      newValue: 'Status: processing',
-      ipAddress: '192.168.1.101',
-      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-      timestamp: '2024-01-15 14:25:12',
-      level: 'success'
-    },
-    {
-      id: 3,
-      action: 'CUSTOMER_CREATED',
-      module: 'customers',
-      user: 'admin@loja.com',
-      description: 'Novo cliente cadastrado: João Silva',
-      ipAddress: '192.168.1.100',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-      timestamp: '2024-01-15 14:15:08',
-      level: 'success'
-    },
-    {
-      id: 4,
-      action: 'LOGIN_FAILED',
-      module: 'system',
-      user: 'unknown@email.com',
-      description: 'Tentativa de login falhada',
-      ipAddress: '203.0.113.1',
-      userAgent: 'Mozilla/5.0 (X11; Linux x86_64)',
-      timestamp: '2024-01-15 14:10:45',
-      level: 'warning'
-    },
-    {
-      id: 5,
-      action: 'SYSTEM_ERROR',
-      module: 'system',
-      user: 'system',
-      description: 'Erro na conexão com API do WooCommerce',
-      ipAddress: '192.168.1.1',
-      userAgent: 'Internal System',
-      timestamp: '2024-01-15 13:45:22',
-      level: 'error'
+  useEffect(() => {
+    loadLogs();
+  }, []);
+
+  useEffect(() => {
+    filterLogs();
+  }, [logs, searchTerm, selectedLevel]);
+
+  const loadLogs = () => {
+    const allLogs = logger.getLogs();
+    setLogs(allLogs);
+  };
+
+  const filterLogs = () => {
+    let filtered = logs;
+
+    if (searchTerm) {
+      filtered = filtered.filter(log => 
+        log.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        log.details.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
-  ];
 
-  const modules = ['Todos', 'products', 'orders', 'customers', 'system'];
-  const levels = ['Todos', 'info', 'success', 'warning', 'error'];
+    if (selectedLevel !== 'Todos') {
+      filtered = filtered.filter(log => log.level === selectedLevel);
+    }
 
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         log.action.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesModule = selectedModule === 'Todos' || log.module === selectedModule;
-    const matchesLevel = selectedLevel === 'Todos' || log.level === selectedLevel;
-    return matchesSearch && matchesModule && matchesLevel;
-  });
+    setFilteredLogs(filtered);
+  };
 
-  const getLevelColor = (level: string) => {
+  const getLevelIcon = (level: LogEntry['level']) => {
     switch (level) {
-      case 'info': return 'bg-blue-100 text-blue-800';
+      case 'success': return <CheckCircle className="w-4 h-4 text-success-600" />;
+      case 'error': return <AlertCircle className="w-4 h-4 text-red-600" />;
+      case 'warning': return <AlertTriangle className="w-4 h-4 text-yellow-600" />;
+      case 'info': return <Info className="w-4 h-4 text-blue-600" />;
+      default: return <Info className="w-4 h-4 text-slate-600" />;
+    }
+  };
+
+  const getLevelColor = (level: LogEntry['level']) => {
+    switch (level) {
       case 'success': return 'bg-success-100 text-success-800';
-      case 'warning': return 'bg-yellow-100 text-yellow-800';
       case 'error': return 'bg-red-100 text-red-800';
+      case 'warning': return 'bg-yellow-100 text-yellow-800';
+      case 'info': return 'bg-blue-100 text-blue-800';
       default: return 'bg-slate-100 text-slate-800';
     }
   };
 
-  const getLevelIcon = (level: string) => {
-    switch (level) {
-      case 'info': return <Activity className="w-4 h-4" />;
-      case 'success': return <CheckCircle className="w-4 h-4" />;
-      case 'warning': return <AlertCircle className="w-4 h-4" />;
-      case 'error': return <XCircle className="w-4 h-4" />;
-      default: return <Activity className="w-4 h-4" />;
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString('pt-BR');
+  };
+
+  const handleExportLogs = () => {
+    const logsJson = logger.exportLogs();
+    const blob = new Blob([logsJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `woocommerce-logs-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearLogs = () => {
+    if (confirm('Tem certeza que deseja limpar todos os logs?')) {
+      logger.clearLogs();
+      loadLogs();
     }
   };
 
-  const getModuleLabel = (module: string) => {
-    switch (module) {
-      case 'products': return 'Produtos';
-      case 'orders': return 'Pedidos';
-      case 'customers': return 'Clientes';
-      case 'system': return 'Sistema';
-      default: return module;
-    }
+  const levels = ['Todos', 'info', 'success', 'warning', 'error'];
+
+  const getLogStats = () => {
+    const stats = logs.reduce((acc, log) => {
+      acc[log.level] = (acc[log.level] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    return {
+      total: logs.length,
+      success: stats.success || 0,
+      error: stats.error || 0,
+      warning: stats.warning || 0,
+      info: stats.info || 0,
+    };
   };
 
-  const getTotalLogs = () => logs.length;
-  const getErrorLogs = () => logs.filter(l => l.level === 'error').length;
-  const getWarningLogs = () => logs.filter(l => l.level === 'warning').length;
+  const stats = getLogStats();
 
   return (
     <div className="space-y-6">
@@ -144,51 +116,82 @@ const Logs = () => {
             Logs do Sistema
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Histórico completo de ações e eventos
+            Monitore todas as atividades e operações do sistema
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExportLogs}>
+            <Download className="w-4 h-4 mr-2" />
+            Exportar
+          </Button>
+          <Button variant="outline" onClick={handleClearLogs}>
+            <Trash2 className="w-4 h-4 mr-2" />
+            Limpar Logs
+          </Button>
+          <Button onClick={loadLogs}>
+            Atualizar
+          </Button>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Estatísticas */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total de Logs
-                </p>
-                <p className="text-2xl font-bold">{getTotalLogs()}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Total</p>
+                <p className="text-2xl font-bold">{stats.total}</p>
               </div>
-              <Activity className="w-8 h-8 text-blue-600" />
+              <Activity className="w-8 h-8 text-slate-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Avisos
-                </p>
-                <p className="text-2xl font-bold text-yellow-600">{getWarningLogs()}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Sucesso</p>
+                <p className="text-2xl font-bold text-success-600">{stats.success}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-yellow-600" />
+              <CheckCircle className="w-8 h-8 text-success-600" />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Erros
-                </p>
-                <p className="text-2xl font-bold text-red-600">{getErrorLogs()}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Erros</p>
+                <p className="text-2xl font-bold text-red-600">{stats.error}</p>
               </div>
-              <XCircle className="w-8 h-8 text-red-600" />
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Avisos</p>
+                <p className="text-2xl font-bold text-yellow-600">{stats.warning}</p>
+              </div>
+              <AlertTriangle className="w-8 h-8 text-yellow-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Info</p>
+                <p className="text-2xl font-bold text-blue-600">{stats.info}</p>
+              </div>
+              <Info className="w-8 h-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
@@ -202,7 +205,7 @@ const Logs = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
-                  placeholder="Buscar logs por descrição, usuário ou ação..."
+                  placeholder="Buscar logs por ação ou detalhes..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -212,32 +215,16 @@ const Logs = () => {
             
             <div className="flex gap-2">
               <select
-                value={selectedModule}
-                onChange={(e) => setSelectedModule(e.target.value)}
-                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
-              >
-                {modules.map(module => (
-                  <option key={module} value={module}>
-                    {module === 'Todos' ? 'Todos' : getModuleLabel(module)}
-                  </option>
-                ))}
-              </select>
-              
-              <select
                 value={selectedLevel}
                 onChange={(e) => setSelectedLevel(e.target.value)}
                 className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
               >
                 {levels.map(level => (
                   <option key={level} value={level}>
-                    {level === 'Todos' ? 'Todos' : level.toUpperCase()}
+                    {level === 'Todos' ? 'Todos os Níveis' : level}
                   </option>
                 ))}
               </select>
-              
-              <Button variant="outline">
-                <Filter className="w-4 h-4" />
-              </Button>
             </div>
           </div>
         </CardContent>
@@ -248,66 +235,60 @@ const Logs = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="w-5 h-5" />
-            Histórico de Logs ({filteredLogs.length})
+            Logs de Atividade ({filteredLogs.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Data/Hora</TableHead>
-                <TableHead>Nível</TableHead>
-                <TableHead>Módulo</TableHead>
-                <TableHead>Usuário</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Alterações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLogs.map((log) => (
-                <TableRow key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <TableCell className="font-mono text-sm">
-                    {log.timestamp}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getLevelColor(log.level)}>
-                      <div className="flex items-center gap-1">
-                        {getLevelIcon(log.level)}
-                        {log.level.toUpperCase()}
-                      </div>
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {getModuleLabel(log.module)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm">{log.user}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{log.description}</div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        IP: {log.ipAddress}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {log.oldValue && log.newValue && (
-                      <div className="text-xs space-y-1">
-                        <div className="text-red-600">Anterior: {log.oldValue}</div>
-                        <div className="text-success-600">Novo: {log.newValue}</div>
-                      </div>
-                    )}
-                  </TableCell>
+          {filteredLogs.length === 0 ? (
+            <div className="text-center py-8">
+              <Activity className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500">Nenhum log encontrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Data/Hora</TableHead>
+                  <TableHead>Nível</TableHead>
+                  <TableHead>Ação</TableHead>
+                  <TableHead>Detalhes</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredLogs.map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="text-sm text-slate-500">
+                      {formatDate(log.timestamp)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getLevelIcon(log.level)}
+                        <Badge className={getLevelColor(log.level)}>
+                          {log.level}
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {log.action}
+                    </TableCell>
+                    <TableCell className="max-w-md">
+                      <span className="text-sm">{log.details}</span>
+                      {log.metadata && (
+                        <details className="mt-1">
+                          <summary className="text-xs text-blue-600 cursor-pointer">
+                            Ver metadata
+                          </summary>
+                          <pre className="text-xs bg-slate-100 dark:bg-slate-800 p-2 rounded mt-1 overflow-auto">
+                            {JSON.stringify(log.metadata, null, 2)}
+                          </pre>
+                        </details>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
