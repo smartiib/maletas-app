@@ -1,105 +1,88 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin, AlertCircle, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-interface Customer {
-  id: number;
-  name: string;
-  email: string;
-  phone: string;
-  city: string;
-  state: string;
-  totalOrders: number;
-  totalSpent: number;
-  lastOrder: string;
-  status: 'active' | 'inactive';
-}
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useCustomers, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { Customer } from '@/services/woocommerce';
+import CustomerDialog from '@/components/customers/CustomerDialog';
+import CustomerDetails from '@/components/customers/CustomerDetails';
+import { MoreHorizontal } from 'lucide-react';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('Todos');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
 
-  // Mock data - em produção viria da API WooCommerce
-  const customers: Customer[] = [
-    {
-      id: 1,
-      name: 'João Silva',
-      email: 'joao@email.com',
-      phone: '(11) 99999-9999',
-      city: 'São Paulo',
-      state: 'SP',
-      totalOrders: 12,
-      totalSpent: 15999.80,
-      lastOrder: '2024-01-15',
-      status: 'active'
-    },
-    {
-      id: 2,
-      name: 'Maria Santos',
-      email: 'maria@email.com',
-      phone: '(21) 88888-8888',
-      city: 'Rio de Janeiro',
-      state: 'RJ',
-      totalOrders: 8,
-      totalSpent: 4299.90,
-      lastOrder: '2024-01-14',
-      status: 'active'
-    },
-    {
-      id: 3,
-      name: 'Pedro Costa',
-      email: 'pedro@email.com',
-      phone: '(31) 77777-7777',
-      city: 'Belo Horizonte',
-      state: 'MG',
-      totalOrders: 3,
-      totalSpent: 1299.99,
-      lastOrder: '2023-12-20',
-      status: 'inactive'
-    },
-    {
-      id: 4,
-      name: 'Ana Oliveira',
-      email: 'ana@email.com',
-      phone: '(85) 66666-6666',
-      city: 'Fortaleza',
-      state: 'CE',
-      totalOrders: 25,
-      totalSpent: 32500.00,
-      lastOrder: '2024-01-16',
-      status: 'active'
-    }
-  ];
+  const { isConfigured } = useWooCommerceConfig();
+  const { data: customers = [], isLoading, error, refetch } = useCustomers(currentPage, searchTerm);
 
-  const statuses = ['Todos', 'active', 'inactive'];
-
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.phone.includes(searchTerm);
-    const matchesStatus = selectedStatus === 'Todos' || customer.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
-
-  const getStatusLabel = (status: string) => {
-    return status === 'active' ? 'Ativo' : 'Inativo';
+  const handleCreateCustomer = () => {
+    setSelectedCustomer(undefined);
+    setDialogMode('create');
+    setDialogOpen(true);
   };
 
-  const getStatusColor = (status: string) => {
-    return status === 'active' ? 'bg-success-100 text-success-800' : 'bg-slate-100 text-slate-800';
+  const handleEditCustomer = (customer: Customer) => {
+    setSelectedCustomer(customer);
+    setDialogMode('edit');
+    setDialogOpen(true);
+  };
+
+  const handleViewCustomer = (customer: Customer) => {
+    setCustomerForDetails(customer);
+    setDetailsOpen(true);
   };
 
   const getTotalCustomers = () => customers.length;
-  const getActiveCustomers = () => customers.filter(c => c.status === 'active').length;
   const getAverageSpent = () => {
-    const total = customers.reduce((sum, customer) => sum + customer.totalSpent, 0);
+    if (customers.length === 0) return 0;
+    const total = customers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent), 0);
     return total / customers.length;
   };
+
+  if (!isConfigured) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Clientes
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Gerencie sua base de clientes
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">WooCommerce não configurado</h3>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">
+              Configure sua integração com WooCommerce nas configurações para começar a gerenciar seus clientes.
+            </p>
+            <Button onClick={() => window.location.href = '/configuracoes'}>
+              Ir para Configurações
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -113,7 +96,7 @@ const Customers = () => {
             Gerencie sua base de clientes
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateCustomer}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Cliente
         </Button>
@@ -140,9 +123,11 @@ const Customers = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Clientes Ativos
+                  Total de Pedidos
                 </p>
-                <p className="text-2xl font-bold text-success-600">{getActiveCustomers()}</p>
+                <p className="text-2xl font-bold text-success-600">
+                  {customers.reduce((sum: number, customer: Customer) => sum + customer.orders_count, 0)}
+                </p>
               </div>
               <User className="w-8 h-8 text-success-600" />
             </div>
@@ -183,19 +168,7 @@ const Customers = () => {
             </div>
             
             <div className="flex gap-2">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
-              >
-                {statuses.map(status => (
-                  <option key={status} value={status}>
-                    {status === 'Todos' ? 'Todos' : getStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
-              
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => refetch()}>
                 <Filter className="w-4 h-4" />
               </Button>
             </div>
@@ -208,84 +181,148 @@ const Customers = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Lista de Clientes ({filteredCustomers.length})
+            Lista de Clientes {!isLoading && `(${customers.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Contato</TableHead>
-                <TableHead>Localização</TableHead>
-                <TableHead>Pedidos</TableHead>
-                <TableHead>Total Gasto</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{customer.name}</div>
-                        <div className="text-sm text-slate-500">ID: {customer.id}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-3 h-3" />
-                        {customer.email}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-3 h-3" />
-                        {customer.phone}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                      <span>{customer.city}, {customer.state}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">{customer.totalOrders}</div>
-                      <div className="text-sm text-slate-500">Último: {customer.lastOrder}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    R$ {customer.totalSpent.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(customer.status)}>
-                      {getStatusLabel(customer.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-slate-500 mt-2">Carregando clientes...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+              <p className="text-red-600">Erro ao carregar clientes</p>
+              <Button onClick={() => refetch()} className="mt-2">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : customers.length === 0 ? (
+            <div className="text-center py-8">
+              <User className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500">Nenhum cliente encontrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Contato</TableHead>
+                  <TableHead>Localização</TableHead>
+                  <TableHead>Pedidos</TableHead>
+                  <TableHead>Total Gasto</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {customers.map((customer: Customer) => (
+                  <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">{customer.first_name} {customer.last_name}</div>
+                          <div className="text-sm text-slate-500">ID: {customer.id}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="w-3 h-3" />
+                          {customer.email}
+                        </div>
+                        {customer.billing.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Phone className="w-3 h-3" />
+                            {customer.billing.phone}
+                          </div>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-slate-400" />
+                        <span>{customer.billing.city}, {customer.billing.state}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{customer.orders_count}</div>
+                        <div className="text-sm text-slate-500">
+                          Desde {new Date(customer.date_created).toLocaleDateString('pt-BR')}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      R$ {parseFloat(customer.total_spent).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Visualizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Paginação */}
+      {!isLoading && customers.length > 0 && (
+        <div className="flex justify-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="px-4 py-2 text-sm">
+            Página {currentPage}
+          </span>
+          <Button 
+            variant="outline" 
+            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={customers.length < 20}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
+
+      {/* Dialogs */}
+      <CustomerDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        customer={selectedCustomer}
+        mode={dialogMode}
+      />
+
+      <CustomerDetails
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        customer={customerForDetails}
+      />
     </div>
   );
 };

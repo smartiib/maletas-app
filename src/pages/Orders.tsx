@@ -1,88 +1,40 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Eye, Edit, Truck, Package, User, Calendar } from 'lucide-react';
+import { Search, Filter, Eye, Edit, Plus, Truck, Package, User, Calendar, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-interface Order {
-  id: number;
-  customer: string;
-  email: string;
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentMethod: string;
-  items: number;
-  createdAt: string;
-}
+import { useOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { Order } from '@/services/woocommerce';
+import OrderDialog from '@/components/orders/OrderDialog';
+import OrderDetails from '@/components/orders/OrderDetails';
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('Todos');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [selectedOrder, setSelectedOrder] = useState<Order | undefined>();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [orderForDetails, setOrderForDetails] = useState<Order | null>(null);
 
-  // Mock data - em produção viria da API WooCommerce
-  const orders: Order[] = [
-    {
-      id: 1001,
-      customer: 'João Silva',
-      email: 'joao@email.com',
-      total: 5999.99,
-      status: 'processing',
-      paymentMethod: 'Cartão de Crédito',
-      items: 2,
-      createdAt: '2024-01-15 14:30'
-    },
-    {
-      id: 1002,
-      customer: 'Maria Santos',
-      email: 'maria@email.com',
-      total: 299.90,
-      status: 'shipped',
-      paymentMethod: 'PIX',
-      items: 1,
-      createdAt: '2024-01-14 09:15'
-    },
-    {
-      id: 1003,
-      customer: 'Pedro Costa',
-      email: 'pedro@email.com',
-      total: 8999.99,
-      status: 'delivered',
-      paymentMethod: 'Boleto',
-      items: 1,
-      createdAt: '2024-01-13 16:45'
-    },
-    {
-      id: 1004,
-      customer: 'Ana Oliveira',
-      email: 'ana@email.com',
-      total: 150.00,
-      status: 'pending',
-      paymentMethod: 'PIX',
-      items: 3,
-      createdAt: '2024-01-15 11:20'
-    }
-  ];
+  const { isConfigured } = useWooCommerceConfig();
+  const { data: orders = [], isLoading, error, refetch } = useOrders(currentPage, selectedStatus);
 
-  const statuses = ['Todos', 'pending', 'processing', 'shipped', 'delivered', 'cancelled'];
-
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.id.toString().includes(searchTerm);
-    const matchesStatus = selectedStatus === 'Todos' || order.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const statuses = ['', 'pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'shipped': return 'bg-purple-100 text-purple-800';
-      case 'delivered': return 'bg-success-100 text-success-800';
+      case 'on-hold': return 'bg-orange-100 text-orange-800';
+      case 'completed': return 'bg-success-100 text-success-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'refunded': return 'bg-purple-100 text-purple-800';
+      case 'failed': return 'bg-red-100 text-red-800';
       default: return 'bg-slate-100 text-slate-800';
     }
   };
@@ -91,16 +43,65 @@ const Orders = () => {
     switch (status) {
       case 'pending': return 'Pendente';
       case 'processing': return 'Processando';
-      case 'shipped': return 'Enviado';
-      case 'delivered': return 'Entregue';
+      case 'on-hold': return 'Em Espera';
+      case 'completed': return 'Completo';
       case 'cancelled': return 'Cancelado';
+      case 'refunded': return 'Reembolsado';
+      case 'failed': return 'Falhou';
       default: return status;
     }
   };
 
+  const handleCreateOrder = () => {
+    setSelectedOrder(undefined);
+    setDialogMode('create');
+    setDialogOpen(true);
+  };
+
+  const handleEditOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setDialogMode('edit');
+    setDialogOpen(true);
+  };
+
+  const handleViewOrder = (order: Order) => {
+    setOrderForDetails(order);
+    setDetailsOpen(true);
+  };
+
   const getTotalOrders = () => orders.length;
-  const getPendingOrders = () => orders.filter(o => o.status === 'pending').length;
-  const getTotalRevenue = () => orders.reduce((sum, order) => sum + order.total, 0);
+  const getPendingOrders = () => orders.filter((o: Order) => o.status === 'pending').length;
+  const getTotalRevenue = () => orders.reduce((sum: number, order: Order) => sum + parseFloat(order.total), 0);
+
+  if (!isConfigured) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              Pedidos
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400">
+              Gerencie todos os pedidos da sua loja
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">WooCommerce não configurado</h3>
+            <p className="text-slate-600 dark:text-slate-400 mb-4">
+              Configure sua integração com WooCommerce nas configurações para começar a gerenciar seus pedidos.
+            </p>
+            <Button onClick={() => window.location.href = '/configuracoes'}>
+              Ir para Configurações
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -114,6 +115,10 @@ const Orders = () => {
             Gerencie todos os pedidos da sua loja
           </p>
         </div>
+        <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateOrder}>
+          <Plus className="w-4 h-4 mr-2" />
+          Novo Pedido
+        </Button>
       </div>
 
       {/* KPIs */}
@@ -185,14 +190,15 @@ const Orders = () => {
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
               >
-                {statuses.map(status => (
+                <option value="">Todos os Status</option>
+                {statuses.slice(1).map(status => (
                   <option key={status} value={status}>
-                    {status === 'Todos' ? 'Todos' : getStatusLabel(status)}
+                    {getStatusLabel(status)}
                   </option>
                 ))}
               </select>
               
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => refetch()}>
                 <Filter className="w-4 h-4" />
               </Button>
             </div>
@@ -205,70 +211,127 @@ const Orders = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Lista de Pedidos ({filteredOrders.length})
+            Lista de Pedidos {!isLoading && `(${orders.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Pagamento</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <TableCell>
-                    <div>
-                      <div className="font-medium">#{order.id}</div>
-                      <div className="text-sm text-slate-500">{order.items} itens</div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{order.customer}</div>
-                        <div className="text-sm text-slate-500">{order.email}</div>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-semibold">
-                    R$ {order.total.toFixed(2)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getStatusColor(order.status)}>
-                      {getStatusLabel(order.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{order.paymentMethod}</TableCell>
-                  <TableCell className="text-sm text-slate-500">
-                    {order.createdAt}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-slate-500 mt-2">Carregando pedidos...</p>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+              <p className="text-red-600">Erro ao carregar pedidos</p>
+              <Button onClick={() => refetch()} className="mt-2">
+                Tentar novamente
+              </Button>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-500">Nenhum pedido encontrado</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pedido</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Pagamento</TableHead>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Ações</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {orders.map((order: Order) => (
+                  <TableRow key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">#{order.number}</div>
+                        <div className="text-sm text-slate-500">{order.line_items.length} itens</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="font-medium">{order.billing.first_name} {order.billing.last_name}</div>
+                          <div className="text-sm text-slate-500">{order.billing.email}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-semibold">
+                      {order.currency} {parseFloat(order.total).toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getStatusColor(order.status)}>
+                        {getStatusLabel(order.status)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{order.payment_method_title}</TableCell>
+                    <TableCell className="text-sm text-slate-500">
+                      {new Date(order.date_created).toLocaleDateString('pt-BR')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)}>
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      {/* Paginação */}
+      {!isLoading && orders.length > 0 && (
+        <div className="flex justify-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Anterior
+          </Button>
+          <span className="px-4 py-2 text-sm">
+            Página {currentPage}
+          </span>
+          <Button 
+            variant="outline" 
+            onClick={() => setCurrentPage(p => p + 1)}
+            disabled={orders.length < 20}
+          >
+            Próxima
+          </Button>
+        </div>
+      )}
+
+      {/* Dialogs */}
+      <OrderDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        order={selectedOrder}
+        mode={dialogMode}
+      />
+
+      <OrderDetails
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        order={orderForDetails}
+      />
     </div>
   );
 };
