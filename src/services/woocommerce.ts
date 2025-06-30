@@ -1,4 +1,3 @@
-
 import { toast } from '@/hooks/use-toast';
 
 export interface WooCommerceConfig {
@@ -22,6 +21,9 @@ export interface Product {
   categories: Array<{ id: number; name: string }>;
   images: Array<{ src: string; alt: string }>;
   date_created: string;
+  date_modified: string;
+  description: string;
+  short_description: string;
 }
 
 export interface Order {
