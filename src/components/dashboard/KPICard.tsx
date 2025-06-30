@@ -14,15 +14,19 @@ interface KPICardProps {
     isPositive: boolean;
   };
   className?: string;
+  style?: React.CSSProperties;
 }
 
-const KPICard = ({ title, value, subtitle, icon: Icon, trend, className }: KPICardProps) => {
+const KPICard = ({ title, value, subtitle, icon: Icon, trend, className, style }: KPICardProps) => {
   return (
-    <Card className={cn(
-      "relative overflow-hidden transition-all-smooth hover:shadow-lg hover:scale-105 cursor-pointer",
-      "bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900",
-      className
-    )}>
+    <Card 
+      className={cn(
+        "relative overflow-hidden transition-all-smooth hover:shadow-lg hover:scale-105 cursor-pointer",
+        "bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900",
+        className
+      )}
+      style={style}
+    >
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
