@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,11 +13,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { logger } from '@/services/logger';
+import { Product } from '@/services/woocommerce';
+import ProductDialog from '@/components/products/ProductDialog';
+import ProductDetails from '@/components/products/ProductDetails';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [productForDetails, setProductForDetails] = useState<Product | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: products = [], isLoading, error, refetch } = useProducts(currentPage, searchTerm, selectedStatus);
@@ -69,7 +76,24 @@ const Products = () => {
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setCurrentPage(1); // Reset para primeira página ao buscar
+    setCurrentPage(1);
+  };
+
+  const handleCreateProduct = () => {
+    setSelectedProduct(undefined);
+    setDialogMode('create');
+    setDialogOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setSelectedProduct(product);
+    setDialogMode('edit');
+    setDialogOpen(true);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    setProductForDetails(product);
+    setDetailsOpen(true);
   };
 
   if (!isConfigured) {
@@ -114,7 +138,7 @@ const Products = () => {
             Gerencie seu catálogo de produtos
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90">
+        <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateProduct}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Produto
         </Button>
@@ -243,11 +267,11 @@ const Products = () => {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewProduct(product)}>
                               <Eye className="w-4 h-4 mr-2" />
                               Visualizar
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
                             </DropdownMenuItem>
@@ -292,6 +316,20 @@ const Products = () => {
           </Button>
         </div>
       )}
+
+      {/* Dialogs */}
+      <ProductDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        product={selectedProduct}
+        mode={dialogMode}
+      />
+
+      <ProductDetails
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        product={productForDetails}
+      />
     </div>
   );
 };
