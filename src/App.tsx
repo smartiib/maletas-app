@@ -3,8 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import AuthProvider from "./components/auth/AuthProvider";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+import SupabaseAuthProvider from "./components/auth/SupabaseAuthProvider";
+import SupabaseProtectedRoute from "./components/auth/SupabaseProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -16,73 +16,38 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
-import ConfigGuard from "./components/auth/ConfigGuard";
+import Billing from "./pages/Billing";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
+      <SupabaseAuthProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
-              <ProtectedRoute>
+              <SupabaseProtectedRoute>
                 <DashboardLayout />
-              </ProtectedRoute>
+              </SupabaseProtectedRoute>
             }>
-              <Route index element={
-                <ProtectedRoute permission="dashboard">
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/produtos" element={
-                <ProtectedRoute permission="products">
-                  <Products />
-                </ProtectedRoute>
-              } />
-              <Route path="/pedidos" element={
-                <ProtectedRoute permission="orders">
-                  <Orders />
-                </ProtectedRoute>
-              } />
-              <Route path="/clientes" element={
-                <ProtectedRoute permission="customers">
-                  <Customers />
-                </ProtectedRoute>
-              } />
-              <Route path="/pos" element={
-                <ProtectedRoute permission="pos">
-                  <POS />
-                </ProtectedRoute>
-              } />
-              <Route path="/maletas" element={
-                <ProtectedRoute permission="maletas">
-                  <Maletas />
-                </ProtectedRoute>
-              } />
-              <Route path="/relatorios" element={
-                <ProtectedRoute permission="reports">
-                  <Reports />
-                </ProtectedRoute>
-              } />
-              <Route path="/logs" element={
-                <ProtectedRoute permission="logs">
-                  <Logs />
-                </ProtectedRoute>
-              } />
-              <Route path="/configuracoes" element={
-                <ConfigGuard>
-                  <Settings />
-                </ConfigGuard>
-              } />
+              <Route index element={<Dashboard />} />
+              <Route path="/produtos" element={<Products />} />
+              <Route path="/pedidos" element={<Orders />} />
+              <Route path="/clientes" element={<Customers />} />
+              <Route path="/pos" element={<POS />} />
+              <Route path="/maletas" element={<Maletas />} />
+              <Route path="/relatorios" element={<Reports />} />
+              <Route path="/logs" element={<Logs />} />
+              <Route path="/configuracoes" element={<Settings />} />
+              <Route path="/assinatura" element={<Billing />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
+      </SupabaseAuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

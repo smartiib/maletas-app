@@ -9,16 +9,263 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      organization_limits: {
+        Row: {
+          current_products: number
+          current_stores: number
+          current_users: number
+          id: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          current_products?: number
+          current_stores?: number
+          current_users?: number
+          id?: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          current_products?: number
+          current_stores?: number
+          current_users?: number
+          id?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_limits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          asaas_customer_id: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          asaas_customer_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          asaas_customer_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          amount: number
+          asaas_payment_id: string
+          created_at: string
+          id: string
+          payment_date: string | null
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          asaas_payment_id: string
+          created_at?: string
+          id?: string
+          payment_date?: string | null
+          status: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          asaas_payment_id?: string
+          created_at?: string
+          id?: string
+          payment_date?: string | null
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string
+          features: Json | null
+          id: string
+          max_products: number
+          max_stores: number
+          max_users: number
+          name: string
+          price_monthly: number
+          type: Database["public"]["Enums"]["subscription_plan_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          features?: Json | null
+          id?: string
+          max_products?: number
+          max_stores?: number
+          max_users?: number
+          name: string
+          price_monthly?: number
+          type: Database["public"]["Enums"]["subscription_plan_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          features?: Json | null
+          id?: string
+          max_products?: number
+          max_stores?: number
+          max_users?: number
+          name?: string
+          price_monthly?: number
+          type?: Database["public"]["Enums"]["subscription_plan_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          asaas_subscription_id: string | null
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          current_period_start: string
+          id: string
+          organization_id: string
+          plan_id: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          asaas_subscription_id?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          organization_id: string
+          plan_id: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asaas_subscription_id?: string | null
+          cancel_at_period_end?: boolean
+          created_at?: string
+          current_period_end?: string
+          current_period_start?: string
+          id?: string
+          organization_id?: string
+          plan_id?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_organizations: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_organizations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_organizations: {
+        Args: { user_uuid?: string }
+        Returns: string[]
+      }
+      user_belongs_to_organization: {
+        Args: { org_id: string; user_uuid?: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan_type: "trial" | "basic" | "professional" | "enterprise"
+      subscription_status:
+        | "active"
+        | "canceled"
+        | "past_due"
+        | "trialing"
+        | "incomplete"
+      user_role: "owner" | "admin" | "manager" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +380,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan_type: ["trial", "basic", "professional", "enterprise"],
+      subscription_status: [
+        "active",
+        "canceled",
+        "past_due",
+        "trialing",
+        "incomplete",
+      ],
+      user_role: ["owner", "admin", "manager", "user"],
+    },
   },
 } as const
