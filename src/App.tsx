@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -17,6 +16,7 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
+import ConfigGuard from "./components/auth/ConfigGuard";
 
 const queryClient = new QueryClient();
 
@@ -74,9 +74,9 @@ const App = () => (
                 </ProtectedRoute>
               } />
               <Route path="/configuracoes" element={
-                <ProtectedRoute permission="settings">
+                <ConfigGuard>
                   <Settings />
-                </ProtectedRoute>
+                </ConfigGuard>
               } />
             </Route>
             <Route path="*" element={<NotFound />} />
