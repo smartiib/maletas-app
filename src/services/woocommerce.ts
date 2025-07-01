@@ -124,6 +124,7 @@ export interface Customer {
   username: string;
   date_created: string;
   date_modified: string;
+  date_of_birth?: string; // Novo campo para data de nascimento
   billing: {
     first_name: string;
     last_name: string;
@@ -308,7 +309,25 @@ class WooCommerceAPI {
       ...(search && { search }),
     });
 
-    return this.makeRequest(`customers?${params}`);
+    const customers = await this.makeRequest(`customers?${params}`);
+    
+    // Adicionar data de nascimento dos meta_data se existir
+    return customers.map((customer: any) => ({
+      ...customer,
+      date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+    }));
+  }
+
+  async getBirthdayCustomers(month?: number): Promise<Customer[]> {
+    const customers = await this.getCustomers(1, 100); // Buscar mais clientes para filtrar
+    const currentMonth = month || new Date().getMonth() + 1;
+    
+    return customers.filter(customer => {
+      if (!customer.date_of_birth) return false;
+      
+      const birthDate = new Date(customer.date_of_birth);
+      return birthDate.getMonth() + 1 === currentMonth;
+    });
   }
 
   async getCustomer(id: number): Promise<Customer> {

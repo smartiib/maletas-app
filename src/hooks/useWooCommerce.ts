@@ -129,6 +129,14 @@ export const useCustomers = (page = 1, search = '') => {
   });
 };
 
+export const useBirthdayCustomers = (month?: number) => {
+  return useQuery({
+    queryKey: ['birthday-customers', month],
+    queryFn: () => wooCommerceAPI.getBirthdayCustomers(month),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+};
+
 export const useCustomer = (id: number) => {
   return useQuery({
     queryKey: ['customer', id],

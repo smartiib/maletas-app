@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign, Printer, User, UserPlus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useProducts, useCreateOrder } from '@/hooks/useWooCommerce';
+import { useProducts, useCreateOrder, useCustomers } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
@@ -17,18 +17,20 @@ interface CartItem extends Product {
   quantity: number;
   variation_id?: number;
   variation_attributes?: Array<{ name: string; value: string }>;
+  item_discount?: { type: 'percentage' | 'fixed'; value: number };
 }
 
 interface SavedCart {
   id: string;
   name: string;
   items: CartItem[];
-  discount: {
-    type: 'percentage' | 'fixed';
-    value: number;
-  };
-  notes: string;
   savedAt: Date;
+}
+
+interface PaymentMethod {
+  id: string;
+  name: string;
+  amount: number;
 }
 
 const POS = () => {
@@ -37,13 +39,21 @@ const POS = () => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMaletaDialog, setShowMaletaDialog] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('');
-  const [discount, setDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
-  const [notes, setNotes] = useState('');
   const [savedCarts, setSavedCarts] = useState<SavedCart[]>([]);
   const [showSavedCarts, setShowSavedCarts] = useState(false);
 
+  // Checkout modal states
+  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [isGuestSale, setIsGuestSale] = useState(false);
+  const [guestData, setGuestData] = useState({ name: '', email: '', phone: '' });
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
+    { id: '1', name: 'PIX', amount: 0 }
+  ]);
+  const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
+  const [notes, setNotes] = useState('');
+
   const { data: products = [], isLoading, error } = useProducts(1, searchTerm);
+  const { data: customers = [] } = useCustomers(1, '');
   const createOrder = useCreateOrder();
 
   // Carregar carrinhos salvos do localStorage
@@ -58,7 +68,8 @@ const POS = () => {
   const categories = ['Todos', ...Array.from(new Set(products.map(p => p.categories?.[0]?.name).filter(Boolean)))];
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = selectedCategory === 'Todos' || product.categories?.[0]?.name === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -82,45 +93,116 @@ const POS = () => {
         ...product, 
         quantity: 1,
         variation_id: variationId,
-        variation_attributes: variationAttributes
+        variation_attributes: variationAttributes,
+        item_discount: { type: 'percentage', value: 0 }
       }];
     });
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
+  const updateQuantity = (id: number, quantity: number, variationId?: number) => {
     if (quantity <= 0) {
-      removeFromCart(id);
+      removeFromCart(id, variationId);
       return;
     }
     setCart(currentCart =>
       currentCart.map(item =>
-        item.id === id ? { ...item, quantity } : item
+        item.id === id && item.variation_id === variationId
+          ? { ...item, quantity } 
+          : item
       )
     );
   };
 
-  const removeFromCart = (id: number) => {
-    setCart(currentCart => currentCart.filter(item => item.id !== id));
+  const removeFromCart = (id: number, variationId?: number) => {
+    setCart(currentCart => currentCart.filter(item => 
+      !(item.id === id && item.variation_id === variationId)
+    ));
+  };
+
+  const updateItemDiscount = (id: number, discount: { type: 'percentage' | 'fixed'; value: number }, variationId?: number) => {
+    setCart(currentCart =>
+      currentCart.map(item =>
+        item.id === id && item.variation_id === variationId
+          ? { ...item, item_discount: discount }
+          : item
+      )
+    );
+  };
+
+  const getItemTotal = (item: CartItem) => {
+    const basePrice = parseFloat(item.price) * item.quantity;
+    if (!item.item_discount || item.item_discount.value === 0) return basePrice;
+    
+    const discountAmount = item.item_discount.type === 'percentage' 
+      ? (basePrice * item.item_discount.value) / 100
+      : item.item_discount.value;
+    
+    return Math.max(0, basePrice - discountAmount);
   };
 
   const getSubtotal = () => {
-    return cart.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0);
+    return cart.reduce((total, item) => total + getItemTotal(item), 0);
   };
 
-  const getDiscountAmount = () => {
+  const getGlobalDiscountAmount = () => {
     const subtotal = getSubtotal();
-    if (discount.type === 'percentage') {
-      return (subtotal * discount.value) / 100;
+    if (globalDiscount.type === 'percentage') {
+      return (subtotal * globalDiscount.value) / 100;
     }
-    return discount.value;
+    return globalDiscount.value;
   };
 
   const getTotalPrice = () => {
-    return Math.max(0, getSubtotal() - getDiscountAmount());
+    return Math.max(0, getSubtotal() - getGlobalDiscountAmount());
   };
 
   const getTotalItems = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const addPaymentMethod = () => {
+    const newPayment: PaymentMethod = {
+      id: Date.now().toString(),
+      name: 'PIX',
+      amount: 0
+    };
+    setPaymentMethods([...paymentMethods, newPayment]);
+  };
+
+  const updatePaymentMethod = (id: string, field: string, value: any) => {
+    setPaymentMethods(payments =>
+      payments.map(payment =>
+        payment.id === id ? { ...payment, [field]: value } : payment
+      )
+    );
+  };
+
+  const removePaymentMethod = (id: string) => {
+    if (paymentMethods.length > 1) {
+      setPaymentMethods(payments => payments.filter(p => p.id !== id));
+    }
+  };
+
+  const getTotalPayments = () => {
+    return paymentMethods.reduce((total, payment) => total + payment.amount, 0);
+  };
+
+  const printReceipt = () => {
+    // Implementar impressão térmica Zebra
+    const receiptData = {
+      items: cart,
+      customer: isGuestSale ? guestData : selectedCustomer,
+      total: getTotalPrice(),
+      payments: paymentMethods,
+      date: new Date().toLocaleString('pt-BR')
+    };
+    
+    console.log('Printing receipt:', receiptData);
+    // Aqui você integraria com a API da impressora Zebra
+    toast({
+      title: "Recibo Enviado",
+      description: "Recibo foi enviado para a impressora térmica",
+    });
   };
 
   const saveCart = () => {
@@ -131,8 +213,6 @@ const POS = () => {
       id: Date.now().toString(),
       name: cartName,
       items: [...cart],
-      discount: { ...discount },
-      notes,
       savedAt: new Date()
     };
 
@@ -148,8 +228,6 @@ const POS = () => {
 
   const loadCart = (savedCart: SavedCart) => {
     setCart(savedCart.items);
-    setDiscount(savedCart.discount);
-    setNotes(savedCart.notes);
     setShowSavedCarts(false);
     
     toast({
@@ -165,10 +243,22 @@ const POS = () => {
   };
 
   const finalizePurchase = async () => {
-    if (!paymentMethod) {
+    const totalPayments = getTotalPayments();
+    const orderTotal = getTotalPrice();
+    
+    if (Math.abs(totalPayments - orderTotal) > 0.01) {
       toast({
         title: "Erro",
-        description: "Selecione um método de pagamento",
+        description: "O valor total dos pagamentos deve ser igual ao valor do pedido",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!isGuestSale && !selectedCustomer) {
+      toast({
+        title: "Erro",
+        description: "Selecione um cliente ou marque como venda de convidado",
         variant: "destructive"
       });
       return;
@@ -176,25 +266,35 @@ const POS = () => {
 
     try {
       const orderData = {
-        payment_method: paymentMethod,
-        payment_method_title: paymentMethod,
+        payment_method: paymentMethods.map(p => p.name).join(', '),
+        payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
         status: 'processing' as const,
         line_items: cart.map(item => ({
           product_id: item.id,
           variation_id: item.variation_id || 0,
           quantity: item.quantity,
           name: item.name,
-          total: (parseFloat(item.price) * item.quantity).toString()
+          total: getItemTotal(item).toFixed(2)
         })),
-        billing: {
-          first_name: 'POS',
-          last_name: 'Customer',
-          email: 'pos@loja.com',
-          phone: '',
+        billing: isGuestSale ? {
+          first_name: guestData.name.split(' ')[0] || 'Convidado',
+          last_name: guestData.name.split(' ').slice(1).join(' ') || '',
+          email: guestData.email || 'convidado@loja.com',
+          phone: guestData.phone || '',
           address_1: 'Loja Física',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
+          country: 'BR'
+        } : {
+          first_name: selectedCustomer.first_name,
+          last_name: selectedCustomer.last_name,
+          email: selectedCustomer.email,
+          phone: selectedCustomer.billing?.phone || '',
+          address_1: selectedCustomer.billing?.address_1 || 'Loja Física',
+          city: selectedCustomer.billing?.city || 'Cidade',
+          state: selectedCustomer.billing?.state || 'Estado',
+          postcode: selectedCustomer.billing?.postcode || '00000-000',
           country: 'BR'
         },
         customer_note: notes,
@@ -203,11 +303,14 @@ const POS = () => {
 
       await createOrder.mutateAsync(orderData);
       
-      // Limpar carrinho após finalização
+      // Limpar dados após finalização
       setCart([]);
-      setDiscount({ type: 'percentage', value: 0 });
+      setGlobalDiscount({ type: 'percentage', value: 0 });
       setNotes('');
-      setPaymentMethod('');
+      setPaymentMethods([{ id: '1', name: 'PIX', amount: 0 }]);
+      setSelectedCustomer(null);
+      setIsGuestSale(false);
+      setGuestData({ name: '', email: '', phone: '' });
       setShowCheckout(false);
 
       toast({
@@ -225,7 +328,7 @@ const POS = () => {
 
   const clearCart = () => {
     setCart([]);
-    setDiscount({ type: 'percentage', value: 0 });
+    setGlobalDiscount({ type: 'percentage', value: 0 });
     setNotes('');
   };
 
@@ -281,7 +384,7 @@ const POS = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
               <Input
-                placeholder="Buscar produtos..."
+                placeholder="Buscar produtos por nome ou SKU..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 h-12 text-lg"
@@ -375,14 +478,24 @@ const POS = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {cart.map(item => (
-                  <div key={item.id} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
+                {cart.map((item, index) => (
+                  <div key={`${item.id}-${item.variation_id || 0}-${index}`} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-sm">{item.name}</h4>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">{item.name}</h4>
+                        {item.sku && (
+                          <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                        )}
+                        {item.variation_attributes && (
+                          <p className="text-xs text-slate-600">
+                            {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
+                          </p>
+                        )}
+                      </div>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeFromCart(item.id)}
+                        onClick={() => removeFromCart(item.id, item.variation_id)}
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -393,7 +506,7 @@ const POS = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.variation_id)}
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
@@ -403,14 +516,14 @@ const POS = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.variation_id)}
                         >
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                       
                       <p className="font-bold">
-                        R$ {(parseFloat(item.price) * item.quantity).toFixed(2)}
+                        R$ {getItemTotal(item).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -422,54 +535,11 @@ const POS = () => {
           {/* Footer do Carrinho */}
           {cart.length > 0 && (
             <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
-              {/* Desconto */}
-              <div className="space-y-2">
-                <Label>Desconto</Label>
-                <div className="flex gap-2">
-                  <Select value={discount.type} onValueChange={(value: 'percentage' | 'fixed') => setDiscount({...discount, type: value})}>
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="percentage">%</SelectItem>
-                      <SelectItem value="fixed">R$</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    placeholder="0"
-                    value={discount.value}
-                    onChange={(e) => setDiscount({...discount, value: parseFloat(e.target.value) || 0})}
-                  />
-                </div>
-              </div>
-
-              {/* Observações */}
-              <div className="space-y-2">
-                <Label>Observações</Label>
-                <Textarea
-                  placeholder="Observações do pedido..."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="h-16"
-                />
-              </div>
-
-              {/* Totais */}
-              <div className="space-y-2 text-sm">
+              {/* Total */}
+              <div className="text-lg font-bold border-t pt-2">
                 <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>R$ {getSubtotal().toFixed(2)}</span>
-                </div>
-                {discount.value > 0 && (
-                  <div className="flex justify-between text-red-600">
-                    <span>Desconto ({discount.type === 'percentage' ? `${discount.value}%` : `R$ ${discount.value}`}):</span>
-                    <span>-R$ {getDiscountAmount().toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-lg font-bold border-t pt-2">
                   <span>Total:</span>
-                  <span className="text-primary">R$ {getTotalPrice().toFixed(2)}</span>
+                  <span>R$ {getSubtotal().toFixed(2)}</span>
                 </div>
               </div>
               
@@ -502,58 +572,266 @@ const POS = () => {
         </div>
       </div>
 
-      {/* Modal de Checkout */}
+      {/* Modal de Checkout Completo */}
       {showCheckout && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">Finalizar Pedido</h3>
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-semibold mb-6">Finalizar Pedido</h3>
             
-            <div className="space-y-4">
-              <div>
-                <Label>Método de Pagamento</Label>
-                <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pix" id="pix" />
-                    <Label htmlFor="pix">PIX</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="boleto" id="boleto" />
-                    <Label htmlFor="boleto">Boleto</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="cartao_credito" id="cartao_credito" />
-                    <Label htmlFor="cartao_credito">Cartão de Crédito</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="dinheiro" id="dinheiro" />
-                    <Label htmlFor="dinheiro">Dinheiro</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Coluna Esquerda - Produtos e Descontos */}
+              <div className="space-y-4">
+                <h4 className="font-semibold">Itens do Pedido</h4>
+                
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {cart.map((item, index) => (
+                    <div key={`${item.id}-${item.variation_id || 0}-${index}`} className="bg-slate-50 dark:bg-slate-700 p-3 rounded">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.name}</p>
+                          {item.sku && <p className="text-xs text-slate-500">SKU: {item.sku}</p>}
+                          <p className="text-sm">Qtd: {item.quantity} x R$ {parseFloat(item.price).toFixed(2)}</p>
+                        </div>
+                        <p className="font-bold">R$ {getItemTotal(item).toFixed(2)}</p>
+                      </div>
+                      
+                      {/* Desconto por item */}
+                      <div className="flex gap-2 mt-2">
+                        <Select 
+                          value={item.item_discount?.type || 'percentage'} 
+                          onValueChange={(value: 'percentage' | 'fixed') => 
+                            updateItemDiscount(item.id, { ...item.item_discount!, type: value }, item.variation_id)
+                          }
+                        >
+                          <SelectTrigger className="w-16">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="percentage">%</SelectItem>
+                            <SelectItem value="fixed">R$</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={item.item_discount?.value || 0}
+                          onChange={(e) => 
+                            updateItemDiscount(item.id, { 
+                              type: item.item_discount?.type || 'percentage', 
+                              value: parseFloat(e.target.value) || 0 
+                            }, item.variation_id)
+                          }
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-              <div className="bg-slate-50 dark:bg-slate-700 p-4 rounded">
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total a Pagar:</span>
-                  <span className="text-primary">R$ {getTotalPrice().toFixed(2)}</span>
+                {/* Desconto Geral */}
+                <div className="border-t pt-4">
+                  <Label className="text-sm font-medium">Desconto Geral</Label>
+                  <div className="flex gap-2 mt-2">
+                    <Select value={globalDiscount.type} onValueChange={(value: 'percentage' | 'fixed') => setGlobalDiscount({...globalDiscount, type: value})}>
+                      <SelectTrigger className="w-20">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="percentage">%</SelectItem>
+                        <SelectItem value="fixed">R$</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={globalDiscount.value}
+                      onChange={(e) => setGlobalDiscount({...globalDiscount, value: parseFloat(e.target.value) || 0})}
+                      className="flex-1"
+                    />
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="bg-slate-100 dark:bg-slate-700 p-4 rounded font-bold text-lg">
+                  <div className="flex justify-between mb-2">
+                    <span>Subtotal:</span>
+                    <span>R$ {getSubtotal().toFixed(2)}</span>
+                  </div>
+                  {globalDiscount.value > 0 && (
+                    <div className="flex justify-between mb-2 text-red-600">
+                      <span>Desconto ({globalDiscount.type === 'percentage' ? `${globalDiscount.value}%` : `R$ ${globalDiscount.value}`}):</span>
+                      <span>-R$ {getGlobalDiscountAmount().toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-xl border-t pt-2">
+                    <span>Total:</span>
+                    <span className="text-primary">R$ {getTotalPrice().toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowCheckout(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="flex-1 bg-gradient-success"
-                  onClick={finalizePurchase}
-                  disabled={createOrder.isPending}
-                >
-                  {createOrder.isPending ? 'Processando...' : 'Confirmar'}
-                </Button>
+              {/* Coluna Direita - Cliente e Pagamento */}
+              <div className="space-y-4">
+                {/* Cliente */}
+                <div>
+                  <Label className="text-sm font-medium">Cliente</Label>
+                  <div className="space-y-3 mt-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="existing-customer"
+                        checked={!isGuestSale}
+                        onChange={() => setIsGuestSale(false)}
+                      />
+                      <Label htmlFor="existing-customer">Cliente Cadastrado</Label>
+                    </div>
+                    
+                    {!isGuestSale && (
+                      <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
+                        const customer = customers.find(c => c.id.toString() === value);
+                        setSelectedCustomer(customer);
+                      }}>
+                        <SelectTrigger>
+                          <User className="w-4 h-4 mr-2" />
+                          <SelectValue placeholder="Selecionar cliente" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {customers.map(customer => (
+                            <SelectItem key={customer.id} value={customer.id.toString()}>
+                              {customer.first_name} {customer.last_name} - {customer.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        id="guest-customer"
+                        checked={isGuestSale}
+                        onChange={() => setIsGuestSale(true)}
+                      />
+                      <Label htmlFor="guest-customer">Venda como Convidado</Label>
+                    </div>
+
+                    {isGuestSale && (
+                      <div className="space-y-2">
+                        <Input
+                          placeholder="Nome do cliente"
+                          value={guestData.name}
+                          onChange={(e) => setGuestData({...guestData, name: e.target.value})}
+                        />
+                        <Input
+                          placeholder="Email (opcional)"
+                          value={guestData.email}
+                          onChange={(e) => setGuestData({...guestData, email: e.target.value})}
+                        />
+                        <Input
+                          placeholder="Telefone (opcional)"
+                          value={guestData.phone}
+                          onChange={(e) => setGuestData({...guestData, phone: e.target.value})}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Formas de Pagamento */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-sm font-medium">Formas de Pagamento</Label>
+                    <Button size="sm" onClick={addPaymentMethod}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {paymentMethods.map((payment, index) => (
+                      <div key={payment.id} className="flex gap-2">
+                        <Select value={payment.name} onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PIX">PIX</SelectItem>
+                            <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                            <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                            <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                            <SelectItem value="Boleto">Boleto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          placeholder="Valor"
+                          value={payment.amount}
+                          onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
+                          className="w-32"
+                        />
+                        {paymentMethods.length > 1 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removePaymentMethod(payment.id)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="text-sm mt-2">
+                    <div className="flex justify-between">
+                      <span>Total a Pagar:</span>
+                      <span>R$ {getTotalPrice().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Pagamentos:</span>
+                      <span className={getTotalPayments() === getTotalPrice() ? 'text-green-600' : 'text-red-600'}>
+                        R$ {getTotalPayments().toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Observações */}
+                <div>
+                  <Label className="text-sm font-medium">Observações</Label>
+                  <Textarea
+                    placeholder="Observações do pedido..."
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="h-20 mt-2"
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Botões de Ação */}
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowCheckout(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={printReceipt}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Imprimir
+              </Button>
+              <Button
+                className="flex-1 bg-gradient-success"
+                onClick={finalizePurchase}
+                disabled={createOrder.isPending}
+              >
+                {createOrder.isPending ? 'Processando...' : 'Confirmar Pedido'}
+              </Button>
             </div>
           </div>
         </div>
@@ -629,6 +907,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
           <h3 className="font-semibold text-sm mb-1 line-clamp-2">
             {product.name}
           </h3>
+          {product.sku && (
+            <p className="text-xs text-slate-500 mb-1">SKU: {product.sku}</p>
+          )}
           <p className="text-lg font-bold text-primary mb-1">
             R$ {parseFloat(product.price || '0').toFixed(2)}
           </p>

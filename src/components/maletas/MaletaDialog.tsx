@@ -6,265 +6,247 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
-import { CalendarIcon, User, Package, Calculator } from 'lucide-react';
-import { format, addDays } from 'date-fns';
+import { Calendar, Package, User } from 'lucide-react';
+import { useRepresentatives, useCreateMaleta } from '@/hooks/useMaletas';
+import { toast } from '@/hooks/use-toast';
+import { addDays, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { useCustomers, useProducts } from '@/hooks/useWooCommerce';
-import { useRepresentatives, useCreateMaleta, useCommissionCalculator } from '@/hooks/useMaletas';
-import { CreateMaletaData } from '@/services/maletas';
-
-interface CartItem {
-  product_id: number;
-  variation_id?: number;
-  name: string;
-  price: string;
-  quantity: number;
-}
 
 interface MaletaDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  cartItems: CartItem[];
+  cartItems: Array<{
+    product_id: number;
+    variation_id?: number;
+    name: string;
+    price: string;
+    quantity: number;
+  }>;
   onClearCart: () => void;
 }
 
-const MaletaDialog: React.FC<MaletaDialogProps> = ({ 
-  open, 
-  onOpenChange, 
+const MaletaDialog: React.FC<MaletaDialogProps> = ({
+  open,
+  onOpenChange,
   cartItems,
-  onClearCart 
+  onClearCart
 }) => {
   const [selectedRepresentative, setSelectedRepresentative] = useState<number>(0);
-  const [selectedCustomer, setSelectedCustomer] = useState<number>(0);
-  const [returnDate, setReturnDate] = useState<Date>(addDays(new Date(), 30));
-  const [useGlobalCommission, setUseGlobalCommission] = useState(true);
-  const [customCommission, setCustomCommission] = useState<number>(0);
+  const [returnDate, setReturnDate] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
-  const [defaultDeadlineDays, setDefaultDeadlineDays] = useState(30);
+  const [customCommission, setCustomCommission] = useState(false);
+  const [commissionPercentage, setCommissionPercentage] = useState(0);
 
-  const { data: representatives = [] } = useRepresentatives();
-  const { data: customers = [] } = useCustomers();
+  const { data: representatives = [] } = useRepresentatives(1, '');
   const createMaleta = useCreateMaleta();
-  const { calculateCommission } = useCommissionCalculator();
 
   const getTotalValue = () => {
-    return cartItems.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0);
-  };
-
-  const getCommissionPreview = () => {
-    const total = getTotalValue();
-    if (total === 0) return null;
-    
-    return calculateCommission(total, undefined, 0);
+    return cartItems.reduce((total, item) => {
+      return total + (parseFloat(item.price) * item.quantity);
+    }, 0);
   };
 
   const handleCreateMaleta = async () => {
-    if (!selectedRepresentative || !selectedCustomer || cartItems.length === 0) {
+    if (!selectedRepresentative) {
+      toast({
+        title: "Erro",
+        description: "Selecione um representante",
+        variant: "destructive"
+      });
       return;
     }
 
-    const maletaData: CreateMaletaData = {
-      representative_id: selectedRepresentative,
-      customer_id: selectedCustomer,
-      return_date: format(returnDate, 'yyyy-MM-dd'),
-      items: cartItems.map(item => ({
-        product_id: item.product_id,
-        variation_id: item.variation_id,
-        quantity: item.quantity,
-        price: item.price,
-      })),
-      commission_settings: {
-        use_global: useGlobalCommission,
-        custom_percentage: useGlobalCommission ? undefined : customCommission,
-      },
-      notes,
-    };
+    if (!returnDate) {
+      toast({
+        title: "Erro",
+        description: "Defina a data de devolução",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
+      const maletaData = {
+        representative_id: selectedRepresentative,
+        customer_id: 0, // Não utilizado para maletas
+        return_date: returnDate,
+        items: cartItems.map(item => ({
+          product_id: item.product_id,
+          variation_id: item.variation_id,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        commission_settings: customCommission ? {
+          use_global: false,
+          custom_percentage: commissionPercentage
+        } : {
+          use_global: true
+        },
+        notes
+      };
+
       await createMaleta.mutateAsync(maletaData);
+      
+      // Limpar formulário e carrinho
+      setSelectedRepresentative(0);
+      setReturnDate(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
+      setNotes('');
+      setCustomCommission(false);
+      setCommissionPercentage(0);
       onClearCart();
       onOpenChange(false);
-      resetForm();
+
+      toast({
+        title: "Maleta Criada",
+        description: "Maleta foi criada com sucesso e produtos foram reduzidos do estoque!",
+      });
     } catch (error) {
-      console.error('Erro ao criar maleta:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar maleta",
+        variant: "destructive"
+      });
     }
   };
 
-  const resetForm = () => {
+  const handleClose = () => {
+    // Resetar formulário ao fechar
     setSelectedRepresentative(0);
-    setSelectedCustomer(0);
-    setReturnDate(addDays(new Date(), defaultDeadlineDays));
-    setUseGlobalCommission(true);
-    setCustomCommission(0);
+    setReturnDate(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
     setNotes('');
+    setCustomCommission(false);
+    setCommissionPercentage(0);
+    onOpenChange(false);
   };
 
-  const commissionPreview = getCommissionPreview();
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Criar Nova Maleta de Consignação
+            Criar Maleta de Consignação
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Resumo do Carrinho */}
+          {/* Resumo dos Produtos */}
           <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-            <h3 className="font-semibold mb-2">Produtos Selecionados</h3>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
+            <h3 className="font-semibold mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Produtos da Maleta ({cartItems.length} itens)
+            </h3>
+            
+            <div className="space-y-2 max-h-40 overflow-y-auto">
               {cartItems.map((item, index) => (
-                <div key={index} className="flex justify-between text-sm">
-                  <span>{item.name} x{item.quantity}</span>
-                  <span>R$ {(parseFloat(item.price) * item.quantity).toFixed(2)}</span>
+                <div key={index} className="flex justify-between items-center text-sm">
+                  <div className="flex-1">
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-slate-500">Qtd: {item.quantity}</p>
+                  </div>
+                  <p className="font-bold">
+                    R$ {(parseFloat(item.price) * item.quantity).toFixed(2)}
+                  </p>
                 </div>
               ))}
             </div>
-            <div className="border-t pt-2 mt-2 font-bold">
-              Total: R$ {getTotalValue().toFixed(2)}
+            
+            <div className="border-t pt-3 mt-3">
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total da Maleta:</span>
+                <span className="text-primary">R$ {getTotalValue().toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
           {/* Seleção de Representante */}
           <div className="space-y-2">
-            <Label className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Representante *
-            </Label>
+            <Label htmlFor="representative">Representante *</Label>
             <Select value={selectedRepresentative.toString()} onValueChange={(value) => setSelectedRepresentative(parseInt(value))}>
               <SelectTrigger>
-                <SelectValue placeholder="Selecione o representante" />
+                <User className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Selecionar representante" />
               </SelectTrigger>
               <SelectContent>
-                {representatives.map((rep) => (
-                  <SelectItem key={rep.id} value={rep.id.toString()}>
-                    {rep.name} - {rep.email}
+                {representatives.map(representative => (
+                  <SelectItem key={representative.id} value={representative.id.toString()}>
+                    {representative.name} - {representative.email}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {representatives.length === 0 && (
+              <p className="text-sm text-amber-600">
+                Nenhum representante cadastrado. Cadastre representantes primeiro.
+              </p>
+            )}
           </div>
 
-          {/* Seleção de Cliente */}
+          {/* Data de Devolução */}
           <div className="space-y-2">
-            <Label>Cliente *</Label>
-            <Select value={selectedCustomer.toString()} onValueChange={(value) => setSelectedCustomer(parseInt(value))}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                {customers.map((customer) => (
-                  <SelectItem key={customer.id} value={customer.id.toString()}>
-                    {customer.first_name} {customer.last_name} - {customer.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label htmlFor="return-date">Data de Devolução *</Label>
+            <div className="relative">
+              <Input
+                id="return-date"
+                type="date"
+                value={returnDate}
+                onChange={(e) => setReturnDate(e.target.value)}
+                min={format(new Date(), 'yyyy-MM-dd')}
+              />
+              <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+            </div>
+            <p className="text-sm text-slate-500">
+              Padrão: 30 dias ({format(addDays(new Date(), 30), 'dd/MM/yyyy', { locale: ptBR })})
+            </p>
           </div>
 
-          {/* Configuração de Prazo */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Configurações de Comissão */}
+          <div className="space-y-3">
+            <Label>Configurações de Comissão</Label>
+            
             <div className="space-y-2">
-              <Label>Prazo Padrão (dias)</Label>
-              <Select value={defaultDeadlineDays.toString()} onValueChange={(value) => {
-                const days = parseInt(value);
-                setDefaultDeadlineDays(days);
-                setReturnDate(addDays(new Date(), days));
-              }}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="30">30 dias</SelectItem>
-                  <SelectItem value="60">60 dias</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Data de Devolução *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left font-normal"
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(returnDate, 'dd/MM/yyyy', { locale: ptBR })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    selected={returnDate}
-                    onSelect={(date) => date && setReturnDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          {/* Configuração de Comissão */}
-          <div className="space-y-4 p-4 border rounded-lg">
-            <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-2">
-                <Calculator className="w-4 h-4" />
-                Configuração de Comissão
-              </Label>
               <div className="flex items-center space-x-2">
-                <Label htmlFor="global-commission" className="text-sm">
-                  Usar configuração global
-                </Label>
-                <Switch
+                <input
+                  type="radio"
                   id="global-commission"
-                  checked={useGlobalCommission}
-                  onCheckedChange={setUseGlobalCommission}
+                  checked={!customCommission}
+                  onChange={() => setCustomCommission(false)}
                 />
+                <Label htmlFor="global-commission">Usar comissão global (padrão)</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="custom-commission"
+                  checked={customCommission}
+                  onChange={() => setCustomCommission(true)}
+                />
+                <Label htmlFor="custom-commission">Comissão personalizada</Label>
               </div>
             </div>
 
-            {!useGlobalCommission && (
-              <div className="space-y-2">
-                <Label>Percentual Personalizado (%)</Label>
+            {customCommission && (
+              <div className="ml-6 space-y-2">
+                <Label htmlFor="commission-percentage">Percentual de Comissão (%)</Label>
                 <Input
+                  id="commission-percentage"
                   type="number"
+                  placeholder="Ex: 25"
+                  value={commissionPercentage}
+                  onChange={(e) => setCommissionPercentage(parseFloat(e.target.value) || 0)}
                   min="0"
                   max="100"
-                  step="0.1"
-                  value={customCommission}
-                  onChange={(e) => setCustomCommission(parseFloat(e.target.value) || 0)}
-                  placeholder="Ex: 25.5"
                 />
-              </div>
-            )}
-
-            {/* Preview da Comissão */}
-            {commissionPreview && (
-              <div className="bg-primary/10 p-3 rounded">
-                <h4 className="font-semibold text-sm mb-2">Preview da Comissão</h4>
-                <div className="text-xs space-y-1">
-                  <div>Faixa: {commissionPreview.commission_tier.label}</div>
-                  <div>Percentual: {commissionPreview.commission_tier.percentage}%</div>
-                  <div>Bônus: R$ {commissionPreview.commission_tier.bonus.toFixed(2)}</div>
-                  <div className="font-semibold">
-                    Comissão Total: R$ {commissionPreview.commission_amount.toFixed(2)}
-                  </div>
-                </div>
               </div>
             )}
           </div>
 
           {/* Observações */}
           <div className="space-y-2">
-            <Label>Observações</Label>
+            <Label htmlFor="notes">Observações</Label>
             <Textarea
+              id="notes"
               placeholder="Observações sobre a maleta..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -272,23 +254,37 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
             />
           </div>
 
-          {/* Ações */}
-          <div className="flex gap-2 pt-4">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button
-              className="flex-1 bg-gradient-primary"
-              onClick={handleCreateMaleta}
-              disabled={!selectedRepresentative || !selectedCustomer || cartItems.length === 0 || createMaleta.isPending}
-            >
-              {createMaleta.isPending ? 'Criando...' : 'Criar Maleta'}
-            </Button>
+          {/* Informações sobre o Sistema */}
+          <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg text-sm">
+            <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
+              Como funciona a Maleta de Consignação:
+            </h4>
+            <ul className="text-blue-700 dark:text-blue-300 space-y-1">
+              <li>• Os produtos serão reduzidos do estoque imediatamente</li>
+              <li>• O representante terá até a data de devolução para retornar</li>
+              <li>• Na devolução, você definirá quais produtos foram vendidos</li>
+              <li>• Produtos não vendidos retornarão ao estoque</li>
+              <li>• Comissão será calculada apenas sobre produtos vendidos</li>
+            </ul>
           </div>
+        </div>
+
+        {/* Botões de Ação */}
+        <div className="flex gap-3 pt-4 border-t">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleClose}
+          >
+            Cancelar
+          </Button>
+          <Button
+            className="flex-1 bg-gradient-primary"
+            onClick={handleCreateMaleta}
+            disabled={createMaleta.isPending || !selectedRepresentative || !returnDate}
+          >
+            {createMaleta.isPending ? 'Criando...' : 'Criar Maleta'}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
