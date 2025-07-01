@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useProducts, useCreateOrder } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
+import MaletaDialog from '@/components/maletas/MaletaDialog';
 
 interface CartItem extends Product {
   quantity: number;
@@ -35,6 +36,7 @@ const POS = () => {
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [showMaletaDialog, setShowMaletaDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('');
   const [discount, setDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
@@ -219,6 +221,12 @@ const POS = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setDiscount({ type: 'percentage', value: 0 });
+    setNotes('');
   };
 
   if (isLoading) {
@@ -465,21 +473,27 @@ const POS = () => {
                 </div>
               </div>
               
-              <Button 
-                className="w-full bg-gradient-success hover:opacity-90 h-12 text-lg"
-                onClick={() => setShowCheckout(true)}
-              >
-                Finalizar Pedido
-              </Button>
+              <div className="space-y-2">
+                <Button 
+                  className="w-full bg-gradient-success hover:opacity-90 h-12 text-lg"
+                  onClick={() => setShowCheckout(true)}
+                >
+                  Finalizar Pedido
+                </Button>
+                
+                <Button 
+                  className="w-full bg-gradient-primary hover:opacity-90 h-12 text-lg"
+                  onClick={() => setShowMaletaDialog(true)}
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  Criar Maleta
+                </Button>
+              </div>
               
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => {
-                  setCart([]);
-                  setDiscount({ type: 'percentage', value: 0 });
-                  setNotes('');
-                }}
+                onClick={clearCart}
               >
                 Limpar Carrinho
               </Button>
@@ -544,6 +558,20 @@ const POS = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Maleta */}
+      <MaletaDialog
+        open={showMaletaDialog}
+        onOpenChange={setShowMaletaDialog}
+        cartItems={cart.map(item => ({
+          product_id: item.id,
+          variation_id: item.variation_id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+        }))}
+        onClearCart={clearCart}
+      />
     </div>
   );
 };
