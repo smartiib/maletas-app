@@ -7,10 +7,22 @@ export interface WooCommerceConfig {
   webhookSecret?: string;
 }
 
+export interface ProductVariation {
+  id: number;
+  sku: string;
+  price: string;
+  regular_price: string;
+  sale_price: string;
+  stock_quantity: number;
+  stock_status: 'instock' | 'outofstock' | 'onbackorder';
+  attributes: Array<{ name: string; option: string }>;
+}
+
 export interface Product {
   id: number;
   name: string;
   slug: string;
+  type: 'simple' | 'variable' | 'grouped' | 'external';
   sku: string;
   price: string;
   regular_price: string;
@@ -24,6 +36,7 @@ export interface Product {
   date_modified: string;
   description: string;
   short_description: string;
+  variations?: ProductVariation[];
 }
 
 export interface Order {
@@ -159,11 +172,44 @@ class WooCommerceAPI {
       ...(status && { status }),
     });
 
-    return this.makeRequest(`products?${params}`);
+    const products = await this.makeRequest(`products?${params}`);
+    
+    // Para produtos variáveis, buscar as variações
+    const productsWithVariations = await Promise.all(
+      products.map(async (product: Product) => {
+        if (product.type === 'variable') {
+          try {
+            const variations = await this.getProductVariations(product.id);
+            return { ...product, variations };
+          } catch (error) {
+            console.error(`Error fetching variations for product ${product.id}:`, error);
+            return product;
+          }
+        }
+        return product;
+      })
+    );
+
+    return productsWithVariations;
   }
 
   async getProduct(id: number): Promise<Product> {
-    return this.makeRequest(`products/${id}`);
+    const product = await this.makeRequest(`products/${id}`);
+    
+    if (product.type === 'variable') {
+      try {
+        const variations = await this.getProductVariations(id);
+        return { ...product, variations };
+      } catch (error) {
+        console.error(`Error fetching variations for product ${id}:`, error);
+      }
+    }
+    
+    return product;
+  }
+
+  async getProductVariations(productId: number): Promise<ProductVariation[]> {
+    return this.makeRequest(`products/${productId}/variations`);
   }
 
   async createProduct(product: Partial<Product>): Promise<Product> {

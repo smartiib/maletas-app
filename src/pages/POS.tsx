@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +14,8 @@ import { toast } from '@/hooks/use-toast';
 
 interface CartItem extends Product {
   quantity: number;
+  variation_id?: number;
+  variation_attributes?: Array<{ name: string; value: string }>;
 }
 
 interface SavedCart {
@@ -60,17 +61,27 @@ const POS = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, variationId?: number, variationAttributes?: Array<{ name: string; value: string }>) => {
     setCart(currentCart => {
-      const existingItem = currentCart.find(item => item.id === product.id);
+      const existingItem = currentCart.find(item => 
+        item.id === product.id && 
+        item.variation_id === variationId
+      );
+      
       if (existingItem) {
         return currentCart.map(item =>
-          item.id === product.id
+          item.id === product.id && item.variation_id === variationId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      return [...currentCart, { ...product, quantity: 1 }];
+      
+      return [...currentCart, { 
+        ...product, 
+        quantity: 1,
+        variation_id: variationId,
+        variation_attributes: variationAttributes
+      }];
     });
   };
 
@@ -165,9 +176,10 @@ const POS = () => {
       const orderData = {
         payment_method: paymentMethod,
         payment_method_title: paymentMethod,
-        status: 'processing',
+        status: 'processing' as const,
         line_items: cart.map(item => ({
           product_id: item.id,
+          variation_id: item.variation_id || 0,
           quantity: item.quantity,
           name: item.name,
           total: (parseFloat(item.price) * item.quantity).toString()
@@ -316,34 +328,11 @@ const POS = () => {
           {/* Grid de Produtos */}
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filteredProducts.map(product => (
-              <Card
+              <ProductCard
                 key={product.id}
-                className="cursor-pointer hover:shadow-lg transition-all-smooth hover:scale-105"
-                onClick={() => addToCart(product)}
-              >
-                <CardContent className="p-4">
-                  <div className="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg mb-3 flex items-center justify-center">
-                    {product.images?.[0]?.src ? (
-                      <img 
-                        src={product.images[0].src} 
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <Package className="w-12 h-12 text-slate-400" />
-                    )}
-                  </div>
-                  <h3 className="font-semibold text-sm mb-1 line-clamp-2">
-                    {product.name}
-                  </h3>
-                  <p className="text-lg font-bold text-primary mb-1">
-                    R$ {parseFloat(product.price || '0').toFixed(2)}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Estoque: {product.stock_quantity || 0}
-                  </p>
-                </CardContent>
-              </Card>
+                product={product}
+                onAddToCart={addToCart}
+              />
             ))}
           </div>
         </div>
@@ -556,6 +545,134 @@ const POS = () => {
         </div>
       )}
     </div>
+  );
+};
+
+// Componente separado para o card do produto
+interface ProductCardProps {
+  product: Product;
+  onAddToCart: (product: Product, variationId?: number, variationAttributes?: Array<{ name: string; value: string }>) => void;
+}
+
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+  const [showVariations, setShowVariations] = useState(false);
+  const [selectedVariation, setSelectedVariation] = useState<any>(null);
+
+  // Verificar se o produto tem variações (tipo variable)
+  const hasVariations = product.type === 'variable' && product.variations && product.variations.length > 0;
+
+  const handleAddToCart = () => {
+    if (hasVariations && !selectedVariation) {
+      setShowVariations(true);
+      return;
+    }
+
+    if (selectedVariation) {
+      onAddToCart(
+        { ...product, price: selectedVariation.price },
+        selectedVariation.id,
+        selectedVariation.attributes
+      );
+    } else {
+      onAddToCart(product);
+    }
+    setShowVariations(false);
+    setSelectedVariation(null);
+  };
+
+  return (
+    <>
+      <Card
+        className="cursor-pointer hover:shadow-lg transition-all-smooth hover:scale-105"
+        onClick={handleAddToCart}
+      >
+        <CardContent className="p-4">
+          <div className="aspect-square bg-slate-100 dark:bg-slate-700 rounded-lg mb-3 flex items-center justify-center">
+            {product.images?.[0]?.src ? (
+              <img 
+                src={product.images[0].src} 
+                alt={product.name}
+                className="w-full h-full object-cover rounded-lg"
+              />
+            ) : (
+              <Package className="w-12 h-12 text-slate-400" />
+            )}
+          </div>
+          <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+            {product.name}
+          </h3>
+          <p className="text-lg font-bold text-primary mb-1">
+            R$ {parseFloat(product.price || '0').toFixed(2)}
+          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">
+              Estoque: {product.stock_quantity || 0}
+            </p>
+            {hasVariations && (
+              <Badge variant="outline" className="text-xs">
+                {product.variations?.length} variações
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Modal de Variações */}
+      {showVariations && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Selecionar Variação - {product.name}</h3>
+            
+            <div className="space-y-3 mb-4">
+              {product.variations?.map((variation: any) => (
+                <div
+                  key={variation.id}
+                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedVariation?.id === variation.id
+                      ? 'border-primary bg-primary/10'
+                      : 'border-slate-200 hover:border-slate-300'
+                  }`}
+                  onClick={() => setSelectedVariation(variation)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="font-medium">{variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}</p>
+                      <p className="text-sm text-slate-500">SKU: {variation.sku || 'N/A'}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">R$ {parseFloat(variation.price || '0').toFixed(2)}</p>
+                      <p className="text-xs text-slate-500">
+                        Estoque: {variation.stock_quantity || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowVariations(false);
+                  setSelectedVariation(null);
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                onClick={handleAddToCart}
+                disabled={!selectedVariation}
+              >
+                Adicionar ao Carrinho
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

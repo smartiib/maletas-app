@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [productForDetails, setProductForDetails] = useState<Product | null>(null);
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: products = [], isLoading, error, refetch } = useProducts(currentPage, searchTerm, selectedStatus);
@@ -94,6 +95,18 @@ const Products = () => {
   const handleViewProduct = (product: Product) => {
     setProductForDetails(product);
     setDetailsOpen(true);
+  };
+
+  const toggleProductExpansion = (productId: number) => {
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
   };
 
   if (!isConfigured) {
@@ -213,7 +226,9 @@ const Products = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead></TableHead>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <TableHead>SKU</TableHead>
                   <TableHead>Preço</TableHead>
                   <TableHead>Estoque</TableHead>
@@ -224,68 +239,138 @@ const Products = () => {
               <TableBody>
                 {products.map((product: any) => {
                   const stockStatus = getStockStatus(product);
+                  const isExpanded = expandedProducts.has(product.id);
+                  const hasVariations = product.type === 'variable' && product.variations?.length > 0;
+                  
                   return (
-                    <TableRow key={product.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
-                            {product.images && product.images.length > 0 ? (
-                              <img 
-                                src={product.images[0].src} 
-                                alt={product.images[0].alt}
-                                className="w-10 h-10 object-cover rounded-lg"
-                              />
-                            ) : (
-                              <Package className="w-5 h-5 text-slate-400" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="font-medium">{product.name}</div>
-                            <div className="text-sm text-slate-500">ID: {product.id}</div>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
-                      <TableCell className="font-semibold">
-                        R$ {parseFloat(product.price || '0').toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={stockStatus.color}>
-                          {stockStatus.text}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={getStatusColor(product.status)}>
-                          {getStatusLabel(product.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreHorizontal className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleViewProduct(product)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Visualizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditProduct(product)}>
-                              <Edit className="w-4 h-4 mr-2" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="text-red-600"
-                              onClick={() => handleDeleteProduct(product.id, product.name)}
+                    <React.Fragment key={product.id}>
+                      <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800">
+                        <TableCell>
+                          {hasVariations && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleProductExpansion(product.id)}
                             >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Excluir
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4" />
+                              )}
+                            </Button>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                              {product.images && product.images.length > 0 ? (
+                                <img 
+                                  src={product.images[0].src} 
+                                  alt={product.images[0].alt}
+                                  className="w-10 h-10 object-cover rounded-lg"
+                                />
+                              ) : (
+                                <Package className="w-5 h-5 text-slate-400" />
+                              )}
+                            </div>
+                            <div>
+                              <div className="font-medium">{product.name}</div>
+                              <div className="text-sm text-slate-500">ID: {product.id}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {product.type === 'simple' ? 'Simples' : 
+                             product.type === 'variable' ? 'Variável' : 
+                             product.type === 'grouped' ? 'Agrupado' : 
+                             product.type === 'external' ? 'Externo' : product.type}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
+                        <TableCell className="font-semibold">
+                          R$ {parseFloat(product.price || '0').toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={stockStatus.color}>
+                            {stockStatus.text}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getStatusColor(product.status)}>
+                            {getStatusLabel(product.status)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewProduct(product)}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Visualizar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Editar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => handleDeleteProduct(product.id, product.name)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                      
+                      {/* Variações */}
+                      {isExpanded && hasVariations && (
+                        <>
+                          {product.variations.map((variation: any) => (
+                            <TableRow key={`${product.id}-${variation.id}`} className="bg-slate-50 dark:bg-slate-900">
+                              <TableCell></TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-3 ml-6">
+                                  <div className="w-8 h-8 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center">
+                                    <Package className="w-4 h-4 text-slate-400" />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm">
+                                      {variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}
+                                    </div>
+                                    <div className="text-xs text-slate-500">Variação ID: {variation.id}</div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary" className="text-xs">Variação</Badge>
+                              </TableCell>
+                              <TableCell className="font-mono text-sm">{variation.sku || '-'}</TableCell>
+                              <TableCell className="font-semibold">
+                                R$ {parseFloat(variation.price || '0').toFixed(2)}
+                              </TableCell>
+                              <TableCell>
+                                <Badge className={getStockStatus({ stock_status: variation.stock_status, stock_quantity: variation.stock_quantity }).color}>
+                                  {getStockStatus({ stock_status: variation.stock_status, stock_quantity: variation.stock_quantity }).text}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <Badge className="bg-blue-100 text-blue-800">Ativa</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <span className="text-sm text-slate-500">-</span>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </TableBody>
