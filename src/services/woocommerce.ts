@@ -39,6 +39,22 @@ export interface Product {
   variations?: ProductVariation[];
 }
 
+export interface OrderLineItem {
+  id: number;
+  name: string;
+  product_id: number;
+  quantity: number;
+  total: string;
+}
+
+export interface CreateOrderLineItem {
+  product_id: number;
+  variation_id?: number;
+  quantity: number;
+  name: string;
+  total: string;
+}
+
 export interface Order {
   id: number;
   number: string;
@@ -68,13 +84,36 @@ export interface Order {
   };
   payment_method: string;
   payment_method_title: string;
-  line_items: Array<{
-    id: number;
-    name: string;
-    product_id: number;
-    quantity: number;
-    total: string;
-  }>;
+  line_items: OrderLineItem[];
+}
+
+export interface CreateOrderData {
+  payment_method: string;
+  payment_method_title: string;
+  status: 'pending' | 'processing' | 'on-hold' | 'completed' | 'cancelled' | 'refunded' | 'failed';
+  billing: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone: string;
+    address_1: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  shipping?: {
+    first_name: string;
+    last_name: string;
+    address_1: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  line_items: CreateOrderLineItem[];
+  customer_note?: string;
+  total: string;
 }
 
 export interface Customer {
@@ -254,7 +293,7 @@ class WooCommerceAPI {
     });
   }
 
-  async createOrder(order: Partial<Order>): Promise<Order> {
+  async createOrder(order: CreateOrderData): Promise<Order> {
     return this.makeRequest('orders', {
       method: 'POST',
       body: JSON.stringify(order),

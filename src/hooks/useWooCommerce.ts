@@ -1,6 +1,5 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig } from '@/services/woocommerce';
+import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 
 // Products hooks
@@ -110,7 +109,7 @@ export const useCreateOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (order: Partial<Order>) => wooCommerceAPI.createOrder(order),
+    mutationFn: (order: CreateOrderData) => wooCommerceAPI.createOrder(order),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast({
