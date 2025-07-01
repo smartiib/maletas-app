@@ -11,39 +11,74 @@ import {
 import KPICard from '@/components/dashboard/KPICard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useProducts, useOrders, useCustomers } from '@/hooks/useWooCommerce';
 
 const Dashboard = () => {
-  // Mock data - em produção viria da API WooCommerce
+  const { data: products = [] } = useProducts();
+  const { data: orders = [] } = useOrders();
+  const { data: customers = [] } = useCustomers();
+
+  // Calcular métricas reais
+  const todayOrders = orders.filter(order => {
+    const orderDate = new Date(order.date_created);
+    const today = new Date();
+    return orderDate.toDateString() === today.toDateString();
+  });
+
+  const pendingOrders = orders.filter(order => 
+    ['pending', 'processing', 'on-hold'].includes(order.status)
+  );
+
+  const lowStockProducts = products.filter(product => 
+    product.stock_quantity !== undefined && product.stock_quantity < 10
+  );
+
+  const todaySales = todayOrders.reduce((total, order) => 
+    total + parseFloat(order.total || '0'), 0
+  );
+
+  const todayCustomers = customers.filter(customer => {
+    const customerDate = new Date(customer.date_created);
+    const today = new Date();
+    return customerDate.toDateString() === today.toDateString();
+  });
+
   const kpis = [
     {
       title: 'Vendas Hoje',
-      value: 'R$ 12.450',
-      subtitle: '45 transações',
+      value: `R$ ${todaySales.toFixed(2)}`,
+      subtitle: `${todayOrders.length} transações`,
       icon: DollarSign,
       trend: { value: 12, isPositive: true }
     },
     {
       title: 'Pedidos Pendentes',
-      value: '23',
+      value: pendingOrders.length.toString(),
       subtitle: 'Aguardando processamento',
       icon: ShoppingCart,
       trend: { value: 8, isPositive: false }
     },
     {
       title: 'Produtos em Falta',
-      value: '12',
+      value: lowStockProducts.length.toString(),
       subtitle: 'Necessário reposição',
       icon: Package,
       trend: { value: 15, isPositive: false }
     },
     {
       title: 'Novos Clientes',
-      value: '34',
+      value: todayCustomers.length.toString(),
       subtitle: 'Cadastrados hoje',
       icon: Users,
       trend: { value: 25, isPositive: true }
     }
   ];
+
+  // Produtos mais vendidos (mock data por enquanto)
+  const topProducts = products.slice(0, 4).map((product, index) => ({
+    name: product.name,
+    sales: 45 - index * 8
+  }));
 
   return (
     <div className="space-y-6">
@@ -82,26 +117,32 @@ const Dashboard = () => {
       </div>
 
       {/* Alertas */}
-      <Card className="border-warning-200 dark:border-warning-800 bg-gradient-to-r from-warning-50 to-orange-50 dark:from-warning-900/20 dark:to-orange-900/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center text-warning-700 dark:text-warning-300">
-            <AlertTriangle className="w-5 h-5 mr-2" />
-            Alertas Importantes
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
-              <span>12 produtos com estoque baixo</span>
-              <Button variant="outline" size="sm">Ver Produtos</Button>
+      {(lowStockProducts.length > 0 || pendingOrders.length > 0) && (
+        <Card className="border-warning-200 dark:border-warning-800 bg-gradient-to-r from-warning-50 to-orange-50 dark:from-warning-900/20 dark:to-orange-900/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center text-warning-700 dark:text-warning-300">
+              <AlertTriangle className="w-5 h-5 mr-2" />
+              Alertas Importantes
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              {lowStockProducts.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
+                  <span>{lowStockProducts.length} produtos com estoque baixo</span>
+                  <Button variant="outline" size="sm">Ver Produtos</Button>
+                </div>
+              )}
+              {pendingOrders.length > 0 && (
+                <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
+                  <span>{pendingOrders.length} pedidos pendentes</span>
+                  <Button variant="outline" size="sm">Ver Pedidos</Button>
+                </div>
+              )}
             </div>
-            <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
-              <span>5 pedidos aguardando há mais de 2 dias</span>
-              <Button variant="outline" size="sm">Ver Pedidos</Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -114,6 +155,7 @@ const Dashboard = () => {
               <div className="text-center">
                 <TrendingUp className="w-12 h-12 text-slate-400 mx-auto mb-3" />
                 <p className="text-slate-500">Gráfico será implementado</p>
+                <p className="text-sm text-slate-400">Total de pedidos: {orders.length}</p>
               </div>
             </div>
           </CardContent>
@@ -125,22 +167,27 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {['Produto A', 'Produto B', 'Produto C', 'Produto D'].map((produto, index) => (
+              {topProducts.length > 0 ? topProducts.map((produto, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                  <span className="font-medium">{produto}</span>
+                  <span className="font-medium truncate">{produto.name}</span>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-slate-600 dark:text-slate-400">
-                      {45 - index * 8} vendas
+                      {produto.sales} vendas
                     </span>
                     <div className="w-12 h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-gradient-primary rounded-full"
-                        style={{ width: `${(45 - index * 8) / 45 * 100}%` }}
+                        style={{ width: `${(produto.sales / 45) * 100}%` }}
                       />
                     </div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-8 text-slate-500">
+                  <Package className="w-8 h-8 mx-auto mb-2" />
+                  <p>Nenhum produto encontrado</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

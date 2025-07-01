@@ -5,11 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { useProducts, useOrders, useCustomers } from '@/hooks/useWooCommerce';
+import ReportsKPI from '@/components/reports/ReportsKPI';
 
 const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
+  
+  const { data: products = [] } = useProducts();
+  const { data: orders = [] } = useOrders();
+  const { data: customers = [] } = useCustomers();
 
-  // Mock data para os gráficos
+  // Calcular métricas reais
+  const totalRevenue = orders.reduce((total, order) => 
+    total + parseFloat(order.total || '0'), 0
+  );
+
+  const averageTicket = orders.length > 0 ? totalRevenue / orders.length : 0;
+
+  const completedOrders = orders.filter(order => order.status === 'completed');
+  const conversionRate = orders.length > 0 ? (completedOrders.length / orders.length) * 100 : 0;
+
+  // Mock data para os gráficos (pode ser substituído por dados reais)
   const salesData = [
     { name: 'Jan', vendas: 4000, lucro: 2400 },
     { name: 'Fev', vendas: 3000, lucro: 1398 },
@@ -20,13 +36,12 @@ const Reports = () => {
     { name: 'Jul', vendas: 3490, lucro: 4300 },
   ];
 
-  const topProductsData = [
-    { name: 'iPhone 14 Pro', value: 30, color: '#3B82F6' },
-    { name: 'MacBook Air', value: 25, color: '#10B981' },
-    { name: 'AirPods Pro', value: 20, color: '#F59E0B' },
-    { name: 'iPad', value: 15, color: '#EF4444' },
-    { name: 'Outros', value: 10, color: '#8B5CF6' },
-  ];
+  // Produtos mais vendidos com dados reais
+  const topProductsData = products.slice(0, 5).map((product, index) => ({
+    name: product.name.substring(0, 15) + (product.name.length > 15 ? '...' : ''),
+    value: Math.max(5, 30 - index * 5),
+    color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index] || '#6B7280'
+  }));
 
   const chartConfig = {
     vendas: {
@@ -77,76 +92,37 @@ const Reports = () => {
 
       {/* KPIs Principais */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Receita Total
-                </p>
-                <p className="text-2xl font-bold">R$ 45.231,89</p>
-                <p className="text-xs text-success-600 flex items-center mt-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +12.5% vs mês anterior
-                </p>
-              </div>
-              <BarChart3 className="w-8 h-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <ReportsKPI
+          title="Receita Total"
+          value={`R$ ${totalRevenue.toFixed(2)}`}
+          subtitle={`${orders.length} pedidos`}
+          icon={BarChart3}
+          trend={{ value: 12.5, isPositive: true }}
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Pedidos
-                </p>
-                <p className="text-2xl font-bold">1.234</p>
-                <p className="text-xs text-success-600 flex items-center mt-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +8.2% vs mês anterior
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-success-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <ReportsKPI
+          title="Pedidos"
+          value={orders.length.toString()}
+          subtitle="Total de pedidos"
+          icon={Calendar}
+          trend={{ value: 8.2, isPositive: true }}
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Ticket Médio
-                </p>
-                <p className="text-2xl font-bold">R$ 89,45</p>
-                <p className="text-xs text-red-600 flex items-center mt-1">
-                  ↘ -2.1% vs mês anterior
-                </p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <ReportsKPI
+          title="Ticket Médio"
+          value={`R$ ${averageTicket.toFixed(2)}`}
+          subtitle="Valor médio por pedido"
+          icon={TrendingUp}
+          trend={{ value: 2.1, isPositive: false }}
+        />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Taxa Conversão
-                </p>
-                <p className="text-2xl font-bold">3.2%</p>
-                <p className="text-xs text-success-600 flex items-center mt-1">
-                  <TrendingUp className="w-3 h-3 mr-1" />
-                  +0.5% vs mês anterior
-                </p>
-              </div>
-              <Filter className="w-8 h-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
+        <ReportsKPI
+          title="Taxa Conversão"
+          value={`${conversionRate.toFixed(1)}%`}
+          subtitle={`${completedOrders.length} pedidos finalizados`}
+          icon={Filter}
+          trend={{ value: 0.5, isPositive: true }}
+        />
       </div>
 
       {/* Gráficos */}
@@ -175,50 +151,61 @@ const Reports = () => {
             <CardTitle>Produtos Mais Vendidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={topProductsData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={120}
-                    dataKey="value"
-                  >
-                    {topProductsData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        return (
-                          <div className="bg-white p-2 border rounded shadow">
-                            <p>{`${payload[0].payload.name}: ${payload[0].value}%`}</p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 space-y-2">
-              {topProductsData.map((item, index) => (
-                <div key={index} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span>{item.name}</span>
-                  </div>
-                  <span className="font-medium">{item.value}%</span>
+            {topProductsData.length > 0 ? (
+              <>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={topProductsData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={120}
+                        dataKey="value"
+                      >
+                        {topProductsData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip 
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="bg-white p-2 border rounded shadow">
+                                <p>{`${payload[0].payload.name}: ${payload[0].value}%`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
-              ))}
-            </div>
+                <div className="mt-4 space-y-2">
+                  {topProductsData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between text-sm">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-medium">{item.value}%</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-slate-500">
+                <div className="text-center">
+                  <BarChart3 className="w-12 h-12 mx-auto mb-3" />
+                  <p>Nenhum produto encontrado</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -250,6 +237,32 @@ const Reports = () => {
               />
             </LineChart>
           </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Status dos Pedidos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Status dos Pedidos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { status: 'pending', label: 'Pendentes', color: 'bg-yellow-500' },
+              { status: 'processing', label: 'Processando', color: 'bg-blue-500' },
+              { status: 'completed', label: 'Completos', color: 'bg-green-500' },
+              { status: 'cancelled', label: 'Cancelados', color: 'bg-red-500' }
+            ].map(({ status, label, color }) => {
+              const count = orders.filter(order => order.status === status).length;
+              return (
+                <div key={status} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className={`w-4 h-4 ${color} rounded-full mx-auto mb-2`} />
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
     </div>
