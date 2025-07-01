@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
+import { useSubscription } from '@/hooks/useSubscription';
 import { supabase } from '@/integrations/supabase/client';
 import { CheckCircle, Clock, CreditCard, Calendar } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -47,9 +51,27 @@ const Billing = () => {
     }
   };
 
+  const { createSubscription, isLoading: subscriptionLoading } = useSubscription();
+  const [selectedPlan, setSelectedPlan] = useState<string>('');
+  const [billingType, setBillingType] = useState<'BOLETO' | 'CREDIT_CARD' | 'PIX'>('PIX');
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [creditCard, setCreditCard] = useState({
+    holderName: '',
+    number: '',
+    expiryMonth: '',
+    expiryYear: '',
+    ccv: '',
+  });
+
   const handleUpgrade = async (planId: string) => {
+    if (!currentSubscription) {
+      setSelectedPlan(planId);
+      setShowPaymentForm(true);
+      return;
+    }
+
     try {
-      // This would integrate with Asaas API
+      // For existing subscriptions, just show upgrade message
       toast({
         title: "Upgrade solicitado",
         description: "Em breve você receberá instruções de pagamento por email.",
@@ -60,6 +82,24 @@ const Billing = () => {
         description: "Tente novamente ou entre em contato com o suporte.",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleCreateSubscription = async () => {
+    if (!selectedPlan) return;
+
+    const data = {
+      planId: selectedPlan,
+      billingType,
+      ...(billingType === 'CREDIT_CARD' && { creditCard }),
+    };
+
+    try {
+      await createSubscription(data);
+      setShowPaymentForm(false);
+      await fetchSubscriptionData();
+    } catch (error) {
+      console.error('Error creating subscription:', error);
     }
   };
 
@@ -243,6 +283,92 @@ const Billing = () => {
           })}
         </div>
       </div>
+
+      {/* Payment Form Modal */}
+      {showPaymentForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Finalizar Assinatura</CardTitle>
+            <CardDescription>
+              Complete os dados para ativar seu plano
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>Forma de Pagamento</Label>
+              <Select value={billingType} onValueChange={(value: any) => setBillingType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PIX">PIX</SelectItem>
+                  <SelectItem value="BOLETO">Boleto</SelectItem>
+                  <SelectItem value="CREDIT_CARD">Cartão de Crédito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {billingType === 'CREDIT_CARD' && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <Label>Nome no Cartão</Label>
+                  <Input
+                    value={creditCard.holderName}
+                    onChange={(e) => setCreditCard({...creditCard, holderName: e.target.value})}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label>Número do Cartão</Label>
+                  <Input
+                    value={creditCard.number}
+                    onChange={(e) => setCreditCard({...creditCard, number: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>Mês</Label>
+                  <Input
+                    placeholder="MM"
+                    value={creditCard.expiryMonth}
+                    onChange={(e) => setCreditCard({...creditCard, expiryMonth: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>Ano</Label>
+                  <Input
+                    placeholder="AAAA"
+                    value={creditCard.expiryYear}
+                    onChange={(e) => setCreditCard({...creditCard, expiryYear: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label>CVV</Label>
+                  <Input
+                    value={creditCard.ccv}
+                    onChange={(e) => setCreditCard({...creditCard, ccv: e.target.value})}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleCreateSubscription}
+                disabled={subscriptionLoading}
+                className="flex-1"
+              >
+                {subscriptionLoading ? 'Processando...' : 'Finalizar Assinatura'}
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setShowPaymentForm(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Billing History */}
       <Card>
