@@ -6,9 +6,14 @@ import {
   Package, 
   Users,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Activity,
+  Zap
 } from 'lucide-react';
 import KPICard from '@/components/dashboard/KPICard';
+import SalesChart from '@/components/dashboard/SalesChart';
+import RecentActivity from '@/components/dashboard/RecentActivity';
+import QuickActions from '@/components/dashboard/QuickActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useProducts, useOrders, useCustomers } from '@/hooks/useWooCommerce';
@@ -144,23 +149,10 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Gráficos */}
+      {/* Gráficos e Análises */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Vendas dos Últimos 7 Dias</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-800 rounded-lg">
-              <div className="text-center">
-                <TrendingUp className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-                <p className="text-slate-500">Gráfico será implementado</p>
-                <p className="text-sm text-slate-400">Total de pedidos: {orders.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        <SalesChart orders={orders} />
+        
         <Card>
           <CardHeader>
             <CardTitle>Produtos Mais Vendidos</CardTitle>
@@ -168,7 +160,7 @@ const Dashboard = () => {
           <CardContent>
             <div className="space-y-3">
               {topProducts.length > 0 ? topProducts.map((produto, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                   <span className="font-medium truncate">{produto.name}</span>
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-slate-600 dark:text-slate-400">
@@ -191,6 +183,18 @@ const Dashboard = () => {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Atividade Recente e Ações Rápidas */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <RecentActivity 
+            orders={orders}
+            customers={customers}
+            products={products}
+          />
+        </div>
+        <QuickActions />
       </div>
     </div>
   );
