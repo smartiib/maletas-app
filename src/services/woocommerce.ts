@@ -114,6 +114,7 @@ export interface CreateOrderData {
   line_items: CreateOrderLineItem[];
   customer_note?: string;
   total: string;
+  meta_data?: Array<{ key: string; value: any }>;
 }
 
 export interface Customer {
