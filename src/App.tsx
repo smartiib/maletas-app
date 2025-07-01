@@ -1,8 +1,11 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import AuthProvider from "./components/auth/AuthProvider";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -20,24 +23,66 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="/produtos" element={<Products />} />
-            <Route path="/pedidos" element={<Orders />} />
-            <Route path="/clientes" element={<Customers />} />
-            <Route path="/pos" element={<POS />} />
-            <Route path="/maletas" element={<Maletas />} />
-            <Route path="/relatorios" element={<Reports />} />
-            <Route path="/logs" element={<Logs />} />
-            <Route path="/configuracoes" element={<Settings />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={
+                <ProtectedRoute permission="dashboard">
+                  <Dashboard />
+                </ProtectedRoute>
+              } />
+              <Route path="/produtos" element={
+                <ProtectedRoute permission="products">
+                  <Products />
+                </ProtectedRoute>
+              } />
+              <Route path="/pedidos" element={
+                <ProtectedRoute permission="orders">
+                  <Orders />
+                </ProtectedRoute>
+              } />
+              <Route path="/clientes" element={
+                <ProtectedRoute permission="customers">
+                  <Customers />
+                </ProtectedRoute>
+              } />
+              <Route path="/pos" element={
+                <ProtectedRoute permission="pos">
+                  <POS />
+                </ProtectedRoute>
+              } />
+              <Route path="/maletas" element={
+                <ProtectedRoute permission="maletas">
+                  <Maletas />
+                </ProtectedRoute>
+              } />
+              <Route path="/relatorios" element={
+                <ProtectedRoute permission="reports">
+                  <Reports />
+                </ProtectedRoute>
+              } />
+              <Route path="/logs" element={
+                <ProtectedRoute permission="logs">
+                  <Logs />
+                </ProtectedRoute>
+              } />
+              <Route path="/configuracoes" element={
+                <ProtectedRoute permission="settings">
+                  <Settings />
+                </ProtectedRoute>
+              } />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -10,9 +10,11 @@ import {
   CreditCard,
   BarChart3,
   Settings,
-  Menu
+  Menu,
+  Briefcase
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -24,47 +26,67 @@ const navigationItems = [
     title: 'Dashboard', 
     href: '/', 
     icon: LayoutDashboard,
-    exact: true
+    exact: true,
+    permission: 'dashboard'
   },
   { 
     title: 'Produtos', 
     href: '/produtos', 
-    icon: Package 
+    icon: Package,
+    permission: 'products'
   },
   { 
     title: 'Pedidos', 
     href: '/pedidos', 
-    icon: ShoppingCart 
+    icon: ShoppingCart,
+    permission: 'orders'
   },
   { 
     title: 'Clientes', 
     href: '/clientes', 
-    icon: Users 
+    icon: Users,
+    permission: 'customers'
   },
   { 
     title: 'POS', 
     href: '/pos', 
-    icon: CreditCard 
+    icon: CreditCard,
+    permission: 'pos'
+  },
+  { 
+    title: 'Maletas', 
+    href: '/maletas', 
+    icon: Briefcase,
+    permission: 'maletas'
   },
   { 
     title: 'Relatórios', 
     href: '/relatorios', 
-    icon: BarChart3 
+    icon: BarChart3,
+    permission: 'reports'
   },
   { 
     title: 'Logs', 
     href: '/logs', 
-    icon: FileText 
+    icon: FileText,
+    permission: 'logs'
   },
   { 
     title: 'Configurações', 
     href: '/configuracoes', 
-    icon: Settings 
+    icon: Settings,
+    permission: 'settings'
   },
 ];
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
+  const { hasPermission } = useAuth();
+
+  // Filtrar itens baseado nas permissões do usuário
+  const allowedItems = navigationItems.filter(item => 
+    !item.permission || hasPermission(item.permission)
+  );
 
   return (
     <div className={cn(
@@ -94,7 +116,7 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
       {/* Navigation */}
       <nav className="p-4 space-y-2">
-        {navigationItems.map((item) => {
+        {allowedItems.map((item) => {
           const Icon = item.icon;
           const isActive = item.exact 
             ? location.pathname === item.href

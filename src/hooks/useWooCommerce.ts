@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData } from '@/services/woocommerce';
+import { authService } from '@/services/auth';
 import { toast } from '@/hooks/use-toast';
 
 // Products hooks
@@ -72,7 +73,34 @@ export const useDeleteProduct = () => {
   });
 };
 
-// Orders hooks
+// Orders hooks com informações de usuário
+export const useCreateOrder = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (order: CreateOrderData) => {
+      const user = authService.getUser();
+      const enhancedOrder = {
+        ...order,
+        meta_data: [
+          ...(order.meta_data || []),
+          { key: 'order_source', value: 'platform' },
+          { key: 'created_by_user_id', value: user?.id || 0 },
+          { key: 'created_by_user_name', value: user?.display_name || 'Sistema' },
+        ]
+      };
+      return wooCommerceAPI.createOrder(enhancedOrder);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      toast({
+        title: "Sucesso",
+        description: "Pedido criado com sucesso!",
+      });
+    },
+  });
+};
+
 export const useOrders = (page = 1, status = '') => {
   return useQuery({
     queryKey: ['orders', page, status],
@@ -100,21 +128,6 @@ export const useUpdateOrderStatus = () => {
       toast({
         title: "Sucesso",
         description: "Status do pedido atualizado!",
-      });
-    },
-  });
-};
-
-export const useCreateOrder = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (order: CreateOrderData) => wooCommerceAPI.createOrder(order),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['orders'] });
-      toast({
-        title: "Sucesso",
-        description: "Pedido criado com sucesso!",
       });
     },
   });
@@ -173,6 +186,15 @@ export const useUpdateCustomer = () => {
         description: "Cliente atualizado com sucesso!",
       });
     },
+  });
+};
+
+// Hook para buscar representantes do WordPress
+export const useRepresentantes = () => {
+  return useQuery({
+    queryKey: ['representantes'],
+    queryFn: () => authService.getRepresentantes(),
+    enabled: !!authService.getToken(),
   });
 };
 

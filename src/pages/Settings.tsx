@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +7,14 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig } from '@/services/woocommerce';
+import { authService, PERMISSIONS, ROLE_PERMISSIONS } from '@/services/auth';
 import { logger } from '@/services/logger';
+import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 const Settings = () => {
   const { config, testConnection, saveConfig, isConfigured } = useWooCommerceConfig();
+  const { hasPermission } = useAuth();
   
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'Minha Loja',
@@ -29,6 +32,10 @@ const Settings = () => {
     webhookSecret: ''
   });
 
+  const [wpAuthSettings, setWpAuthSettings] = useState({
+    wpUrl: '',
+  });
+
   const [notifications, setNotifications] = useState({
     newOrders: true,
     lowStock: true,
@@ -42,6 +49,8 @@ const Settings = () => {
     boletoEnabled: false,
     paypalEnabled: false
   });
+
+  const [rolePermissions, setRolePermissions] = useState(ROLE_PERMISSIONS);
 
   // Carregar configurações existentes
   useEffect(() => {
@@ -96,6 +105,44 @@ const Settings = () => {
     logger.success('Pagamentos', 'Configurações de pagamento atualizadas');
   };
 
+  const handleWpAuthTest = async () => {
+    if (!wpAuthSettings.wpUrl) {
+      logger.error('Teste WordPress', 'Preencha a URL do WordPress');
+      return;
+    }
+
+    try {
+      authService.setBaseUrl(wpAuthSettings.wpUrl);
+      localStorage.setItem('wp_base_url', wpAuthSettings.wpUrl);
+      logger.success('WordPress', 'URL configurada com sucesso');
+    } catch (error) {
+      logger.error('WordPress', 'Erro ao configurar URL');
+    }
+  };
+
+  const handleRolePermissionChange = (role: string, permission: string, enabled: boolean) => {
+    setRolePermissions(prev => ({
+      ...prev,
+      [role]: enabled 
+        ? [...(prev[role] || []), permission]
+        : (prev[role] || []).filter(p => p !== permission)
+    }));
+  };
+
+  const saveRolePermissions = () => {
+    localStorage.setItem('role_permissions', JSON.stringify(rolePermissions));
+    logger.success('Permissões', 'Permissões de roles atualizadas');
+  };
+
+  if (!hasPermission('settings')) {
+    return (
+      <div className="text-center py-12">
+        <h1 className="text-2xl font-bold text-slate-800 mb-2">Acesso Negado</h1>
+        <p className="text-slate-600">Você não tem permissão para acessar as configurações.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -117,6 +164,74 @@ const Settings = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Autenticação WordPress */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5" />
+              Autenticação WordPress
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="wpUrl">URL do WordPress *</Label>
+              <Input
+                id="wpUrl"
+                placeholder="https://seusite.com"
+                value={wpAuthSettings.wpUrl}
+                onChange={(e) => setWpAuthSettings({ ...wpAuthSettings, wpUrl: e.target.value })}
+              />
+              <p className="text-xs text-slate-500">
+                Configure o plugin JWT Authentication for WP-API no seu WordPress
+              </p>
+            </div>
+            
+            <Button onClick={handleWpAuthTest} className="w-full bg-gradient-success hover:opacity-90">
+              Configurar WordPress
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Permissões por Role */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Permissões por Role
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 max-h-96 overflow-y-auto">
+            {Object.entries(rolePermissions).map(([role, permissions]) => (
+              <div key={role} className="space-y-3 p-3 border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="capitalize">
+                    {role.replace('_', ' ')}
+                  </Badge>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  {PERMISSIONS.map(permission => (
+                    <div key={permission.key} className="flex items-center space-x-2">
+                      <Switch
+                        checked={permissions.includes(permission.key)}
+                        onCheckedChange={(enabled) => 
+                          handleRolePermissionChange(role, permission.key, enabled)
+                        }
+                        disabled={role === 'administrator'} // Admin sempre tem tudo
+                      />
+                      <Label className="text-xs">{permission.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+            
+            <Button onClick={saveRolePermissions} className="w-full">
+              Salvar Permissões
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Configurações da Loja */}
         <Card>
           <CardHeader>
