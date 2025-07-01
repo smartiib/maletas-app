@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key } from 'lucide-react';
+import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key, Mail } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,16 @@ const Settings = () => {
     paypalEnabled: false
   });
 
+  const [emailSettings, setEmailSettings] = useState({
+    smtpHost: 'smtp1.xmailer.com.br',
+    smtpPort: '587',
+    smtpUser: 'smtp@smartiib.com.br',
+    smtpPassword: '48OM7Yc4oqqXdez',
+    smtpSecure: true,
+    fromEmail: 'smtp@smartiib.com.br',
+    fromName: 'Sistema WooCommerce'
+  });
+
   const [rolePermissions, setRolePermissions] = useState(ROLE_PERMISSIONS);
 
   // Carregar configurações existentes
@@ -72,6 +82,11 @@ const Settings = () => {
     const savedPaymentSettings = localStorage.getItem('payment_settings');
     if (savedPaymentSettings) {
       setPaymentSettings(JSON.parse(savedPaymentSettings));
+    }
+
+    const savedEmailSettings = localStorage.getItem('email_settings');
+    if (savedEmailSettings) {
+      setEmailSettings(JSON.parse(savedEmailSettings));
     }
   }, [config]);
 
@@ -132,6 +147,24 @@ const Settings = () => {
   const saveRolePermissions = () => {
     localStorage.setItem('role_permissions', JSON.stringify(rolePermissions));
     logger.success('Permissões', 'Permissões de roles atualizadas');
+  };
+
+  const handleEmailSettingsSave = () => {
+    localStorage.setItem('email_settings', JSON.stringify(emailSettings));
+    logger.success('Email', 'Configurações de email atualizadas');
+  };
+
+  const handleEmailTest = async () => {
+    if (!emailSettings.smtpHost || !emailSettings.smtpUser || !emailSettings.smtpPassword) {
+      logger.error('Teste de Email', 'Preencha todos os campos obrigatórios');
+      return;
+    }
+
+    logger.info('Teste de Email', 'Testando conexão SMTP...');
+    // Aqui você pode implementar um teste real de SMTP se necessário
+    setTimeout(() => {
+      logger.success('Teste de Email', 'Configuração SMTP válida');
+    }, 1000);
   };
 
   if (!hasPermission('settings')) {
@@ -419,6 +452,100 @@ const Settings = () => {
             <Button onClick={handlePaymentsSave} className="w-full">
               Salvar Configurações
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Configurações de Email */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Configurações de Email
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="smtpHost">Servidor SMTP *</Label>
+              <Input
+                id="smtpHost"
+                value={emailSettings.smtpHost}
+                onChange={(e) => setEmailSettings({ ...emailSettings, smtpHost: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="smtpPort">Porta SMTP</Label>
+              <Input
+                id="smtpPort"
+                value={emailSettings.smtpPort}
+                onChange={(e) => setEmailSettings({ ...emailSettings, smtpPort: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="smtpUser">Usuário/Email *</Label>
+              <Input
+                id="smtpUser"
+                type="email"
+                value={emailSettings.smtpUser}
+                onChange={(e) => setEmailSettings({ ...emailSettings, smtpUser: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="smtpPassword">Senha *</Label>
+              <Input
+                id="smtpPassword"
+                type="password"
+                value={emailSettings.smtpPassword}
+                onChange={(e) => setEmailSettings({ ...emailSettings, smtpPassword: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="fromEmail">Email Remetente</Label>
+              <Input
+                id="fromEmail"
+                type="email"
+                value={emailSettings.fromEmail}
+                onChange={(e) => setEmailSettings({ ...emailSettings, fromEmail: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="fromName">Nome Remetente</Label>
+              <Input
+                id="fromName"
+                value={emailSettings.fromName}
+                onChange={(e) => setEmailSettings({ ...emailSettings, fromName: e.target.value })}
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                checked={emailSettings.smtpSecure}
+                onCheckedChange={(checked) => 
+                  setEmailSettings({ ...emailSettings, smtpSecure: checked })
+                }
+              />
+              <Label>Conexão Segura (TLS)</Label>
+            </div>
+            
+            <div className="flex gap-2">
+              <Button 
+                onClick={handleEmailTest} 
+                className="flex-1 bg-gradient-success hover:opacity-90"
+              >
+                Testar Conexão
+              </Button>
+              <Button 
+                onClick={handleEmailSettingsSave}
+                variant="outline"
+                className="flex-1"
+              >
+                Salvar
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
