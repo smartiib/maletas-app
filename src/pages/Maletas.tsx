@@ -15,6 +15,9 @@ import MaletaStats from '@/components/maletas/MaletaStats';
 import MaletaFilters from '@/components/maletas/MaletaFilters';
 import MaletaCard from '@/components/maletas/MaletaCard';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
+import MaletaDetailsDialog from '@/components/maletas/MaletaDetailsDialog';
+import MaletaReturnDialog from '@/components/maletas/MaletaReturnDialog';
+import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,7 +29,9 @@ const Maletas = () => {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [extendDialogOpen, setExtendDialogOpen] = useState(false);
   const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
   const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
+  const [soldItems, setSoldItems] = useState<any[]>([]);
   
   // Estados para formulários
   const [newReturnDate, setNewReturnDate] = useState('');
@@ -113,6 +118,21 @@ const Maletas = () => {
   const handleProcessReturn = (maleta: any) => {
     setSelectedMaleta(maleta);
     setReturnDialogOpen(true);
+  };
+
+  const handleOpenCheckout = (items: any[]) => {
+    setSoldItems(items);
+    setReturnDialogOpen(false);
+    setCheckoutDialogOpen(true);
+  };
+
+  const handleOrderCreated = () => {
+    setReturnDialogOpen(false);
+    setCheckoutDialogOpen(false);
+    toast({
+      title: "Devolução Processada",
+      description: "Pedido criado com sucesso para os itens vendidos!",
+    });
   };
 
   if (isLoading) {
@@ -208,24 +228,11 @@ const Maletas = () => {
       )}
 
       {/* Dialog para Detalhes */}
-      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes da Maleta</DialogTitle>
-          </DialogHeader>
-          {selectedMaleta && (
-            <div className="space-y-4">
-              <p><strong>Número:</strong> {selectedMaleta.number}</p>
-              <p><strong>Representante:</strong> {selectedMaleta.representative_name}</p>
-              <p><strong>Cliente:</strong> {selectedMaleta.customer_name}</p>
-              <p><strong>Data de Devolução:</strong> {new Date(selectedMaleta.return_date).toLocaleDateString('pt-BR')}</p>
-              <p><strong>Status:</strong> {selectedMaleta.status}</p>
-              <p><strong>Valor Total:</strong> R$ {parseFloat(selectedMaleta.total_value || '0').toFixed(2)}</p>
-              <p><strong>Itens:</strong> {selectedMaleta.items?.length || 0}</p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MaletaDetailsDialog
+        open={detailsDialogOpen}
+        onOpenChange={setDetailsDialogOpen}
+        maleta={selectedMaleta}
+      />
 
       {/* Dialog para Estender Prazo */}
       <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
@@ -279,62 +286,31 @@ const Maletas = () => {
       </Dialog>
 
       {/* Dialog para Processar Devolução */}
-      <Dialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Processar Devolução</DialogTitle>
-          </DialogHeader>
-          {selectedMaleta && (
-            <div className="space-y-4">
-              <p>Maleta: #{selectedMaleta.number}</p>
-              <div className="space-y-2">
-                <Label htmlFor="return-notes">Observações da Devolução</Label>
-                <Textarea
-                  id="return-notes"
-                  value={returnNotes}
-                  onChange={(e) => setReturnNotes(e.target.value)}
-                  placeholder="Observações sobre a devolução..."
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setReturnDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={async () => {
-                    try {
-                      await processReturn.mutateAsync({
-                        id: selectedMaleta.id,
-                        returnData: {
-                          items_sold: [],
-                          items_returned: [],
-                          return_date: new Date().toISOString(),
-                          delay_days: 0,
-                          commission_amount: 0,
-                          penalty_amount: 0,
-                          final_amount: 0,
-                          notes: returnNotes
-                        }
-                      });
-                      setReturnDialogOpen(false);
-                      setReturnNotes('');
-                    } catch (error) {
-                      toast({
-                        title: "Erro",
-                        description: "Erro ao processar devolução",
-                        variant: "destructive"
-                      });
-                    }
-                  }}
-                  disabled={processReturn.isPending}
-                >
-                  {processReturn.isPending ? 'Processando...' : 'Processar'}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <MaletaReturnDialog
+        open={returnDialogOpen}
+        onOpenChange={setReturnDialogOpen}
+        maleta={selectedMaleta}
+        onProcessReturn={async (returnData) => {
+          try {
+            await processReturn.mutateAsync({
+              id: selectedMaleta.id,
+              returnData
+            });
+          } catch (error) {
+            console.error('Error processing return:', error);
+          }
+        }}
+        onOpenCheckout={handleOpenCheckout}
+      />
+
+      {/* Dialog para Checkout de Itens Vendidos */}
+      <MaletaCheckoutDialog
+        open={checkoutDialogOpen}
+        onOpenChange={setCheckoutDialogOpen}
+        maleta={selectedMaleta}
+        soldItems={soldItems}
+        onOrderCreated={handleOrderCreated}
+      />
 
       {/* Dialog para Nova Maleta */}
       <MaletaDialog
