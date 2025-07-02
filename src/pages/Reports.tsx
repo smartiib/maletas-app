@@ -281,6 +281,32 @@ const Reports = () => {
         />
       </div>
 
+      {/* Status dos Pedidos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Status dos Pedidos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { status: 'pending', label: 'Pendentes', color: 'bg-yellow-500' },
+              { status: 'processing', label: 'Processando', color: 'bg-blue-500' },
+              { status: 'completed', label: 'Completos', color: 'bg-green-500' },
+              { status: 'cancelled', label: 'Cancelados', color: 'bg-red-500' }
+            ].map(({ status, label, color }) => {
+              const count = orders.filter(order => order.status === status).length;
+              return (
+                <div key={status} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className={`w-4 h-4 ${color} rounded-full mx-auto mb-2`} />
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Filtros */}
       <Card>
         <CardHeader>
@@ -378,28 +404,46 @@ const Reports = () => {
             <CardTitle>Produtos Mais Vendidos</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={products.slice(0, 5).map((product, index) => ({
-                      name: product.name.substring(0, 15) + '...',
-                      value: Math.max(5, 30 - index * 5),
-                      color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]
-                    }))}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={120}
-                    dataKey="value"
-                  >
-                    {products.slice(0, 5).map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip />
-                </PieChart>
-              </ResponsiveContainer>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={products.slice(0, 5).map((product, index) => ({
+                        name: product.name.substring(0, 15) + '...',
+                        value: Math.max(5, 30 - index * 5),
+                        color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={120}
+                      dataKey="value"
+                    >
+                      {products.slice(0, 5).map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex flex-col justify-center space-y-3">
+                {products.slice(0, 5).map((product, index) => (
+                  <div key={product.id} className="flex items-center gap-3">
+                    <div 
+                      className="w-3 h-3 rounded-full" 
+                      style={{ backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index] }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{product.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Vendidos: {Math.max(5, 30 - index * 5)} unidades
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -430,32 +474,6 @@ const Reports = () => {
               <Line type="monotone" dataKey="lucro" stroke="var(--color-lucro)" strokeWidth={3} />
             </LineChart>
           </ChartContainer>
-        </CardContent>
-      </Card>
-
-      {/* Status dos Pedidos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Status dos Pedidos</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { status: 'pending', label: 'Pendentes', color: 'bg-yellow-500' },
-              { status: 'processing', label: 'Processando', color: 'bg-blue-500' },
-              { status: 'completed', label: 'Completos', color: 'bg-green-500' },
-              { status: 'cancelled', label: 'Cancelados', color: 'bg-red-500' }
-            ].map(({ status, label, color }) => {
-              const count = orders.filter(order => order.status === status).length;
-              return (
-                <div key={status} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                  <div className={`w-4 h-4 ${color} rounded-full mx-auto mb-2`} />
-                  <p className="text-2xl font-bold">{count}</p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
-                </div>
-              );
-            })}
-          </div>
         </CardContent>
       </Card>
       {/* Análises Detalhadas */}
