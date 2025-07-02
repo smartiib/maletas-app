@@ -342,12 +342,128 @@ const Reports = () => {
         </CardContent>
       </Card>
 
-      {/* Relatórios em Tabs */}
+      {/* Gráficos Originais */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Vendas por Mês */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Vendas e Lucro por Mês</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={{
+              vendas: { label: "Vendas", color: "#3B82F6" },
+              lucro: { label: "Lucro", color: "#10B981" }
+            }} className="h-[300px]">
+              <BarChart data={[
+                { name: 'Jan', vendas: 4000, lucro: 2400 },
+                { name: 'Fev', vendas: 3000, lucro: 1398 },
+                { name: 'Mar', vendas: 2000, lucro: 9800 },
+                { name: 'Abr', vendas: 2780, lucro: 3908 },
+                { name: 'Mai', vendas: 1890, lucro: 4800 },
+                { name: 'Jun', vendas: 2390, lucro: 3800 },
+              ]}>
+                <XAxis dataKey="name" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="vendas" fill="var(--color-vendas)" radius={4} />
+                <Bar dataKey="lucro" fill="var(--color-lucro)" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        {/* Produtos Mais Vendidos */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Produtos Mais Vendidos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={products.slice(0, 5).map((product, index) => ({
+                      name: product.name.substring(0, 15) + '...',
+                      value: Math.max(5, 30 - index * 5),
+                      color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]
+                    }))}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={120}
+                    dataKey="value"
+                  >
+                    {products.slice(0, 5).map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'][index]} />
+                    ))}
+                  </Pie>
+                  <ChartTooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tendência de Vendas */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Tendência de Vendas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={{
+            vendas: { label: "Vendas", color: "#3B82F6" },
+            lucro: { label: "Lucro", color: "#10B981" }
+          }} className="h-[400px]">
+            <LineChart data={[
+              { name: 'Jan', vendas: 4000, lucro: 2400 },
+              { name: 'Fev', vendas: 3000, lucro: 1398 },
+              { name: 'Mar', vendas: 2000, lucro: 9800 },
+              { name: 'Abr', vendas: 2780, lucro: 3908 },
+              { name: 'Mai', vendas: 1890, lucro: 4800 },
+              { name: 'Jun', vendas: 2390, lucro: 3800 },
+            ]}>
+              <XAxis dataKey="name" />
+              <YAxis />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Line type="monotone" dataKey="vendas" stroke="var(--color-vendas)" strokeWidth={3} />
+              <Line type="monotone" dataKey="lucro" stroke="var(--color-lucro)" strokeWidth={3} />
+            </LineChart>
+          </ChartContainer>
+        </CardContent>
+      </Card>
+
+      {/* Status dos Pedidos */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Status dos Pedidos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+              { status: 'pending', label: 'Pendentes', color: 'bg-yellow-500' },
+              { status: 'processing', label: 'Processando', color: 'bg-blue-500' },
+              { status: 'completed', label: 'Completos', color: 'bg-green-500' },
+              { status: 'cancelled', label: 'Cancelados', color: 'bg-red-500' }
+            ].map(({ status, label, color }) => {
+              const count = orders.filter(order => order.status === status).length;
+              return (
+                <div key={status} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div className={`w-4 h-4 ${color} rounded-full mx-auto mb-2`} />
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+      {/* Análises Detalhadas */}
       <Tabs defaultValue="customers" className="space-y-4">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="customers">Vendas por Cliente</TabsTrigger>
-          <TabsTrigger value="representatives">Vendas por Representante</TabsTrigger>
-          <TabsTrigger value="period">Vendas por Período</TabsTrigger>
+          <TabsTrigger value="customers">Análise por Cliente</TabsTrigger>
+          <TabsTrigger value="representatives">Análise por Representante</TabsTrigger>
+          <TabsTrigger value="period">Análise por Período</TabsTrigger>
         </TabsList>
 
         {/* Vendas por Cliente */}
@@ -357,7 +473,7 @@ const Reports = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Análise de Vendas por Cliente
+                  Vendas por Cliente
                 </CardTitle>
                 <Button 
                   variant="outline" 
@@ -370,20 +486,20 @@ const Reports = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {customerAnalysis.map((customer: any, index) => (
+                {customerAnalysis.slice(0, 10).map((customer: any, index) => (
                   <div key={customer.customer_email} className="border rounded-lg p-4">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h3 className="font-semibold">{customer.customer_name}</h3>
                         <p className="text-sm text-muted-foreground">{customer.customer_email}</p>
                       </div>
-                      <Badge variant={index === 0 ? "default" : "outline"}>
-                        #{index + 1} Cliente
+                      <Badge variant={index < 3 ? "default" : "outline"}>
+                        #{index + 1}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Total Pedidos</p>
+                        <p className="text-muted-foreground">Pedidos</p>
                         <p className="font-medium">{customer.total_orders}</p>
                       </div>
                       <div>
@@ -393,10 +509,6 @@ const Reports = () => {
                       <div>
                         <p className="text-muted-foreground">Ticket Médio</p>
                         <p className="font-medium">R$ {customer.average_order.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Meses Ativos</p>
-                        <p className="font-medium">{customer.months_active}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Última Compra</p>
@@ -421,7 +533,7 @@ const Reports = () => {
                 </CardTitle>
                 <Button 
                   variant="outline" 
-                  onClick={() => exportToCSV(representativeAnalysis, 'vendas-por-representante')}
+                  onClick={() => exportToCSV(representativeAnalysis, 'representantes')}
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Exportar CSV
@@ -435,33 +547,25 @@ const Reports = () => {
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="font-semibold">{rep.representative_name}</h3>
                       <Badge variant={index === 0 ? "default" : "outline"}>
-                        #{index + 1} Vendedor
+                        Top {index + 1}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <p className="text-muted-foreground">Total Pedidos</p>
-                        <p className="font-medium">{rep.total_orders}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Valor Total</p>
+                        <p className="text-muted-foreground">Vendas Total</p>
                         <p className="font-medium text-success">R$ {rep.total_amount.toFixed(2)}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Ticket Médio</p>
-                        <p className="font-medium">R$ {rep.average_order.toFixed(2)}</p>
+                        <p className="text-muted-foreground">Pedidos</p>
+                        <p className="font-medium">{rep.total_orders}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Clientes Únicos</p>
+                        <p className="text-muted-foreground">Clientes</p>
                         <p className="font-medium">{rep.customers_count}</p>
                       </div>
                       <div>
-                        <p className="text-muted-foreground">Vendas Maleta</p>
-                        <p className="font-medium text-orange-600">R$ {rep.maleta_sales.toFixed(2)}</p>
-                      </div>
-                      <div>
                         <p className="text-muted-foreground">% Maletas</p>
-                        <p className="font-medium">{rep.maleta_percentage.toFixed(1)}%</p>
+                        <p className="font-medium text-orange-600">{rep.maleta_percentage.toFixed(1)}%</p>
                       </div>
                     </div>
                   </div>
@@ -478,14 +582,14 @@ const Reports = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="w-5 h-5" />
-                  Vendas por {selectedPeriod === 'day' ? 'Dia' : selectedPeriod === 'month' ? 'Mês' : 'Ano'}
+                  Vendas por {selectedPeriod === 'month' ? 'Mês' : 'Período'}
                 </CardTitle>
                 <Button 
                   variant="outline" 
-                  onClick={() => exportToCSV(periodAnalysis, 'vendas-por-periodo')}
+                  onClick={() => exportToCSV(periodAnalysis, 'vendas-periodo')}
                 >
                   <Download className="w-4 h-4 mr-2" />
-                  Exportar CSV
+                  Exportar
                 </Button>
               </div>
             </CardHeader>
