@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,15 +12,19 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { usePagination } from '@/hooks/usePagination';
+import { useViewMode } from '@/hooks/useViewMode';
+import PaginationControls from '@/components/ui/pagination-controls';
+import ViewModeToggle from '@/components/ui/view-mode-toggle';
 import { logger } from '@/services/logger';
 import { Product } from '@/services/woocommerce';
 import ProductDialog from '@/components/products/ProductDialog';
 import ProductDetails from '@/components/products/ProductDetails';
+import ProductCard from '@/components/products/ProductCard';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
@@ -29,8 +33,27 @@ const Products = () => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: products = [], isLoading, error, refetch } = useProducts(currentPage, searchTerm, selectedStatus);
+  const { data: allProducts = [], isLoading, error, refetch } = useProducts();
   const deleteProduct = useDeleteProduct();
+  const { viewMode, toggleViewMode } = useViewMode('products');
+
+  // Filter and paginate data
+  const filteredProducts = useMemo(() => {
+    return allProducts.filter(product => {
+      const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = !selectedStatus || product.status === selectedStatus;
+      return matchesSearch && matchesStatus;
+    });
+  }, [allProducts, searchTerm, selectedStatus]);
+
+  const pagination = usePagination(filteredProducts.length, 20);
+  
+  const paginatedProducts = useMemo(() => {
+    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
+    const end = start + pagination.state.itemsPerPage;
+    return filteredProducts.slice(start, end);
+  }, [filteredProducts, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
   const statuses = ['', 'draft', 'pending', 'private', 'publish'];
 
@@ -94,7 +117,6 @@ const Products = () => {
 
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setCurrentPage(1);
   };
 
   const handleCreateProduct = () => {
@@ -177,47 +199,54 @@ const Products = () => {
       {/* Filtros */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Buscar produtos por nome ou SKU..."
-                  value={searchTerm}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
-                />
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-col lg:flex-row gap-4 flex-1">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Buscar produtos por nome ou SKU..."
+                    value={searchTerm}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="px-3 py-2 border border-input rounded-md bg-background"
+                >
+                  <option value="">Todos os Status</option>
+                  {statuses.slice(1).map(status => (
+                    <option key={status} value={status}>
+                      {getStatusLabel(status)}
+                    </option>
+                  ))}
+                </select>
+                
+                <Button variant="outline" onClick={() => refetch()}>
+                  <Filter className="w-4 h-4" />
+                </Button>
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <select
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-                className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
-              >
-                <option value="">Todos os Status</option>
-                {statuses.slice(1).map(status => (
-                  <option key={status} value={status}>
-                    {getStatusLabel(status)}
-                  </option>
-                ))}
-              </select>
-              
-              <Button variant="outline" onClick={() => refetch()}>
-                <Filter className="w-4 h-4" />
-              </Button>
-            </div>
+            <ViewModeToggle 
+              viewMode={viewMode} 
+              onToggle={toggleViewMode} 
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela de Produtos */}
+      {/* Produtos */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Lista de Produtos {!isLoading && `(${products.length})`}
+            Lista de Produtos {!isLoading && `(${filteredProducts.length})`}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -234,12 +263,12 @@ const Products = () => {
                 Tentar novamente
               </Button>
             </div>
-          ) : products.length === 0 ? (
+          ) : paginatedProducts.length === 0 ? (
             <div className="text-center py-8">
-              <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Nenhum produto encontrado</p>
+              <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum produto encontrado</p>
             </div>
-          ) : (
+          ) : viewMode === 'list' ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -254,7 +283,7 @@ const Products = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product: any) => {
+                {paginatedProducts.map((product: any) => {
                   const stockStatus = getStockStatus(product);
                   const isExpanded = expandedProducts.has(product.id);
                   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
@@ -279,7 +308,7 @@ const Products = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-700 rounded-lg flex items-center justify-center">
+                            <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
                               {product.images && product.images.length > 0 ? (
                                 <img 
                                   src={product.images[0].src} 
@@ -287,12 +316,12 @@ const Products = () => {
                                   className="w-10 h-10 object-cover rounded-lg"
                                 />
                               ) : (
-                                <Package className="w-5 h-5 text-slate-400" />
+                                <Package className="w-5 h-5 text-muted-foreground" />
                               )}
                             </div>
                             <div>
                               <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-slate-500">
+                              <div className="text-sm text-muted-foreground">
                                 ID: {product.id}
                                 {product.categories && product.categories.length > 0 && (
                                   <span> • {product.categories[0].name}</span>
@@ -316,7 +345,7 @@ const Products = () => {
                               R$ {parseFloat(product.price || '0').toFixed(2)}
                             </div>
                             {product.sale_price && product.sale_price !== product.regular_price && (
-                              <div className="text-sm text-slate-500 line-through">
+                              <div className="text-sm text-muted-foreground line-through">
                                 R$ {parseFloat(product.regular_price || '0').toFixed(2)}
                               </div>
                             )}
@@ -349,7 +378,7 @@ const Products = () => {
                                 Editar
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                className="text-red-600"
+                                className="text-destructive"
                                 onClick={() => handleDeleteProduct(product.id, product.name)}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -364,18 +393,18 @@ const Products = () => {
                       {isExpanded && hasVariations && (
                         <>
                           {product.variations.map((variation: any) => (
-                            <TableRow key={`${product.id}-${variation.id}`} className="bg-slate-50 dark:bg-slate-900">
+                            <TableRow key={`${product.id}-${variation.id}`} className="bg-muted/50">
                               <TableCell></TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-3 ml-6">
-                                  <div className="w-8 h-8 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center">
-                                    <Package className="w-4 h-4 text-slate-400" />
+                                  <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                                    <Package className="w-4 h-4 text-muted-foreground" />
                                   </div>
                                   <div>
                                     <div className="font-medium text-sm">
                                       {variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}
                                     </div>
-                                    <div className="text-xs text-slate-500">Variação ID: {variation.id}</div>
+                                    <div className="text-xs text-muted-foreground">Variação ID: {variation.id}</div>
                                   </div>
                                 </div>
                               </TableCell>
@@ -392,10 +421,10 @@ const Products = () => {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                <Badge className="bg-blue-100 text-blue-800">Ativa</Badge>
+                                <Badge className="bg-primary-100 text-primary-800">Ativa</Badge>
                               </TableCell>
                               <TableCell>
-                                <span className="text-sm text-slate-500">-</span>
+                                <span className="text-sm text-muted-foreground">-</span>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -406,32 +435,35 @@ const Products = () => {
                 })}
               </TableBody>
             </Table>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+              {paginatedProducts.map((product: Product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  viewMode={viewMode}
+                  onView={handleViewProduct}
+                  onEdit={handleEditProduct}
+                  onDelete={handleDeleteProduct}
+                />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Paginação simples */}
-      {!isLoading && products.length > 0 && (
-        <div className="flex justify-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </Button>
-          <span className="px-4 py-2 text-sm">
-            Página {currentPage}
-          </span>
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={products.length < 20}
-          >
-            Próxima
-          </Button>
-        </div>
+      {/* Paginação */}
+      {filteredProducts.length > 0 && (
+        <PaginationControls
+          info={pagination.info}
+          actions={pagination.actions}
+          itemsPerPage={pagination.state.itemsPerPage}
+          totalItems={pagination.state.totalItems}
+          currentPage={pagination.state.currentPage}
+          className="mt-6"
+        />
       )}
+
 
       {/* Dialogs */}
       <ProductDialog

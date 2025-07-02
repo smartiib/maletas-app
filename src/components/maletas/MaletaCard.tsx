@@ -9,9 +9,12 @@ import { ViewMode } from '@/hooks/useViewMode';
 interface MaletaCardProps {
   maleta: Maleta;
   viewMode: ViewMode;
+  onViewDetails?: (maleta: Maleta) => void;
+  onExtendDeadline?: (maleta: Maleta) => void;
+  onProcessReturn?: (maleta: Maleta) => void;
 }
 
-const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode }) => {
+const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails, onExtendDeadline, onProcessReturn }) => {
   const getStatusInfo = (maleta: Maleta) => {
     try {
       const today = new Date();
@@ -86,15 +89,27 @@ const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode }) => {
           </div>
           
           <div className={viewMode === 'grid' ? 'flex flex-col gap-2' : 'flex gap-2'}>
-            <Button variant="outline" size="sm">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => onViewDetails?.(maleta)}
+            >
               Detalhes
             </Button>
             {maleta.status === 'active' && (
               <>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onExtendDeadline?.(maleta)}
+                >
                   Estender Prazo
                 </Button>
-                <Button size="sm" className="bg-gradient-success">
+                <Button 
+                  size="sm" 
+                  className="bg-gradient-success"
+                  onClick={() => onProcessReturn?.(maleta)}
+                >
                   Processar Devolução
                 </Button>
               </>

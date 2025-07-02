@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { Package, Plus } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { useMaletas } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
@@ -80,6 +81,28 @@ const Maletas = () => {
 
   const stats = getTotalStats();
 
+  // Handlers para ações das maletas
+  const handleViewDetails = (maleta: any) => {
+    toast({
+      title: "Detalhes da Maleta",
+      description: `Visualizando detalhes da maleta #${maleta.number}`,
+    });
+  };
+
+  const handleExtendDeadline = (maleta: any) => {
+    toast({
+      title: "Estender Prazo",
+      description: `Funcionalidade para estender prazo da maleta #${maleta.number}`,
+    });
+  };
+
+  const handleProcessReturn = (maleta: any) => {
+    toast({
+      title: "Processar Devolução",
+      description: `Processando devolução da maleta #${maleta.number}`,
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -138,6 +161,9 @@ const Maletas = () => {
             key={maleta.id} 
             maleta={maleta} 
             viewMode={viewMode}
+            onViewDetails={handleViewDetails}
+            onExtendDeadline={handleExtendDeadline}
+            onProcessReturn={handleProcessReturn}
           />
         ))}
       </div>

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin, AlertCircle, Eye, Crown, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,16 +13,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCustomers, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { usePagination } from '@/hooks/usePagination';
+import { useViewMode } from '@/hooks/useViewMode';
+import PaginationControls from '@/components/ui/pagination-controls';
+import ViewModeToggle from '@/components/ui/view-mode-toggle';
 import { Customer } from '@/services/woocommerce';
 import CustomerDialog from '@/components/customers/CustomerDialog';
 import CustomerDetails from '@/components/customers/CustomerDetails';
 import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCustomer';
+import CustomerCard from '@/components/customers/CustomerCard';
 import { MoreHorizontal } from 'lucide-react';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'representatives' | 'customers'>('all');
-  const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
@@ -30,7 +34,31 @@ const Customers = () => {
   const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: customers = [], isLoading, error, refetch } = useCustomers(currentPage, searchTerm);
+  const { data: allCustomers = [], isLoading, error, refetch } = useCustomers();
+  const { viewMode, toggleViewMode } = useViewMode('customers');
+
+  // Filter and paginate data
+  const filteredCustomers = useMemo(() => {
+    return allCustomers.filter(customer => {
+      const matchesSearch = customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesFilter = filterType === 'all' || 
+                           (filterType === 'representatives' && isRepresentative(customer)) ||
+                           (filterType === 'customers' && !isRepresentative(customer));
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [allCustomers, searchTerm, filterType]);
+
+  const pagination = usePagination(filteredCustomers.length, 20);
+  
+  const paginatedCustomers = useMemo(() => {
+    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
+    const end = start + pagination.state.itemsPerPage;
+    return filteredCustomers.slice(start, end);
+  }, [filteredCustomers, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
   const handleCreateCustomer = () => {
     setSelectedCustomer(undefined);
@@ -58,24 +86,12 @@ const Customers = () => {
     console.log('Toggle representative status for:', customer.id);
   };
 
-  const filteredCustomers = customers.filter(customer => {
-    const matchesSearch = customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterType === 'all' || 
-                         (filterType === 'representatives' && isRepresentative(customer)) ||
-                         (filterType === 'customers' && !isRepresentative(customer));
-    
-    return matchesSearch && matchesFilter;
-  });
-
-  const getTotalCustomers = () => customers.length;
-  const getTotalRepresentatives = () => customers.filter(isRepresentative).length;
+  const getTotalCustomers = () => filteredCustomers.length;
+  const getTotalRepresentatives = () => filteredCustomers.filter(isRepresentative).length;
   const getAverageSpent = () => {
-    if (customers.length === 0) return 0;
-    const total = customers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent || '0'), 0);
-    return total / customers.length;
+    if (filteredCustomers.length === 0) return 0;
+    const total = filteredCustomers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent || '0'), 0);
+    return total / filteredCustomers.length;
   };
 
   if (!isConfigured) {
@@ -161,10 +177,10 @@ const Customers = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total de Pedidos
+                 Total de Pedidos
                 </p>
                 <p className="text-2xl font-bold text-success-600">
-                  {customers.reduce((sum: number, customer: Customer) => sum + customer.orders_count, 0)}
+                  {allCustomers.reduce((sum: number, customer: Customer) => sum + customer.orders_count, 0)}
                 </p>
               </div>
               <Package className="w-8 h-8 text-success-600" />
@@ -192,38 +208,45 @@ const Customers = () => {
       {/* Filtros */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  placeholder="Buscar clientes por nome, email ou telefone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            <div className="flex flex-col lg:flex-row gap-4 flex-1">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Buscar clientes por nome, email ou telefone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <select 
+                  value={filterType} 
+                  onChange={(e) => setFilterType(e.target.value as any)}
+                  className="px-3 py-2 border border-input rounded-md bg-background text-sm"
+                >
+                  <option value="all">Todos</option>
+                  <option value="customers">Clientes</option>
+                  <option value="representatives">Representantes</option>
+                </select>
+                <Button variant="outline" onClick={() => refetch()}>
+                  <Filter className="w-4 h-4" />
+                </Button>
               </div>
             </div>
             
-            <div className="flex gap-2">
-              <select 
-                value={filterType} 
-                onChange={(e) => setFilterType(e.target.value as any)}
-                className="px-3 py-2 border border-input rounded-md bg-background text-sm"
-              >
-                <option value="all">Todos</option>
-                <option value="customers">Clientes</option>
-                <option value="representatives">Representantes</option>
-              </select>
-              <Button variant="outline" onClick={() => refetch()}>
-                <Filter className="w-4 h-4" />
-              </Button>
-            </div>
+            <ViewModeToggle 
+              viewMode={viewMode} 
+              onToggle={toggleViewMode} 
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabela de Clientes */}
+      {/* Clientes */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -247,12 +270,12 @@ const Customers = () => {
                 Tentar novamente
               </Button>
             </div>
-          ) : filteredCustomers.length === 0 ? (
+          ) : paginatedCustomers.length === 0 ? (
             <div className="text-center py-8">
-              <User className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Nenhum cliente encontrado</p>
+              <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">Nenhum cliente encontrado</p>
             </div>
-          ) : (
+          ) : viewMode === 'list' ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -266,7 +289,7 @@ const Customers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredCustomers.map((customer: Customer) => (
+                {paginatedCustomers.map((customer: Customer) => (
                   <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -360,31 +383,33 @@ const Customers = () => {
                 ))}
               </TableBody>
             </Table>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
+              {paginatedCustomers.map((customer: Customer) => (
+                <CustomerCard
+                  key={customer.id}
+                  customer={customer}
+                  viewMode={viewMode}
+                  onView={handleViewCustomer}
+                  onEdit={handleEditCustomer}
+                  onToggleRepresentative={toggleRepresentative}
+                />
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Paginação */}
-      {!isLoading && filteredCustomers.length > 0 && (
-        <div className="flex justify-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </Button>
-          <span className="px-4 py-2 text-sm">
-            Página {currentPage}
-          </span>
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={filteredCustomers.length < 20}
-          >
-            Próxima
-          </Button>
-        </div>
+      {filteredCustomers.length > 0 && (
+        <PaginationControls
+          info={pagination.info}
+          actions={pagination.actions}
+          itemsPerPage={pagination.state.itemsPerPage}
+          totalItems={pagination.state.totalItems}
+          currentPage={pagination.state.currentPage}
+          className="mt-6"
+        />
       )}
 
       {/* Dialogs */}
