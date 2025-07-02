@@ -23,7 +23,14 @@ const Dashboard = () => {
   const { data: orders = [] } = useOrders();
   const { data: customers = [] } = useCustomers();
 
-  // Calcular métricas reais
+  // Calcular métricas da semana
+  const weekOrders = orders.filter(order => {
+    const orderDate = new Date(order.date_created);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return orderDate >= weekAgo;
+  });
+
   const todayOrders = orders.filter(order => {
     const orderDate = new Date(order.date_created);
     const today = new Date();
@@ -42,17 +49,22 @@ const Dashboard = () => {
     total + parseFloat(order.total || '0'), 0
   );
 
-  const todayCustomers = customers.filter(customer => {
+  const weekCustomers = customers.filter(customer => {
     const customerDate = new Date(customer.date_created);
-    const today = new Date();
-    return customerDate.toDateString() === today.toDateString();
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return customerDate >= weekAgo;
   });
+
+  const weekSales = weekOrders.reduce((total, order) => 
+    total + parseFloat(order.total || '0'), 0
+  );
 
   const kpis = [
     {
-      title: 'Vendas Hoje',
-      value: `R$ ${todaySales.toFixed(2)}`,
-      subtitle: `${todayOrders.length} transações`,
+      title: 'Vendas da Semana',
+      value: `R$ ${weekSales.toFixed(2)}`,
+      subtitle: `${weekOrders.length} transações`,
       icon: DollarSign,
       trend: { value: 12, isPositive: true }
     },
@@ -72,8 +84,8 @@ const Dashboard = () => {
     },
     {
       title: 'Novos Clientes',
-      value: todayCustomers.length.toString(),
-      subtitle: 'Cadastrados hoje',
+      value: weekCustomers.length.toString(),
+      subtitle: 'Cadastrados na semana',
       icon: Users,
       trend: { value: 25, isPositive: true }
     }
@@ -103,7 +115,11 @@ const Dashboard = () => {
             <TrendingUp className="w-4 h-4 mr-2" />
             Relatório Completo
           </Button>
-          <Button size="sm" className="bg-gradient-primary hover:opacity-90">
+          <Button 
+            size="sm" 
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={() => window.location.href = '/pos'}
+          >
             Novo Pedido
           </Button>
         </div>
@@ -135,13 +151,25 @@ const Dashboard = () => {
               {lowStockProducts.length > 0 && (
                 <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
                   <span>{lowStockProducts.length} produtos com estoque baixo</span>
-                  <Button variant="outline" size="sm">Ver Produtos</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = '/produtos'}
+                  >
+                    Ver Produtos
+                  </Button>
                 </div>
               )}
               {pendingOrders.length > 0 && (
                 <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
                   <span>{pendingOrders.length} pedidos pendentes</span>
-                  <Button variant="outline" size="sm">Ver Pedidos</Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = '/pedidos'}
+                  >
+                    Ver Pedidos
+                  </Button>
                 </div>
               )}
             </div>

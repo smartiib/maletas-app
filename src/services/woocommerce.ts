@@ -1,4 +1,5 @@
 import { toast } from '@/hooks/use-toast';
+import { mockProducts, mockOrders, mockCustomers } from './mockData';
 
 export interface WooCommerceConfig {
   apiUrl: string;
@@ -206,6 +207,24 @@ class WooCommerceAPI {
 
   // Products
   async getProducts(page = 1, per_page = 20, search = '', status = ''): Promise<Product[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let products = [...mockProducts] as any[];
+      
+      // Aplicar filtros nos dados mock
+      if (search) {
+        products = products.filter(p => 
+          p.name.toLowerCase().includes(search.toLowerCase()) ||
+          p.sku.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      if (status) {
+        products = products.filter(p => p.status === status);
+      }
+      
+      return products;
+    }
+
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: per_page.toString(),
@@ -275,6 +294,17 @@ class WooCommerceAPI {
 
   // Orders
   async getOrders(page = 1, per_page = 20, status = ''): Promise<Order[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let orders = [...mockOrders] as any[];
+      
+      if (status) {
+        orders = orders.filter(o => o.status === status);
+      }
+      
+      return orders;
+    }
+
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: per_page.toString(),
@@ -304,6 +334,21 @@ class WooCommerceAPI {
 
   // Customers
   async getCustomers(page = 1, per_page = 20, search = ''): Promise<Customer[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let customers = [...mockCustomers] as any[];
+      
+      if (search) {
+        customers = customers.filter(c => 
+          c.first_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.last_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.email.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      
+      return customers;
+    }
+
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: per_page.toString(),

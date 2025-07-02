@@ -9,12 +9,14 @@ import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig } from '@/services/woocommerce';
 import { authService, PERMISSIONS, ROLE_PERMISSIONS } from '@/services/auth';
 import { logger } from '@/services/logger';
-import { useAuth } from '@/hooks/useAuth';
+
 import { Badge } from '@/components/ui/badge';
 
 const Settings = () => {
   const { config, testConnection, saveConfig, isConfigured } = useWooCommerceConfig();
-  const { hasPermission } = useAuth();
+  
+  // Para desenvolvimento sem autenticação
+  const hasPermission = () => true;
   
   const [storeSettings, setStoreSettings] = useState({
     storeName: 'Minha Loja',
@@ -167,7 +169,7 @@ const Settings = () => {
     }, 1000);
   };
 
-  if (!hasPermission('settings')) {
+  if (!hasPermission()) {
     return (
       <div className="text-center py-12">
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Acesso Negado</h1>

@@ -58,10 +58,27 @@ const Products = () => {
     if (product.stock_status === 'outofstock') {
       return { color: 'bg-red-100 text-red-800', text: 'Sem estoque' };
     }
-    if (product.stock_quantity <= 5) {
-      return { color: 'bg-yellow-100 text-yellow-800', text: `${product.stock_quantity} unidades` };
+    
+    // Para produtos variáveis, somar estoque das variações
+    if (product.type === 'variable' && product.variations) {
+      const totalStock = product.variations.reduce((total: number, variation: any) => 
+        total + (variation.stock_quantity || 0), 0);
+      
+      if (totalStock === 0) {
+        return { color: 'bg-red-100 text-red-800', text: 'Sem estoque' };
+      }
+      if (totalStock <= 5) {
+        return { color: 'bg-yellow-100 text-yellow-800', text: `${totalStock} unidades` };
+      }
+      return { color: 'bg-success-100 text-success-800', text: `${totalStock} unidades` };
     }
-    return { color: 'bg-success-100 text-success-800', text: `${product.stock_quantity} unidades` };
+    
+    // Para produtos simples
+    const stock = product.stock_quantity || 0;
+    if (stock <= 5) {
+      return { color: 'bg-yellow-100 text-yellow-800', text: `${stock} unidades` };
+    }
+    return { color: 'bg-success-100 text-success-800', text: `${stock} unidades` };
   };
 
   const handleDeleteProduct = async (id: number, name: string) => {
@@ -275,7 +292,12 @@ const Products = () => {
                             </div>
                             <div>
                               <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-slate-500">ID: {product.id}</div>
+                              <div className="text-sm text-slate-500">
+                                ID: {product.id}
+                                {product.categories && product.categories.length > 0 && (
+                                  <span> • {product.categories[0].name}</span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </TableCell>
@@ -288,8 +310,17 @@ const Products = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
-                        <TableCell className="font-semibold">
-                          R$ {parseFloat(product.price || '0').toFixed(2)}
+                        <TableCell>
+                          <div>
+                            <div className="font-semibold">
+                              R$ {parseFloat(product.price || '0').toFixed(2)}
+                            </div>
+                            {product.sale_price && product.sale_price !== product.regular_price && (
+                              <div className="text-sm text-slate-500 line-through">
+                                R$ {parseFloat(product.regular_price || '0').toFixed(2)}
+                              </div>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge className={stockStatus.color}>

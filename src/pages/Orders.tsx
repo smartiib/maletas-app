@@ -53,9 +53,8 @@ const Orders = () => {
   };
 
   const handleCreateOrder = () => {
-    setSelectedOrder(undefined);
-    setDialogMode('create');
-    setDialogOpen(true);
+    // Redirecionar para POS ao invés de abrir dialog
+    window.location.href = '/pos';
   };
 
   const handleEditOrder = (order: Order) => {

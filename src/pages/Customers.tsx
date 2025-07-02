@@ -50,7 +50,7 @@ const Customers = () => {
   const getTotalCustomers = () => customers.length;
   const getAverageSpent = () => {
     if (customers.length === 0) return 0;
-    const total = customers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent), 0);
+    const total = customers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent || '0'), 0);
     return total / customers.length;
   };
 
@@ -251,14 +251,14 @@ const Customers = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{customer.orders_count}</div>
+                        <div className="font-medium">{customer.orders_count} pedidos</div>
                         <div className="text-sm text-slate-500">
-                          Desde {new Date(customer.date_created).toLocaleDateString('pt-BR')}
+                          Último: {new Date(customer.date_created).toLocaleDateString('pt-BR')}
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      R$ {parseFloat(customer.total_spent).toFixed(2)}
+                      R$ {parseFloat(customer.total_spent || '0').toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>

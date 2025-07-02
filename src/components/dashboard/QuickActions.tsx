@@ -24,7 +24,7 @@ const QuickActions = () => {
       title: 'Novo Pedido',
       description: 'Criar pedido manual',
       icon: Plus,
-      action: () => navigate('/orders'),
+      action: () => navigate('/pos'),
       variant: 'default' as const,
       gradient: true
     },
@@ -32,21 +32,21 @@ const QuickActions = () => {
       title: 'Adicionar Produto',
       description: 'Cadastrar novo produto',
       icon: Package,
-      action: () => navigate('/products'),
+      action: () => navigate('/produtos'),
       variant: 'outline' as const
     },
     {
       title: 'Novo Cliente',
       description: 'Cadastrar cliente',
       icon: Users,
-      action: () => navigate('/customers'),
+      action: () => navigate('/clientes'),
       variant: 'outline' as const
     },
     {
       title: 'Relatórios',
       description: 'Gerar relatórios',
       icon: FileText,
-      action: () => navigate('/reports'),
+      action: () => navigate('/relatorios'),
       variant: 'outline' as const
     },
     {
@@ -61,7 +61,7 @@ const QuickActions = () => {
       title: 'Configurações',
       description: 'Ajustar sistema',
       icon: Settings,
-      action: () => navigate('/settings'),
+      action: () => navigate('/configuracoes'),
       variant: 'outline' as const
     }
   ];
