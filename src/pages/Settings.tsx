@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key, Mail, Percent } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -618,6 +618,115 @@ const Settings = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Configurações de Comissão */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Percent className="w-5 h-5" />
+            Configurações de Comissão
+          </CardTitle>
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Configure as regras de comissão para representantes
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Taxa de Penalidade */}
+          <div>
+            <Label className="text-sm font-medium">Taxa de Penalidade por Dia (% ao dia)</Label>
+            <div className="mt-2">
+              <Input
+                type="number"
+                placeholder="1.0"
+                step="0.1"
+                min="0"
+                max="10"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Percentual descontado da comissão por dia de atraso na devolução
+              </p>
+            </div>
+          </div>
+
+          {/* Limite Mínimo para Bônus Mensal */}
+          <div>
+            <Label className="text-sm font-medium">Limite Mínimo para Bônus Mensal (R$)</Label>
+            <div className="mt-2">
+              <Input
+                type="number"
+                placeholder="1000.00"
+                step="0.01"
+                min="0"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Valor mínimo de vendas mensais para ser elegível ao bônus
+              </p>
+            </div>
+          </div>
+
+          {/* Taxa de Comissão por Indicação */}
+          <div>
+            <Label className="text-sm font-medium">Taxa de Comissão por Indicação (%)</Label>
+            <div className="mt-2">
+              <Input
+                type="number"
+                placeholder="10"
+                step="0.1"
+                min="0"
+                max="50"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Percentual da comissão sobre vendas de representantes indicados
+              </p>
+            </div>
+          </div>
+
+          {/* Níveis de Comissão */}
+          <div>
+            <Label className="text-sm font-medium mb-3 block">Níveis de Comissão</Label>
+            <div className="space-y-4">
+              {[
+                { label: 'Varejo', min: 0, max: 200, percentage: 0, bonus: 0 },
+                { label: 'Nível 1', min: 200, max: 1500, percentage: 20, bonus: 50 },
+                { label: 'Nível 2', min: 1500, max: 3000, percentage: 30, bonus: 100 },
+                { label: 'Nível 3', min: 3000, max: null, percentage: 40, bonus: 200 }
+              ].map((tier, index) => (
+                <div key={index} className="grid grid-cols-5 gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div>
+                    <Label className="text-xs text-slate-500">Nível</Label>
+                    <Input value={tier.label} readOnly className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-500">Min (R$)</Label>
+                    <Input type="number" defaultValue={tier.min} className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-500">Max (R$)</Label>
+                    <Input type="number" defaultValue={tier.max || ''} className="text-sm" placeholder="Ilimitado" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-500">Comissão (%)</Label>
+                    <Input type="number" defaultValue={tier.percentage} className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-slate-500">Bônus (R$)</Label>
+                    <Input type="number" defaultValue={tier.bonus} className="text-sm" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button className="bg-gradient-primary">
+              Salvar Configurações
+            </Button>
+            <Button variant="outline">
+              Restaurar Padrão
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Botões de Ação */}
       <div className="flex gap-4">

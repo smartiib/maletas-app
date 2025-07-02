@@ -86,7 +86,27 @@ export const mockCustomers = [
       postcode: '01000-000'
     },
     meta_data: [
-      { key: 'birth_date', value: '1990-05-15' }
+      { key: 'birth_date', value: '1990-05-15' },
+      { key: 'is_representative', value: true }
+    ]
+  },
+  {
+    id: 2,
+    first_name: 'Maria',
+    last_name: 'Santos',
+    email: 'maria@email.com',
+    date_created: new Date().toISOString(),
+    orders_count: 5,
+    total_spent: '720.80',
+    billing: {
+      city: 'Rio de Janeiro',
+      state: 'RJ',
+      phone: '(21) 88888-8888',
+      postcode: '20000-000'
+    },
+    meta_data: [
+      { key: 'birth_date', value: '1985-08-20' },
+      { key: 'is_representative', value: true }
     ]
   }
 ];

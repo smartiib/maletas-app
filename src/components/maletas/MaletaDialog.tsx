@@ -176,8 +176,8 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
               </SelectContent>
             </Select>
             {representatives.length === 0 && (
-              <p className="text-sm text-amber-600">
-                Nenhum representante cadastrado. Cadastre representantes primeiro.
+              <p className="text-sm text-orange-600">
+                Nenhum representante cadastrado. Marque clientes como representantes na página de clientes.
               </p>
             )}
           </div>

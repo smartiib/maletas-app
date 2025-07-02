@@ -165,8 +165,40 @@ class MaletasAPI {
   // Maletas CRUD
   async getMaletas(page = 1, per_page = 20, status = '', representative_id = 0): Promise<Maleta[]> {
     // Implementar integração com WooCommerce usando meta_data
-    // Por enquanto retorna dados mockados
-    const mockMaletas: Maleta[] = [];
+    const { mockCustomers } = await import('./mockData');
+    const mockMaletas: Maleta[] = [
+      {
+        id: 1,
+        number: 'MAL001',
+        representative_id: 1,
+        representative_name: 'João Silva',
+        customer_id: 2,
+        customer_name: 'Maria Santos',
+        customer_email: 'maria@email.com',
+        status: 'active',
+        departure_date: new Date().toISOString(),
+        return_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        items: [
+          {
+            id: 1,
+            product_id: 1,
+            name: 'Camiseta Básica',
+            sku: 'CAM001',
+            price: '29.90',
+            quantity: 5,
+            status: 'consigned'
+          }
+        ],
+        total_value: '149.50',
+        commission_settings: {
+          use_global: true,
+          tiers: DEFAULT_COMMISSION_TIERS,
+          penalty_rate: DEFAULT_PENALTY_RATE
+        },
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ];
     return mockMaletas;
   }
 
@@ -195,7 +227,20 @@ class MaletasAPI {
   // Representatives CRUD
   async getRepresentatives(page = 1, per_page = 20, search = ''): Promise<Representative[]> {
     // Buscar representantes (pode ser integrado com customers do WooCommerce)
-    const mockReps: Representative[] = [];
+    const { mockCustomers } = await import('./mockData');
+    const mockReps: Representative[] = mockCustomers
+      .filter(customer => customer.meta_data?.some(meta => meta.key === 'is_representative' && meta.value))
+      .map(customer => ({
+        id: customer.id,
+        name: `${customer.first_name} ${customer.last_name}`,
+        email: customer.email,
+        phone: customer.billing?.phone,
+        commission_settings: {
+          use_global: true,
+        },
+        total_sales: parseFloat(customer.total_spent || '0'),
+        created_at: customer.date_created
+      }));
     return mockReps;
   }
 

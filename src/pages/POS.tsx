@@ -480,17 +480,30 @@ const POS = () => {
               <div className="space-y-3">
                 {cart.map((item, index) => (
                   <div key={`${item.id}-${item.variation_id || 0}-${index}`} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm">{item.name}</h4>
-                        {item.sku && (
-                          <p className="text-xs text-slate-500">SKU: {item.sku}</p>
-                        )}
-                        {item.variation_attributes && (
-                          <p className="text-xs text-slate-600">
-                            {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
-                          </p>
-                        )}
+                     <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center overflow-hidden">
+                          {item.images && item.images.length > 0 ? (
+                            <img 
+                              src={item.images[0].src} 
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-sm">{item.name}</h4>
+                          {item.sku && (
+                            <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                          )}
+                          {item.variation_attributes && (
+                            <p className="text-xs text-slate-600">
+                              {item.variation_attributes.map(attr => `${attr.name}: ${attr.value || 'N/A'}`).join(', ')}
+                            </p>
+                          )}
+                        </div>
                       </div>
                       <Button
                         variant="ghost"
@@ -672,19 +685,18 @@ const POS = () => {
 
               {/* Coluna Direita - Cliente e Pagamento */}
               <div className="space-y-4">
-                {/* Cliente */}
+                 {/* Cliente */}
                 <div>
-                  <Label className="text-sm font-medium">Cliente</Label>
-                  <div className="space-y-3 mt-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="existing-customer"
-                        checked={!isGuestSale}
-                        onChange={() => setIsGuestSale(false)}
-                      />
-                      <Label htmlFor="existing-customer">Cliente Cadastrado</Label>
-                    </div>
+                  <Label className="text-sm font-medium mb-3 block">Cliente</Label>
+                  <div className="space-y-3">
+                    <Button
+                      variant={!isGuestSale ? "default" : "outline"}
+                      className={`w-full justify-start ${!isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                      onClick={() => setIsGuestSale(false)}
+                    >
+                      <User className="w-4 h-4 mr-2" />
+                      Cliente Cadastrado
+                    </Button>
                     
                     {!isGuestSale && (
                       <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
@@ -705,15 +717,14 @@ const POS = () => {
                       </Select>
                     )}
 
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        id="guest-customer"
-                        checked={isGuestSale}
-                        onChange={() => setIsGuestSale(true)}
-                      />
-                      <Label htmlFor="guest-customer">Venda como Convidado</Label>
-                    </div>
+                    <Button
+                      variant={isGuestSale ? "default" : "outline"}
+                      className={`w-full justify-start ${isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                      onClick={() => setIsGuestSale(true)}
+                    >
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Venda como Convidado
+                    </Button>
 
                     {isGuestSale && (
                       <div className="space-y-2">
