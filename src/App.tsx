@@ -28,57 +28,35 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        {BYPASS_AUTH ? (
-          // Modo bypass - sem autenticação
-          <>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<DashboardLayout />}>
-                  <Route index element={<Dashboard />} />
-                  <Route path="/produtos" element={<Products />} />
-                  <Route path="/estoque" element={<Stock />} />
-                  <Route path="/pedidos" element={<Orders />} />
-                  <Route path="/clientes" element={<Customers />} />
-                  <Route path="/pos" element={<POS />} />
-                  <Route path="/maletas" element={<Maletas />} />
-                  <Route path="/relatorios" element={<Reports />} />
-                  <Route path="/logs" element={<Logs />} />
-                  <Route path="/configuracoes" element={<Settings />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </>
-        ) : (
-          // Modo normal - com autenticação
-          <SupabaseAuthProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={
+        <SupabaseAuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={
+                BYPASS_AUTH ? (
+                  <DashboardLayout />
+                ) : (
                   <SupabaseProtectedRoute>
                     <DashboardLayout />
                   </SupabaseProtectedRoute>
-                }>
-                  <Route index element={<Dashboard />} />
-                  <Route path="/produtos" element={<Products />} />
-                  <Route path="/estoque" element={<Stock />} />
-                  <Route path="/pedidos" element={<Orders />} />
-                  <Route path="/clientes" element={<Customers />} />
-                  <Route path="/pos" element={<POS />} />
-                  <Route path="/maletas" element={<Maletas />} />
-                  <Route path="/relatorios" element={<Reports />} />
-                  <Route path="/logs" element={<Logs />} />
-                  <Route path="/configuracoes" element={<Settings />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </SupabaseAuthProvider>
-        )}
+                )
+              }>
+                <Route index element={<Dashboard />} />
+                <Route path="/produtos" element={<Products />} />
+                <Route path="/estoque" element={<Stock />} />
+                <Route path="/pedidos" element={<Orders />} />
+                <Route path="/clientes" element={<Customers />} />
+                <Route path="/pos" element={<POS />} />
+                <Route path="/maletas" element={<Maletas />} />
+                <Route path="/relatorios" element={<Reports />} />
+                <Route path="/logs" element={<Logs />} />
+                <Route path="/configuracoes" element={<Settings />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </SupabaseAuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

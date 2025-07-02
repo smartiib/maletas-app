@@ -12,13 +12,16 @@ interface SendEmailData {
 
 export const useEmail = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { user } = useSupabaseAuth(); // Simplified - no organization needed
+  
+  // No modo bypass, user pode ser null - vamos tratar isso
+  const { user } = useSupabaseAuth();
 
   const sendEmail = async (data: SendEmailData) => {
+    // No modo bypass, permitir envio sem usuário autenticado
     if (!user) {
       toast({
-        title: "Erro",
-        description: "Usuário não encontrado",
+        title: "Modo Demo",
+        description: "Funcionalidade de e-mail indisponível no modo demo",
         variant: "destructive",
       });
       return;
