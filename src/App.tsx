@@ -28,11 +28,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={
-              <SupabaseProtectedRoute>
-                <DashboardLayout />
-              </SupabaseProtectedRoute>
-            }>
+            <Route path="/" element={<DashboardLayout />}>
               <Route index element={<Dashboard />} />
               <Route path="/produtos" element={<Products />} />
               <Route path="/pedidos" element={<Orders />} />
