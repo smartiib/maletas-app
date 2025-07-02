@@ -87,7 +87,7 @@ const Dashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-blue-500">
+          <h1 className="text-3xl font-bold text-foreground">
             Dashboard
           </h1>
           <p className="text-slate-600 dark:text-slate-400 mt-1">
