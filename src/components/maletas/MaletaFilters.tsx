@@ -42,7 +42,7 @@ const MaletaFilters: React.FC<MaletaFiltersProps> = ({
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todos</SelectItem>
+              <SelectItem value="all">Todos</SelectItem>
               <SelectItem value="active">Ativas</SelectItem>
               <SelectItem value="expired">Vencidas</SelectItem>
               <SelectItem value="finalized">Finalizadas</SelectItem>

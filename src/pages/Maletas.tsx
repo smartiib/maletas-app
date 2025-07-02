@@ -12,7 +12,7 @@ import MaletaCard from '@/components/maletas/MaletaCard';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
   const [representativeFilter, setRepresentativeFilter] = useState('');
 
   const { data: allMaletas = [], isLoading, error } = useMaletas();
@@ -25,7 +25,7 @@ const Maletas = () => {
                            maleta.representative_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            maleta.number?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchesStatus = !statusFilter || maleta.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || maleta.status === statusFilter;
       const matchesRepresentative = !representativeFilter || maleta.representative_id?.toString() === representativeFilter;
       
       return matchesSearch && matchesStatus && matchesRepresentative;
