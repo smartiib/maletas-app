@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Search, Package, Calendar, User, AlertTriangle, CheckCircle, Clock, Plus, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,50 +8,73 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMaletas } from '@/hooks/useMaletas';
 import { Maleta } from '@/services/maletas';
-import { format, differenceInDays, isAfter } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { usePagination } from '@/hooks/usePagination';
+import { useViewMode } from '@/hooks/useViewMode';
+import PaginationControls from '@/components/ui/pagination-controls';
+import ViewModeToggle from '@/components/ui/view-mode-toggle';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [representativeFilter, setRepresentativeFilter] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
 
-  const { data: maletas = [], isLoading, error } = useMaletas(currentPage, statusFilter);
+  const { data: allMaletas = [], isLoading, error } = useMaletas();
+  const { viewMode, toggleViewMode } = useViewMode('maletas');
 
-  const filteredMaletas = maletas.filter(maleta => {
-    const matchesSearch = maleta.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         maleta.representative_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         maleta.number.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesRepresentative = !representativeFilter || maleta.representative_id.toString() === representativeFilter;
-    
-    return matchesSearch && matchesRepresentative;
-  });
+  // Filter and paginate data
+  const filteredMaletas = useMemo(() => {
+    return allMaletas.filter(maleta => {
+      const matchesSearch = maleta.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           maleta.representative_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           maleta.number?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = !statusFilter || maleta.status === statusFilter;
+      const matchesRepresentative = !representativeFilter || maleta.representative_id?.toString() === representativeFilter;
+      
+      return matchesSearch && matchesStatus && matchesRepresentative;
+    });
+  }, [allMaletas, searchTerm, statusFilter, representativeFilter]);
+
+  const pagination = usePagination(filteredMaletas.length, 20);
+  
+  const paginatedMaletas = useMemo(() => {
+    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
+    const end = start + pagination.state.itemsPerPage;
+    return filteredMaletas.slice(start, end);
+  }, [filteredMaletas, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
   const getStatusInfo = (maleta: Maleta) => {
-    const today = new Date();
-    const returnDate = new Date(maleta.return_date);
-    const daysUntilReturn = differenceInDays(returnDate, today);
-    
-    if (maleta.status === 'finalized') {
-      return { label: 'Finalizada', variant: 'default' as const, icon: CheckCircle, color: 'text-green-600' };
+    try {
+      const today = new Date();
+      const returnDate = new Date(maleta.return_date);
+      
+      if (isNaN(returnDate.getTime())) {
+        return { label: 'Data inválida', variant: 'secondary' as const, icon: Clock, color: 'text-muted-foreground' };
+      }
+      
+      const daysUntilReturn = Math.ceil((returnDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (maleta.status === 'finalized') {
+        return { label: 'Finalizada', variant: 'default' as const, icon: CheckCircle, color: 'text-success' };
+      }
+      
+      if (daysUntilReturn < 0) {
+        return { label: 'Vencida', variant: 'destructive' as const, icon: AlertTriangle, color: 'text-destructive' };
+      }
+      
+      if (daysUntilReturn <= 3) {
+        return { label: 'Próxima ao vencimento', variant: 'secondary' as const, icon: Clock, color: 'text-warning' };
+      }
+      
+      return { label: 'Ativa', variant: 'outline' as const, icon: Package, color: 'text-success' };
+    } catch (error) {
+      return { label: 'Erro', variant: 'secondary' as const, icon: AlertTriangle, color: 'text-muted-foreground' };
     }
-    
-    if (isAfter(today, returnDate)) {
-      return { label: 'Vencida', variant: 'destructive' as const, icon: AlertTriangle, color: 'text-red-600' };
-    }
-    
-    if (daysUntilReturn <= 3) {
-      return { label: 'Próxima ao vencimento', variant: 'secondary' as const, icon: Clock, color: 'text-yellow-600' };
-    }
-    
-    return { label: 'Ativa', variant: 'outline' as const, icon: Package, color: 'text-green-600' };
   };
 
   const getTotalStats = () => {
     const stats = {
-      total: maletas.length,
+      total: filteredMaletas.length,
       active: 0,
       expired: 0,
       nearExpiry: 0,
@@ -61,20 +84,26 @@ const Maletas = () => {
 
     const today = new Date();
     
-    maletas.forEach(maleta => {
-      const returnDate = new Date(maleta.return_date);
-      const daysUntilReturn = differenceInDays(returnDate, today);
-      
-      stats.totalValue += parseFloat(maleta.total_value);
-      
-      if (maleta.status === 'finalized') {
-        stats.finalized++;
-      } else if (isAfter(today, returnDate)) {
-        stats.expired++;
-      } else if (daysUntilReturn <= 3) {
-        stats.nearExpiry++;
-      } else {
-        stats.active++;
+    filteredMaletas.forEach(maleta => {
+      try {
+        const returnDate = new Date(maleta.return_date);
+        if (!isNaN(returnDate.getTime())) {
+          const daysUntilReturn = Math.ceil((returnDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          
+          stats.totalValue += parseFloat(maleta.total_value || '0');
+          
+          if (maleta.status === 'finalized') {
+            stats.finalized++;
+          } else if (daysUntilReturn < 0) {
+            stats.expired++;
+          } else if (daysUntilReturn <= 3) {
+            stats.nearExpiry++;
+          } else {
+            stats.active++;
+          }
+        }
+      } catch (error) {
+        console.warn('Erro ao processar maleta:', maleta.id, error);
       }
     });
 
@@ -115,7 +144,7 @@ const Maletas = () => {
             Gerencie suas maletas de consignação
           </p>
         </div>
-        <Button className="bg-gradient-primary">
+        <Button className="bg-gradient-primary text-primary-foreground">
           <Plus className="w-4 h-4 mr-2" />
           Nova Maleta
         </Button>
@@ -184,49 +213,58 @@ const Maletas = () => {
         </Card>
       </div>
 
-      {/* Filtros */}
-      <div className="flex flex-wrap gap-4">
-        <div className="relative flex-1 min-w-64">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-          <Input
-            placeholder="Buscar por cliente, representante ou número..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+      {/* Filtros e Controles */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap gap-4 items-center justify-between">
+          <div className="flex flex-wrap gap-4 flex-1">
+            <div className="relative flex-1 min-w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Buscar por cliente, representante ou número..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-48">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos</SelectItem>
+                <SelectItem value="active">Ativas</SelectItem>
+                <SelectItem value="expired">Vencidas</SelectItem>
+                <SelectItem value="finalized">Finalizadas</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <ViewModeToggle 
+            viewMode={viewMode} 
+            onToggle={toggleViewMode} 
           />
         </div>
-        
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">Todos</SelectItem>
-            <SelectItem value="active">Ativas</SelectItem>
-            <SelectItem value="expired">Vencidas</SelectItem>
-            <SelectItem value="finalized">Finalizadas</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      {/* Lista de Maletas */}
-      <div className="grid gap-4">
-        {filteredMaletas.map(maleta => {
+      {/* Lista/Grid de Maletas */}
+      <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+        {paginatedMaletas.map(maleta => {
           const statusInfo = getStatusInfo(maleta);
           const StatusIcon = statusInfo.icon;
           
           return (
-            <Card key={maleta.id} className="hover:shadow-md transition-shadow">
+            <Card key={maleta.id} className="hover:shadow-md transition-all-smooth">
               <CardContent className="p-6">
-                <div className="flex items-center justify-between">
+                <div className={viewMode === 'grid' ? 'space-y-4' : 'flex items-center justify-between'}>
                   <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-3">
+                    <div className={viewMode === 'grid' ? 'space-y-3' : 'flex items-center gap-4 mb-3'}>
                       <div>
                         <h3 className="font-semibold text-lg">
                           Maleta #{maleta.number}
                         </h3>
-                        <div className="flex items-center gap-4 text-sm text-slate-600">
+                        <div className={viewMode === 'grid' ? 'space-y-2 mt-2' : 'flex items-center gap-4 text-sm text-muted-foreground'}>
                           <div className="flex items-center gap-1">
                             <User className="w-4 h-4" />
                             {maleta.customer_name}
@@ -237,27 +275,27 @@ const Maletas = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4" />
-                            Devolução: {format(new Date(maleta.return_date), 'dd/MM/yyyy', { locale: ptBR })}
+                            Devolução: {new Date(maleta.return_date).toLocaleDateString('pt-BR')}
                           </div>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-4">
-                      <Badge variant={statusInfo.variant} className="flex items-center gap-1">
+                    <div className={viewMode === 'grid' ? 'space-y-2' : 'flex items-center gap-4'}>
+                      <Badge variant={statusInfo.variant} className="flex items-center gap-1 w-fit">
                         <StatusIcon className="w-3 h-3" />
                         {statusInfo.label}
                       </Badge>
-                      <span className="text-sm text-slate-600">
-                        {maleta.items.length} itens
+                      <span className="text-sm text-muted-foreground">
+                        {maleta.items?.length || 0} itens
                       </span>
                       <span className="font-semibold">
-                        R$ {parseFloat(maleta.total_value).toFixed(2)}
+                        R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
                       </span>
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className={viewMode === 'grid' ? 'flex flex-col gap-2' : 'flex gap-2'}>
                     <Button variant="outline" size="sm">
                       Detalhes
                     </Button>
@@ -279,11 +317,23 @@ const Maletas = () => {
         })}
       </div>
 
-      {filteredMaletas.length === 0 && (
+      {/* Paginação */}
+      {filteredMaletas.length > 0 && (
+        <PaginationControls
+          info={pagination.info}
+          actions={pagination.actions}
+          itemsPerPage={pagination.state.itemsPerPage}
+          totalItems={pagination.state.totalItems}
+          currentPage={pagination.state.currentPage}
+          className="mt-6"
+        />
+      )}
+
+      {paginatedMaletas.length === 0 && !isLoading && (
         <div className="text-center py-12">
-          <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+          <Package className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
           <h3 className="text-lg font-semibold mb-2">Nenhuma maleta encontrada</h3>
-          <p className="text-slate-600">
+          <p className="text-muted-foreground">
             {searchTerm || statusFilter 
               ? "Tente ajustar os filtros de busca"
               : "Crie sua primeira maleta de consignação"}
