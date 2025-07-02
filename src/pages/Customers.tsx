@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin, AlertCircle, Eye } from 'lucide-react';
+import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin, AlertCircle, Eye, Crown, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,12 @@ import { useCustomers, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { Customer } from '@/services/woocommerce';
 import CustomerDialog from '@/components/customers/CustomerDialog';
 import CustomerDetails from '@/components/customers/CustomerDetails';
+import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCustomer';
 import { MoreHorizontal } from 'lucide-react';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'representatives' | 'customers'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
@@ -47,7 +49,29 @@ const Customers = () => {
     setDetailsOpen(true);
   };
 
+  const isRepresentative = (customer: Customer) => {
+    return customer.meta_data?.some(meta => meta.key === 'is_representative' && meta.value === true);
+  };
+
+  const toggleRepresentative = (customer: Customer) => {
+    // TODO: Implementar quando integração WordPress estiver pronta
+    console.log('Toggle representative status for:', customer.id);
+  };
+
+  const filteredCustomers = customers.filter(customer => {
+    const matchesSearch = customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesFilter = filterType === 'all' || 
+                         (filterType === 'representatives' && isRepresentative(customer)) ||
+                         (filterType === 'customers' && !isRepresentative(customer));
+    
+    return matchesSearch && matchesFilter;
+  });
+
   const getTotalCustomers = () => customers.length;
+  const getTotalRepresentatives = () => customers.filter(isRepresentative).length;
   const getAverageSpent = () => {
     if (customers.length === 0) return 0;
     const total = customers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent || '0'), 0);
@@ -103,7 +127,7 @@ const Customers = () => {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -123,13 +147,27 @@ const Customers = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                  Representantes
+                </p>
+                <p className="text-2xl font-bold text-purple-600">{getTotalRepresentatives()}</p>
+              </div>
+              <Crown className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
                   Total de Pedidos
                 </p>
                 <p className="text-2xl font-bold text-success-600">
                   {customers.reduce((sum: number, customer: Customer) => sum + customer.orders_count, 0)}
                 </p>
               </div>
-              <User className="w-8 h-8 text-success-600" />
+              <Package className="w-8 h-8 text-success-600" />
             </div>
           </CardContent>
         </Card>
@@ -168,6 +206,15 @@ const Customers = () => {
             </div>
             
             <div className="flex gap-2">
+              <select 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value as any)}
+                className="px-3 py-2 border border-input rounded-md bg-background text-sm"
+              >
+                <option value="all">Todos</option>
+                <option value="customers">Clientes</option>
+                <option value="representatives">Representantes</option>
+              </select>
               <Button variant="outline" onClick={() => refetch()}>
                 <Filter className="w-4 h-4" />
               </Button>
@@ -181,7 +228,9 @@ const Customers = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Lista de Clientes {!isLoading && `(${customers.length})`}
+            Lista de Clientes {!isLoading && `(${filteredCustomers.length})`}
+            {filterType === 'representatives' && ' - Representantes'}
+            {filterType === 'customers' && ' - Apenas Clientes'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -198,7 +247,7 @@ const Customers = () => {
                 Tentar novamente
               </Button>
             </div>
-          ) : customers.length === 0 ? (
+          ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-8">
               <User className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-500">Nenhum cliente encontrado</p>
@@ -212,11 +261,12 @@ const Customers = () => {
                   <TableHead>Localização</TableHead>
                   <TableHead>Pedidos</TableHead>
                   <TableHead>Total Gasto</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {customers.map((customer: Customer) => (
+                {filteredCustomers.map((customer: Customer) => (
                   <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -224,7 +274,12 @@ const Customers = () => {
                           <User className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                          <div className="font-medium">{customer.first_name} {customer.last_name}</div>
+                          <div className="font-medium flex items-center gap-2">
+                            {customer.first_name} {customer.last_name}
+                            {isRepresentative(customer) && (
+                              <Crown className="w-4 h-4 text-purple-600" />
+                            )}
+                          </div>
                           <div className="text-sm text-slate-500">ID: {customer.id}</div>
                         </div>
                       </div>
@@ -261,6 +316,16 @@ const Customers = () => {
                       R$ {parseFloat(customer.total_spent || '0').toFixed(2)}
                     </TableCell>
                     <TableCell>
+                      {isRepresentative(customer) ? (
+                        <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                          <Crown className="w-3 h-3 mr-1" />
+                          Representante
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">Cliente</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="sm">
@@ -276,6 +341,18 @@ const Customers = () => {
                             <Edit className="w-4 h-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => toggleRepresentative(customer)}>
+                            <Crown className="w-4 h-4 mr-2" />
+                            {isRepresentative(customer) ? 'Remover como Rep.' : 'Tornar Representante'}
+                          </DropdownMenuItem>
+                          {isRepresentative(customer) && (
+                            <DropdownMenuItem asChild>
+                              <CreateMaletaFromCustomer
+                                representativeId={customer.id}
+                                representativeName={`${customer.first_name} ${customer.last_name}`}
+                              />
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -288,7 +365,7 @@ const Customers = () => {
       </Card>
 
       {/* Paginação */}
-      {!isLoading && customers.length > 0 && (
+      {!isLoading && filteredCustomers.length > 0 && (
         <div className="flex justify-center gap-2">
           <Button 
             variant="outline" 
@@ -303,7 +380,7 @@ const Customers = () => {
           <Button 
             variant="outline" 
             onClick={() => setCurrentPage(p => p + 1)}
-            disabled={customers.length < 20}
+            disabled={filteredCustomers.length < 20}
           >
             Próxima
           </Button>

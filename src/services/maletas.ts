@@ -208,10 +208,59 @@ class MaletasAPI {
   }
 
   async createMaleta(data: CreateMaletaData): Promise<Maleta> {
-    // Criar pedido no WooCommerce com status 'consignment'
-    // Reduzir estoque dos produtos
-    // Salvar dados específicos em meta_data
-    throw new Error('Método não implementado');
+    // Simular criação de maleta com dados mock
+    const { mockCustomers } = await import('./mockData');
+    const representative = mockCustomers.find(c => c.id === data.representative_id);
+    
+    if (!representative) {
+      throw new Error('Representante não encontrado');
+    }
+
+    const newMaleta: Maleta = {
+      id: Date.now(), // ID temporário
+      number: `MAL${String(Date.now()).slice(-6)}`,
+      representative_id: data.representative_id,
+      representative_name: `${representative.first_name} ${representative.last_name}`,
+      customer_id: data.customer_id || 0,
+      customer_name: representative.first_name ? `${representative.first_name} ${representative.last_name}` : 'Cliente Direto',
+      customer_email: representative.email,
+      status: 'active',
+      departure_date: new Date().toISOString(),
+      return_date: data.return_date,
+      items: data.items.map((item, index) => ({
+        id: index + 1,
+        product_id: item.product_id,
+        variation_id: item.variation_id,
+        name: `Produto ${item.product_id}`,
+        sku: `PRD${item.product_id}`,
+        price: item.price,
+        quantity: item.quantity,
+        status: 'consigned' as const,
+        variation_attributes: item.variation_id ? [{ name: 'Variação', value: `Var ${item.variation_id}` }] : undefined
+      })),
+      total_value: data.items.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0).toFixed(2),
+      commission_settings: data.commission_settings?.use_global ? {
+        use_global: true,
+        tiers: DEFAULT_COMMISSION_TIERS,
+        penalty_rate: DEFAULT_PENALTY_RATE
+      } : {
+        use_global: false,
+        tiers: [{
+          min_amount: 0,
+          percentage: data.commission_settings?.custom_percentage || 20,
+          bonus: 0,
+          label: 'Personalizada'
+        }],
+        penalty_rate: DEFAULT_PENALTY_RATE
+      },
+      notes: data.notes,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Simular salvamento
+    console.log('Maleta criada:', newMaleta);
+    return newMaleta;
   }
 
   async extendMaletaDeadline(id: number, new_date: string): Promise<Maleta> {

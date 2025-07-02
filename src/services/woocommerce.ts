@@ -142,6 +142,7 @@ export interface Customer {
   };
   orders_count: number;
   total_spent: string;
+  meta_data?: Array<{ key: string; value: any }>;
 }
 
 class WooCommerceAPI {
