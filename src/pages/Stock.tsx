@@ -8,9 +8,9 @@ import { StockRow } from '@/components/stock/StockRow';
 
 const Stock = () => {
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
-  const { data: products, isLoading } = useProducts(1, search, '', category);
+  const { data: products, isLoading } = useProducts(1, search, '', category === 'all' ? '' : category);
   const { data: categories } = useCategories();
 
   const toggleExpanded = (productId: number) => {
@@ -67,7 +67,7 @@ const Stock = () => {
                 <SelectValue placeholder="Filtrar por categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories?.map((cat) => (
                   <SelectItem key={cat.id} value={cat.id.toString()}>
                     {cat.name}
