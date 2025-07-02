@@ -391,7 +391,7 @@ const Products = () => {
                       
                       {/* Variações */}
                       {isExpanded && hasVariations && (
-                        <>
+                        <React.Fragment>
                           {product.variations.map((variation: any) => (
                             <TableRow key={`${product.id}-${variation.id}`} className="bg-muted/50">
                               <TableCell></TableCell>
@@ -428,7 +428,7 @@ const Products = () => {
                               </TableCell>
                             </TableRow>
                           ))}
-                        </>
+                        </React.Fragment>
                       )}
                     </React.Fragment>
                   );
