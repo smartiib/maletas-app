@@ -1,17 +1,14 @@
 
 import React, { useState, useMemo } from 'react';
-import { Search, Package, Calendar, User, AlertTriangle, CheckCircle, Clock, Plus, Filter } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Package, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMaletas } from '@/hooks/useMaletas';
-import { Maleta } from '@/services/maletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
 import PaginationControls from '@/components/ui/pagination-controls';
-import ViewModeToggle from '@/components/ui/view-mode-toggle';
+import MaletaStats from '@/components/maletas/MaletaStats';
+import MaletaFilters from '@/components/maletas/MaletaFilters';
+import MaletaCard from '@/components/maletas/MaletaCard';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,35 +39,6 @@ const Maletas = () => {
     const end = start + pagination.state.itemsPerPage;
     return filteredMaletas.slice(start, end);
   }, [filteredMaletas, pagination.state.currentPage, pagination.state.itemsPerPage]);
-
-  const getStatusInfo = (maleta: Maleta) => {
-    try {
-      const today = new Date();
-      const returnDate = new Date(maleta.return_date);
-      
-      if (isNaN(returnDate.getTime())) {
-        return { label: 'Data inválida', variant: 'secondary' as const, icon: Clock, color: 'text-muted-foreground' };
-      }
-      
-      const daysUntilReturn = Math.ceil((returnDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (maleta.status === 'finalized') {
-        return { label: 'Finalizada', variant: 'default' as const, icon: CheckCircle, color: 'text-success' };
-      }
-      
-      if (daysUntilReturn < 0) {
-        return { label: 'Vencida', variant: 'destructive' as const, icon: AlertTriangle, color: 'text-destructive' };
-      }
-      
-      if (daysUntilReturn <= 3) {
-        return { label: 'Próxima ao vencimento', variant: 'secondary' as const, icon: Clock, color: 'text-warning' };
-      }
-      
-      return { label: 'Ativa', variant: 'outline' as const, icon: Package, color: 'text-success' };
-    } catch (error) {
-      return { label: 'Erro', variant: 'secondary' as const, icon: AlertTriangle, color: 'text-muted-foreground' };
-    }
-  };
 
   const getTotalStats = () => {
     const stats = {
@@ -151,170 +119,27 @@ const Maletas = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Total</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <Package className="w-8 h-8 text-primary" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Ativas</p>
-                <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Vencidas</p>
-                <p className="text-2xl font-bold text-red-600">{stats.expired}</p>
-              </div>
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Próx. Vencimento</p>
-                <p className="text-2xl font-bold text-yellow-600">{stats.nearExpiry}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-slate-600">Valor Total</p>
-                <p className="text-lg font-bold">R$ {stats.totalValue.toFixed(2)}</p>
-              </div>
-              <span className="text-2xl">💰</span>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <MaletaStats stats={stats} />
 
       {/* Filtros e Controles */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex flex-wrap gap-4 flex-1">
-            <div className="relative flex-1 min-w-64">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Buscar por cliente, representante ou número..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <Filter className="w-4 h-4 mr-2" />
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Todos</SelectItem>
-                <SelectItem value="active">Ativas</SelectItem>
-                <SelectItem value="expired">Vencidas</SelectItem>
-                <SelectItem value="finalized">Finalizadas</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <ViewModeToggle 
-            viewMode={viewMode} 
-            onToggle={toggleViewMode} 
-          />
-        </div>
-      </div>
+      <MaletaFilters
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
+        viewMode={viewMode}
+        onToggleViewMode={toggleViewMode}
+      />
 
       {/* Lista/Grid de Maletas */}
       <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
-        {paginatedMaletas.map(maleta => {
-          const statusInfo = getStatusInfo(maleta);
-          const StatusIcon = statusInfo.icon;
-          
-          return (
-            <Card key={maleta.id} className="hover:shadow-md transition-all-smooth">
-              <CardContent className="p-6">
-                <div className={viewMode === 'grid' ? 'space-y-4' : 'flex items-center justify-between'}>
-                  <div className="flex-1">
-                    <div className={viewMode === 'grid' ? 'space-y-3' : 'flex items-center gap-4 mb-3'}>
-                      <div>
-                        <h3 className="font-semibold text-lg">
-                          Maleta #{maleta.number}
-                        </h3>
-                        <div className={viewMode === 'grid' ? 'space-y-2 mt-2' : 'flex items-center gap-4 text-sm text-muted-foreground'}>
-                          <div className="flex items-center gap-1">
-                            <User className="w-4 h-4" />
-                            {maleta.customer_name}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Package className="w-4 h-4" />
-                            {maleta.representative_name}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            Devolução: {new Date(maleta.return_date).toLocaleDateString('pt-BR')}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className={viewMode === 'grid' ? 'space-y-2' : 'flex items-center gap-4'}>
-                      <Badge variant={statusInfo.variant} className="flex items-center gap-1 w-fit">
-                        <StatusIcon className="w-3 h-3" />
-                        {statusInfo.label}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {maleta.items?.length || 0} itens
-                      </span>
-                      <span className="font-semibold">
-                        R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className={viewMode === 'grid' ? 'flex flex-col gap-2' : 'flex gap-2'}>
-                    <Button variant="outline" size="sm">
-                      Detalhes
-                    </Button>
-                    {maleta.status === 'active' && (
-                      <>
-                        <Button variant="outline" size="sm">
-                          Estender Prazo
-                        </Button>
-                        <Button size="sm" className="bg-gradient-success">
-                          Processar Devolução
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+        {paginatedMaletas.map(maleta => (
+          <MaletaCard 
+            key={maleta.id} 
+            maleta={maleta} 
+            viewMode={viewMode}
+          />
+        ))}
       </div>
 
       {/* Paginação */}
