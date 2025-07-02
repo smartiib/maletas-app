@@ -359,7 +359,7 @@ const POS = () => {
       {/* Header POS */}
       <div className="bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold text-foreground">
             Ponto de Venda
           </h1>
           <div className="flex items-center space-x-4">

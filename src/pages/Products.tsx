@@ -153,7 +153,7 @@ const Products = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            <h1 className="text-3xl font-bold text-foreground">
               Produtos
             </h1>
             <p className="text-slate-600 dark:text-slate-400">
@@ -183,7 +183,7 @@ const Products = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-foreground">
             Produtos
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
