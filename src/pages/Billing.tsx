@@ -1,388 +1,44 @@
-import React, { useState, useEffect } from 'react';
+// Billing functionality temporarily disabled for non-SaaS mode
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useSupabaseAuth } from '@/hooks/useSupabaseAuth';
-import { useSubscription } from '@/hooks/useSubscription';
-import { supabase } from '@/integrations/supabase/client';
-import { CheckCircle, Clock, CreditCard, Calendar } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
+import { AlertTriangle } from 'lucide-react';
 
 const Billing = () => {
-  const { currentOrganization } = useSupabaseAuth();
-  const [currentSubscription, setCurrentSubscription] = useState<any>(null);
-  const [availablePlans, setAvailablePlans] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (currentOrganization) {
-      fetchSubscriptionData();
-    }
-  }, [currentOrganization]);
-
-  const fetchSubscriptionData = async () => {
-    try {
-      // Fetch current subscription
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select(`
-          *,
-          subscription_plans(*)
-        `)
-        .eq('organization_id', currentOrganization.id)
-        .single();
-
-      setCurrentSubscription(subscription);
-
-      // Fetch all available plans
-      const { data: plans } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .order('price_monthly', { ascending: true });
-
-      setAvailablePlans(plans || []);
-    } catch (error) {
-      console.error('Error fetching subscription data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const { createSubscription, isLoading: subscriptionLoading } = useSubscription();
-  const [selectedPlan, setSelectedPlan] = useState<string>('');
-  const [billingType, setBillingType] = useState<'BOLETO' | 'CREDIT_CARD' | 'PIX'>('PIX');
-  const [showPaymentForm, setShowPaymentForm] = useState(false);
-  const [creditCard, setCreditCard] = useState({
-    holderName: '',
-    number: '',
-    expiryMonth: '',
-    expiryYear: '',
-    ccv: '',
-  });
-
-  const handleUpgrade = async (planId: string) => {
-    if (!currentSubscription) {
-      setSelectedPlan(planId);
-      setShowPaymentForm(true);
-      return;
-    }
-
-    try {
-      // For existing subscriptions, just show upgrade message
-      toast({
-        title: "Upgrade solicitado",
-        description: "Em breve você receberá instruções de pagamento por email.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro no upgrade",
-        description: "Tente novamente ou entre em contato com o suporte.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleCreateSubscription = async () => {
-    if (!selectedPlan) return;
-
-    const data = {
-      planId: selectedPlan,
-      billingType,
-      ...(billingType === 'CREDIT_CARD' && { creditCard }),
-    };
-
-    try {
-      await createSubscription(data);
-      setShowPaymentForm(false);
-      await fetchSubscriptionData();
-    } catch (error) {
-      console.error('Error creating subscription:', error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusMap = {
-      'trialing': { label: 'Trial', variant: 'secondary' as const },
-      'active': { label: 'Ativo', variant: 'default' as const },
-      'past_due': { label: 'Vencido', variant: 'destructive' as const },
-      'canceled': { label: 'Cancelado', variant: 'outline' as const },
-    };
-    
-    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'outline' as const };
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-BR');
-  };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-slate-200 rounded w-1/4"></div>
-          <div className="h-48 bg-slate-200 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-64 bg-slate-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Simplified for non-SaaS mode
 
   return (
     <div className="container mx-auto p-6 space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Assinatura & Planos</h1>
+        <h1 className="text-3xl font-bold">Funcionalidade Temporariamente Desabilitada</h1>
       </div>
 
-      {/* Current Subscription */}
-      {currentSubscription && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="w-5 h-5" />
-                  Plano Atual: {currentSubscription.subscription_plans?.name}
-                </CardTitle>
-                <CardDescription>
-                  {getStatusBadge(currentSubscription.status)}
-                </CardDescription>
-              </div>
-              <div className="text-right">
-                <div className="text-2xl font-bold">
-                  R$ {currentSubscription.subscription_plans?.price_monthly?.toFixed(2)}
-                  <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Próximo pagamento</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDate(currentSubscription.current_period_end)}
-                  </p>
-                </div>
-              </div>
-              
-              {currentSubscription.trial_ends_at && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Trial termina em</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatDate(currentSubscription.trial_ends_at)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <div>
-                  <p className="text-sm font-medium">Recursos inclusos</p>
-                  <p className="text-sm text-muted-foreground">
-                    {currentSubscription.subscription_plans?.max_stores === -1 
-                      ? 'Lojas ilimitadas' 
-                      : `${currentSubscription.subscription_plans?.max_stores} loja(s)`
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Features */}
-            <div className="mt-6">
-              <h4 className="font-medium mb-3">Recursos do seu plano:</h4>
-              <div className="flex flex-wrap gap-2">
-                {currentSubscription.subscription_plans?.features?.map((feature: string, index: number) => (
-                  <Badge key={index} variant="outline">{feature}</Badge>
-                ))}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Available Plans */}
-      <div>
-        <h2 className="text-2xl font-bold mb-6">Planos Disponíveis</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {availablePlans.map((plan) => {
-            const isCurrentPlan = currentSubscription?.plan_id === plan.id;
-            const isUpgrade = plan.price_monthly > (currentSubscription?.subscription_plans?.price_monthly || 0);
-            
-            return (
-              <Card key={plan.id} className={`relative ${isCurrentPlan ? 'ring-2 ring-blue-500' : ''}`}>
-                {isCurrentPlan && (
-                  <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
-                    <Badge className="bg-blue-500">Plano Atual</Badge>
-                  </div>
-                )}
-                
-                <CardHeader>
-                  <CardTitle>{plan.name}</CardTitle>
-                  <div className="text-2xl font-bold">
-                    R$ {plan.price_monthly?.toFixed(2)}
-                    <span className="text-sm font-normal text-muted-foreground">/mês</span>
-                  </div>
-                </CardHeader>
-                
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Lojas:</span>
-                      <span className="font-medium">
-                        {plan.max_stores === -1 ? 'Ilimitadas' : plan.max_stores}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Produtos:</span>
-                      <span className="font-medium">
-                        {plan.max_products === -1 ? 'Ilimitados' : plan.max_products}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Usuários:</span>
-                      <span className="font-medium">
-                        {plan.max_users === -1 ? 'Ilimitados' : plan.max_users}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {plan.features?.slice(0, 3).map((feature: string, index: number) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <CheckCircle className="w-3 h-3 text-green-500" />
-                        <span>{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button
-                    className="w-full"
-                    variant={isCurrentPlan ? "outline" : "default"}
-                    disabled={isCurrentPlan}
-                    onClick={() => handleUpgrade(plan.id)}
-                  >
-                    {isCurrentPlan ? 'Plano Atual' : isUpgrade ? 'Fazer Upgrade' : 'Selecionar Plano'}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Payment Form Modal */}
-      {showPaymentForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Finalizar Assinatura</CardTitle>
-            <CardDescription>
-              Complete os dados para ativar seu plano
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Forma de Pagamento</Label>
-              <Select value={billingType} onValueChange={(value: any) => setBillingType(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PIX">PIX</SelectItem>
-                  <SelectItem value="BOLETO">Boleto</SelectItem>
-                  <SelectItem value="CREDIT_CARD">Cartão de Crédito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {billingType === 'CREDIT_CARD' && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label>Nome no Cartão</Label>
-                  <Input
-                    value={creditCard.holderName}
-                    onChange={(e) => setCreditCard({...creditCard, holderName: e.target.value})}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label>Número do Cartão</Label>
-                  <Input
-                    value={creditCard.number}
-                    onChange={(e) => setCreditCard({...creditCard, number: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label>Mês</Label>
-                  <Input
-                    placeholder="MM"
-                    value={creditCard.expiryMonth}
-                    onChange={(e) => setCreditCard({...creditCard, expiryMonth: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label>Ano</Label>
-                  <Input
-                    placeholder="AAAA"
-                    value={creditCard.expiryYear}
-                    onChange={(e) => setCreditCard({...creditCard, expiryYear: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <Label>CVV</Label>
-                  <Input
-                    value={creditCard.ccv}
-                    onChange={(e) => setCreditCard({...creditCard, ccv: e.target.value})}
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={handleCreateSubscription}
-                disabled={subscriptionLoading}
-                className="flex-1"
-              >
-                {subscriptionLoading ? 'Processando...' : 'Finalizar Assinatura'}
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setShowPaymentForm(false)}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Billing History */}
-      <Card>
+      <Card className="border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-900/20">
         <CardHeader>
-          <CardTitle>Histórico de Pagamentos</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300">
+            <AlertTriangle className="w-5 h-5" />
+            Recursos SaaS Pausados
+          </CardTitle>
           <CardDescription>
-            Seus últimos pagamentos e faturas
+            As funcionalidades de assinatura e billing estão temporariamente desabilitadas
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <CreditCard className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Nenhum histórico de pagamento ainda</p>
-            <p className="text-sm">Os pagamentos aparecerão aqui após a primeira cobrança</p>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">
+              Esta página contém funcionalidades SaaS que foram pausadas para finalizar o desenvolvimento da aplicação principal.
+            </p>
+            <p className="text-muted-foreground">
+              As funcionalidades incluem:
+            </p>
+            <ul className="list-disc list-inside text-sm text-muted-foreground space-y-1">
+              <li>Gestão de planos e assinaturas</li>
+              <li>Sistema de billing integrado</li>
+              <li>Organizações multi-tenant</li>
+              <li>Limites por organização</li>
+            </ul>
+            <p className="text-muted-foreground">
+              Essas funcionalidades serão reativadas quando o desenvolvimento SaaS for retomado.
+            </p>
           </div>
         </CardContent>
       </Card>

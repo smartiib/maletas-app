@@ -1,5 +1,9 @@
-// Subscription functionality temporarily disabled for non-SaaS mode
+// Subscription functionality disabled for non-SaaS mode
+// This file contains the original subscription logic for future reactivation
+
 import { useState } from 'react';
+import { useSupabaseAuth } from './useSupabaseAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from './use-toast';
 
 interface CreateSubscriptionData {
@@ -16,6 +20,7 @@ interface CreateSubscriptionData {
 
 export const useSubscription = () => {
   const [isLoading, setIsLoading] = useState(false);
+  // const { currentOrganization } = useSupabaseAuth(); // Disabled
 
   const createSubscription = async (data: CreateSubscriptionData) => {
     toast({
@@ -27,12 +32,10 @@ export const useSubscription = () => {
   };
 
   const getCurrentSubscription = async () => {
-    // Disabled for non-SaaS mode
     return null;
   };
 
   const getSubscriptionPlans = async () => {
-    // Disabled for non-SaaS mode
     return [];
   };
 

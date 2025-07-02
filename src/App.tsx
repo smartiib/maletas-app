@@ -16,7 +16,7 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
-import Billing from "./pages/Billing";
+// import Billing from "./pages/Billing"; // Disabled for non-SaaS mode
 
 const queryClient = new QueryClient();
 
@@ -42,7 +42,7 @@ const App = () => (
               <Route path="/relatorios" element={<Reports />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/configuracoes" element={<Settings />} />
-              <Route path="/assinatura" element={<Billing />} />
+              {/* <Route path="/assinatura" element={<Billing />} /> */} {/* Disabled for non-SaaS mode */}
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

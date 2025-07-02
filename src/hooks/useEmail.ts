@@ -12,13 +12,13 @@ interface SendEmailData {
 
 export const useEmail = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { currentOrganization } = useSupabaseAuth();
+  const { user } = useSupabaseAuth(); // Simplified - no organization needed
 
   const sendEmail = async (data: SendEmailData) => {
-    if (!currentOrganization) {
+    if (!user) {
       toast({
         title: "Erro",
-        description: "Organização não encontrada",
+        description: "Usuário não encontrado",
         variant: "destructive",
       });
       return;
@@ -31,7 +31,7 @@ export const useEmail = () => {
         {
           body: {
             ...data,
-            organizationId: currentOrganization.id,
+            userId: user.id, // Simplified - use user ID instead of organization
           },
         }
       );
@@ -57,20 +57,8 @@ export const useEmail = () => {
   };
 
   const getEmailLogs = async () => {
-    if (!currentOrganization) return [];
-
-    const { data, error } = await supabase
-      .from('email_logs')
-      .select('*')
-      .eq('organization_id', currentOrganization.id)
-      .order('sent_at', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao buscar logs de e-mail:', error);
-      return [];
-    }
-
-    return data;
+    // Disabled for non-SaaS mode - would need to be refactored for user-based logs
+    return [];
   };
 
   return {

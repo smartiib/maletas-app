@@ -7,11 +7,9 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signUp: (email: string, password: string, organizationName: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  currentOrganization: any;
-  setCurrentOrganization: (org: any) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,7 +26,6 @@ export const useSupabaseAuthState = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [currentOrganization, setCurrentOrganization] = useState<any>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -37,15 +34,6 @@ export const useSupabaseAuthState = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
-        
-        // Fetch user organizations after login
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserOrganizations(session.user.id);
-          }, 0);
-        } else {
-          setCurrentOrganization(null);
-        }
       }
     );
 
@@ -54,57 +42,28 @@ export const useSupabaseAuthState = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
-      
-      if (session?.user) {
-        fetchUserOrganizations(session.user.id);
-      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchUserOrganizations = async (userId: string) => {
-    try {
-      const { data: userOrgs } = await supabase
-        .from('user_organizations')
-        .select(`
-          *,
-          organization:organizations(*)
-        `)
-        .eq('user_id', userId)
-        .single();
+  // Simplified authentication - no organizations needed for now
 
-      if (userOrgs?.organization) {
-        setCurrentOrganization(userOrgs.organization);
-      }
-    } catch (error) {
-      console.error('Error fetching organizations:', error);
-    }
-  };
-
-  const signUp = async (email: string, password: string, organizationName: string) => {
+  const signUp = async (email: string, password: string) => {
     try {
       setIsLoading(true);
       
       const redirectUrl = `${window.location.origin}/`;
       
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            organization_name: organizationName
-          }
+          emailRedirectTo: redirectUrl
         }
       });
 
       if (error) throw error;
-
-      // Create organization after signup
-      if (data.user) {
-        await createOrganizationForUser(data.user.id, organizationName);
-      }
 
       toast({
         title: "Conta criada!",
@@ -122,67 +81,7 @@ export const useSupabaseAuthState = () => {
     }
   };
 
-  const createOrganizationForUser = async (userId: string, organizationName: string) => {
-    try {
-      // Create organization
-      const { data: org, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: organizationName,
-          slug: organizationName.toLowerCase().replace(/\s+/g, '-')
-        })
-        .select()
-        .single();
-
-      if (orgError) throw orgError;
-
-      // Add user to organization as owner
-      const { error: userOrgError } = await supabase
-        .from('user_organizations')
-        .insert({
-          user_id: userId,
-          organization_id: org.id,
-          role: 'owner'
-        });
-
-      if (userOrgError) throw userOrgError;
-
-      // Get trial plan
-      const { data: trialPlan } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .eq('type', 'trial')
-        .single();
-
-      if (trialPlan) {
-        // Create trial subscription
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 14); // 14 days trial
-
-        await supabase
-          .from('subscriptions')
-          .insert({
-            organization_id: org.id,
-            plan_id: trialPlan.id,
-            status: 'trialing',
-            trial_ends_at: trialEndsAt.toISOString()
-          });
-
-        // Create organization limits
-        await supabase
-          .from('organization_limits')
-          .insert({
-            organization_id: org.id,
-            current_stores: 0,
-            current_products: 0,
-            current_users: 1
-          });
-      }
-
-    } catch (error) {
-      console.error('Error creating organization:', error);
-    }
-  };
+  // Organization creation removed - simplified for non-SaaS mode
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -216,8 +115,6 @@ export const useSupabaseAuthState = () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      setCurrentOrganization(null);
-      
       toast({
         title: "Logout",
         description: "Sessão encerrada com sucesso",
@@ -238,8 +135,6 @@ export const useSupabaseAuthState = () => {
     signUp,
     signIn,
     signOut,
-    currentOrganization,
-    setCurrentOrganization,
   };
 };
 

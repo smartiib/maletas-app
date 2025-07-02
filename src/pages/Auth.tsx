@@ -12,8 +12,7 @@ const Auth = () => {
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ 
     email: '', 
-    password: '', 
-    organizationName: '' 
+    password: ''
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,7 +22,7 @@ const Auth = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    await signUp(signupData.email, signupData.password, signupData.organizationName);
+    await signUp(signupData.email, signupData.password);
   };
 
   return (
@@ -37,8 +36,7 @@ const Auth = () => {
             com Inteligência
           </h1>
           <p className="text-xl text-slate-600 max-w-2xl mx-auto mb-8">
-            Dashboard completo para monitorar vendas, produtos e clientes. 
-            Comece seu trial gratuito de 14 dias.
+            Dashboard completo para monitorar vendas, produtos e clientes.
           </p>
           
           {/* Features */}
@@ -77,27 +75,13 @@ const Auth = () => {
             <TabsContent value="signup">
               <Card>
                 <CardHeader>
-                  <CardTitle>Começar Trial Gratuito</CardTitle>
+                  <CardTitle>Criar Conta</CardTitle>
                   <CardDescription>
-                    14 dias grátis, sem necessidade de cartão
+                    Acesse todas as funcionalidades
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <form onSubmit={handleSignup} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="orgName">Nome da Empresa</Label>
-                      <Input
-                        id="orgName"
-                        type="text"
-                        placeholder="Minha Loja"
-                        value={signupData.organizationName}
-                        onChange={(e) => setSignupData(prev => ({
-                          ...prev,
-                          organizationName: e.target.value
-                        }))}
-                        required
-                      />
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
                       <Input
@@ -138,7 +122,7 @@ const Auth = () => {
                           Criando conta...
                         </>
                       ) : (
-                        'Começar Trial Gratuito'
+                        'Criar Conta'
                       )}
                     </Button>
                   </form>
@@ -205,51 +189,34 @@ const Auth = () => {
           </Tabs>
         </div>
 
-        {/* Pricing Preview */}
+        {/* Features Preview */}
         <div className="text-center mt-16">
-          <h2 className="text-2xl font-bold text-slate-900 mb-8">Planos que crescem com você</h2>
-          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <h2 className="text-2xl font-bold text-slate-900 mb-8">Funcionalidades principais</h2>
+          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
             <Card className="border-slate-200">
               <CardHeader>
-                <CardTitle>Básico</CardTitle>
-                <div className="text-2xl font-bold">R$ 29<span className="text-sm font-normal">/mês</span></div>
+                <CardTitle>Gestão Completa</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="text-sm space-y-2 text-slate-600">
-                  <li>• 1 loja WooCommerce</li>
-                  <li>• Até 100 produtos</li>
-                  <li>• 2 usuários</li>
-                  <li>• Relatórios básicos</li>
+                  <li>• Dashboard intuitivo</li>
+                  <li>• Controle de produtos</li>
+                  <li>• Gestão de pedidos</li>
+                  <li>• Relatórios detalhados</li>
                 </ul>
               </CardContent>
             </Card>
             
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
-                <CardTitle>Professional</CardTitle>
-                <div className="text-2xl font-bold text-blue-600">R$ 79<span className="text-sm font-normal">/mês</span></div>
+                <CardTitle>Recursos Avançados</CardTitle>
               </CardHeader>
               <CardContent>
                 <ul className="text-sm space-y-2 text-slate-600">
-                  <li>• 3 lojas WooCommerce</li>
-                  <li>• Até 1.000 produtos</li>
-                  <li>• 5 usuários</li>
-                  <li>• Relatórios avançados</li>
-                </ul>
-              </CardContent>
-            </Card>
-            
-            <Card className="border-slate-200">
-              <CardHeader>
-                <CardTitle>Enterprise</CardTitle>
-                <div className="text-2xl font-bold">R$ 149<span className="text-sm font-normal">/mês</span></div>
-              </CardHeader>
-              <CardContent>
-                <ul className="text-sm space-y-2 text-slate-600">
-                  <li>• Lojas ilimitadas</li>
-                  <li>• Produtos ilimitados</li>
-                  <li>• Usuários ilimitados</li>
-                  <li>• Suporte prioritário</li>
+                  <li>• Sistema POS integrado</li>
+                  <li>• Gestão de maletas</li>
+                  <li>• Logs de sistema</li>
+                  <li>• Configurações flexíveis</li>
                 </ul>
               </CardContent>
             </Card>
