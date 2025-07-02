@@ -4,10 +4,18 @@ import { authService } from '@/services/auth';
 import { toast } from '@/hooks/use-toast';
 
 // Products hooks
-export const useProducts = (page = 1, search = '', status = '') => {
+export const useProducts = (page = 1, search = '', status = '', category = '') => {
   return useQuery({
-    queryKey: ['products', page, search, status],
-    queryFn: () => wooCommerceAPI.getProducts(page, 20, search, status),
+    queryKey: ['products', page, search, status, category],
+    queryFn: () => wooCommerceAPI.getProducts(page, 20, search, status, category),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+};
+
+export const useCategories = () => {
+  return useQuery({
+    queryKey: ['categories'],
+    queryFn: () => wooCommerceAPI.getCategories(),
     enabled: !!wooCommerceAPI.getConfig(),
   });
 };

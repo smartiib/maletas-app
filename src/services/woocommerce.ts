@@ -206,8 +206,22 @@ class WooCommerceAPI {
     }
   }
 
+  // Categories
+  async getCategories(): Promise<Array<{ id: number; name: string }>> {
+    if (!this.config) {
+      return [
+        { id: 1, name: 'Eletrônicos' },
+        { id: 2, name: 'Roupas' },
+        { id: 3, name: 'Casa e Jardim' },
+        { id: 4, name: 'Esportes' },
+      ];
+    }
+
+    return this.makeRequest('products/categories');
+  }
+
   // Products
-  async getProducts(page = 1, per_page = 20, search = '', status = ''): Promise<Product[]> {
+  async getProducts(page = 1, per_page = 20, search = '', status = '', category = ''): Promise<Product[]> {
     // Se não configurado, retornar dados mock
     if (!this.config) {
       let products = [...mockProducts] as any[];
@@ -231,6 +245,7 @@ class WooCommerceAPI {
       per_page: per_page.toString(),
       ...(search && { search }),
       ...(status && { status }),
+      ...(category && { category }),
     });
 
     const products = await this.makeRequest(`products?${params}`);

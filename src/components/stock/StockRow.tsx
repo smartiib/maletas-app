@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Minus, ChevronDown, ChevronRight, History } from 'lucide-react';
+import { Plus, Minus, ChevronDown, ChevronRight, History, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
 import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
@@ -25,6 +25,7 @@ export const StockRow: React.FC<StockRowProps> = ({
   getStockStatus
 }) => {
   const updateStockMutation = useUpdateStock();
+  const [tempStock, setTempStock] = useState<{ [key: string]: string }>({});
   const totalStock = getTotalStock(product);
   const stockStatus = getStockStatus(totalStock, product.stock_status);
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
@@ -73,6 +74,38 @@ export const StockRow: React.FC<StockRowProps> = ({
     }
   };
 
+  const handleStockInputChange = (productId: number, variationId: number | null, value: string) => {
+    const key = variationId ? `${productId}-${variationId}` : `${productId}`;
+    setTempStock(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleStockInputKeyDown = (e: React.KeyboardEvent, productId: number, variationId: number | null) => {
+    if (e.key === 'Enter') {
+      const key = variationId ? `${productId}-${variationId}` : `${productId}`;
+      const value = tempStock[key];
+      if (value !== undefined) {
+        const newStock = parseInt(value) || 0;
+        updateStockDirect(productId, variationId, newStock);
+        setTempStock(prev => ({ ...prev, [key]: undefined }));
+      }
+    }
+  };
+
+  const handleStockInputBlur = (productId: number, variationId: number | null) => {
+    const key = variationId ? `${productId}-${variationId}` : `${productId}`;
+    const value = tempStock[key];
+    if (value !== undefined) {
+      const newStock = parseInt(value) || 0;
+      updateStockDirect(productId, variationId, newStock);
+      setTempStock(prev => ({ ...prev, [key]: undefined }));
+    }
+  };
+
+  const getDisplayStock = (productId: number, variationId: number | null, currentStock: number) => {
+    const key = variationId ? `${productId}-${variationId}` : `${productId}`;
+    return tempStock[key] !== undefined ? tempStock[key] : currentStock.toString();
+  };
+
   const getLastChange = (productId: number, variationId?: number) => {
     const lastChange = stockHistoryService.getLastChange(productId, variationId);
     if (!lastChange) return 'Nunca alterado';
@@ -106,6 +139,24 @@ export const StockRow: React.FC<StockRowProps> = ({
             </Button>
           )}
           
+          {/* Miniatura da imagem */}
+          <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
+            {product.images && product.images.length > 0 ? (
+              <img 
+                src={product.images[0].src} 
+                alt={product.images[0].alt || product.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                <Package className="w-6 h-6" />
+              </div>
+            )}
+          </div>
+          
           <div className="flex-1">
             <h3 className="font-medium text-foreground">{product.name}</h3>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -131,11 +182,10 @@ export const StockRow: React.FC<StockRowProps> = ({
               
               <Input
                 type="number"
-                value={totalStock}
-                onChange={(e) => {
-                  const newStock = parseInt(e.target.value) || 0;
-                  updateStockDirect(product.id, null, newStock);
-                }}
+                value={getDisplayStock(product.id, null, totalStock)}
+                onChange={(e) => handleStockInputChange(product.id, null, e.target.value)}
+                onKeyDown={(e) => handleStockInputKeyDown(e, product.id, null)}
+                onBlur={() => handleStockInputBlur(product.id, null)}
                 className="w-20 text-center"
                 disabled={updateStockMutation.isPending}
               />
@@ -212,11 +262,10 @@ export const StockRow: React.FC<StockRowProps> = ({
                     
                     <Input
                       type="number"
-                      value={variationStock}
-                      onChange={(e) => {
-                        const newStock = parseInt(e.target.value) || 0;
-                        updateStockDirect(product.id, variation.id, newStock);
-                      }}
+                      value={getDisplayStock(product.id, variation.id, variationStock)}
+                      onChange={(e) => handleStockInputChange(product.id, variation.id, e.target.value)}
+                      onKeyDown={(e) => handleStockInputKeyDown(e, product.id, variation.id)}
+                      onBlur={() => handleStockInputBlur(product.id, variation.id)}
                       className="w-20 text-center"
                       disabled={updateStockMutation.isPending}
                     />

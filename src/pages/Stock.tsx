@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useProducts } from '@/hooks/useWooCommerce';
-import { Search, Package } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useProducts, useCategories } from '@/hooks/useWooCommerce';
+import { Search, Package, Filter } from 'lucide-react';
 import { StockRow } from '@/components/stock/StockRow';
 
 const Stock = () => {
   const [search, setSearch] = useState('');
+  const [category, setCategory] = useState('');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
-  const { data: products, isLoading } = useProducts(1, search);
+  const { data: products, isLoading } = useProducts(1, search, '', category);
+  const { data: categories } = useCategories();
 
   const toggleExpanded = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
@@ -58,9 +61,26 @@ const Stock = () => {
         
         <div className="flex items-center space-x-4">
           <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger className="w-48 pl-10">
+                <SelectValue placeholder="Filtrar por categoria" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todas as categorias</SelectItem>
+                {categories?.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Buscar produtos..."
+              placeholder="Buscar por nome ou SKU..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 w-64"
