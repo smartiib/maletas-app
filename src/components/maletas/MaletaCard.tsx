@@ -1,10 +1,11 @@
 import React from 'react';
-import { Calendar, User, Package, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Calendar, User, Package, CheckCircle, AlertTriangle, Clock, FileText } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Maleta } from '@/services/maletas';
 import { ViewMode } from '@/hooks/useViewMode';
+import { generateMaletaPDF } from '@/services/pdfGenerator';
 
 interface MaletaCardProps {
   maleta: Maleta;
@@ -12,9 +13,10 @@ interface MaletaCardProps {
   onViewDetails?: (maleta: Maleta) => void;
   onExtendDeadline?: (maleta: Maleta) => void;
   onProcessReturn?: (maleta: Maleta) => void;
+  onGenerateRomaneio?: (maleta: Maleta) => void;
 }
 
-const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails, onExtendDeadline, onProcessReturn }) => {
+const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails, onExtendDeadline, onProcessReturn, onGenerateRomaneio }) => {
   const getStatusInfo = (maleta: Maleta) => {
     try {
       const today = new Date();
@@ -95,6 +97,14 @@ const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails
               onClick={() => onViewDetails?.(maleta)}
             >
               Detalhes
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => onGenerateRomaneio?.(maleta)}
+            >
+              <FileText className="w-4 h-4 mr-1" />
+              Romaneio
             </Button>
             {maleta.status === 'active' && (
               <>

@@ -120,6 +120,21 @@ const Maletas = () => {
     setReturnDialogOpen(true);
   };
 
+  const handleGenerateRomaneio = (maleta: any) => {
+    try {
+      // Import is already in MaletaCard, call directly
+      const { generateMaletaPDF } = require('@/services/pdfGenerator');
+      generateMaletaPDF(maleta);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar romaneio PDF",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleOpenCheckout = (items: any[]) => {
     setSoldItems(items);
     setReturnDialogOpen(false);
@@ -199,6 +214,7 @@ const Maletas = () => {
             onViewDetails={handleViewDetails}
             onExtendDeadline={handleExtendDeadline}
             onProcessReturn={handleProcessReturn}
+            onGenerateRomaneio={handleGenerateRomaneio}
           />
         ))}
       </div>
@@ -296,8 +312,18 @@ const Maletas = () => {
               id: selectedMaleta.id,
               returnData
             });
+            setReturnDialogOpen(false);
+            toast({
+              title: "Devolução Processada",
+              description: "Devolução foi processada com sucesso!",
+            });
           } catch (error) {
             console.error('Error processing return:', error);
+            toast({
+              title: "Erro",
+              description: "Erro ao processar devolução",
+              variant: "destructive"
+            });
           }
         }}
         onOpenCheckout={handleOpenCheckout}
