@@ -19,11 +19,25 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
 
   const handleSubmit = async (data: any) => {
     try {
+      // Processar meta_data para incluir is_representative
+      const customerData = {
+        ...data,
+        meta_data: [
+          {
+            key: 'is_representative',
+            value: data.is_representative || false
+          }
+        ]
+      };
+      
+      // Remover is_representative do nível superior já que será em meta_data
+      delete customerData.is_representative;
+      
       if (mode === 'create') {
-        await createCustomer.mutateAsync(data);
+        await createCustomer.mutateAsync(customerData);
         logger.success('Cliente Criado', `Cliente "${data.first_name} ${data.last_name}" foi criado com sucesso`);
       } else if (customer) {
-        await updateCustomer.mutateAsync({ id: customer.id, customer: data });
+        await updateCustomer.mutateAsync({ id: customer.id, customer: customerData });
         logger.success('Cliente Atualizado', `Cliente "${data.first_name} ${data.last_name}" foi atualizado com sucesso`);
       }
       onOpenChange(false);

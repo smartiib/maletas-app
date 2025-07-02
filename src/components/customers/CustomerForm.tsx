@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Customer } from '@/services/woocommerce';
 
@@ -13,6 +14,7 @@ const customerSchema = z.object({
   first_name: z.string().min(1, 'Nome é obrigatório'),
   last_name: z.string().min(1, 'Sobrenome é obrigatório'),
   username: z.string().min(1, 'Nome de usuário é obrigatório'),
+  is_representative: z.boolean().default(false),
   billing: z.object({
     first_name: z.string().min(1, 'Nome é obrigatório'),
     last_name: z.string().min(1, 'Sobrenome é obrigatório'),
@@ -44,6 +46,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmit, isLoadi
       first_name: customer?.first_name || '',
       last_name: customer?.last_name || '',
       username: customer?.username || '',
+      is_representative: customer?.meta_data?.some(meta => meta.key === 'is_representative' && meta.value) || false,
       billing: {
         first_name: customer?.billing?.first_name || '',
         last_name: customer?.billing?.last_name || '',
@@ -129,6 +132,29 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmit, isLoadi
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="is_representative"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>
+                    Representante
+                  </FormLabel>
+                  <p className="text-sm text-muted-foreground">
+                    Marque esta opção se este cliente é um representante de vendas
+                  </p>
+                </div>
+              </FormItem>
+            )}
+          />
         </div>
 
         <div className="space-y-4">

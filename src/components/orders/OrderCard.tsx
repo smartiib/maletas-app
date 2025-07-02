@@ -21,14 +21,14 @@ const OrderCard: React.FC<OrderCardProps> = ({
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-warning-100 text-warning-800';
-      case 'processing': return 'bg-primary-100 text-primary-800';
-      case 'on-hold': return 'bg-muted text-muted-foreground';
-      case 'completed': return 'bg-success-100 text-success-800';
-      case 'cancelled': return 'bg-destructive-100 text-destructive-800';
-      case 'refunded': return 'bg-secondary text-secondary-foreground';
-      case 'failed': return 'bg-destructive-100 text-destructive-800';
-      default: return 'bg-muted text-muted-foreground';
+      case 'pending': return 'bg-warning/10 text-warning border-warning/20';
+      case 'processing': return 'bg-primary/10 text-primary border-primary/20';
+      case 'on-hold': return 'bg-muted text-muted-foreground border-border';
+      case 'completed': return 'bg-success/10 text-success border-success/20';
+      case 'cancelled': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'refunded': return 'bg-secondary text-secondary-foreground border-border';
+      case 'failed': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 

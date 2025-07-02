@@ -3,21 +3,39 @@ import React, { useState, useMemo } from 'react';
 import { Package, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { useMaletas } from '@/hooks/useMaletas';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useMaletas, useExtendMaletaDeadline, useProcessMaletaReturn } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
 import PaginationControls from '@/components/ui/pagination-controls';
 import MaletaStats from '@/components/maletas/MaletaStats';
 import MaletaFilters from '@/components/maletas/MaletaFilters';
 import MaletaCard from '@/components/maletas/MaletaCard';
+import MaletaDialog from '@/components/maletas/MaletaDialog';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [representativeFilter, setRepresentativeFilter] = useState('');
+  
+  // Estados dos diálogos
+  const [selectedMaleta, setSelectedMaleta] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
+  
+  // Estados para formulários
+  const [newReturnDate, setNewReturnDate] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
 
   const { data: allMaletas = [], isLoading, error } = useMaletas();
   const { viewMode, toggleViewMode } = useViewMode('maletas');
+  const extendDeadline = useExtendMaletaDeadline();
+  const processReturn = useProcessMaletaReturn();
 
   // Filter and paginate data
   const filteredMaletas = useMemo(() => {
@@ -83,24 +101,18 @@ const Maletas = () => {
 
   // Handlers para ações das maletas
   const handleViewDetails = (maleta: any) => {
-    toast({
-      title: "Detalhes da Maleta",
-      description: `Visualizando detalhes da maleta #${maleta.number}`,
-    });
+    setSelectedMaleta(maleta);
+    setDetailsDialogOpen(true);
   };
 
   const handleExtendDeadline = (maleta: any) => {
-    toast({
-      title: "Estender Prazo",
-      description: `Funcionalidade para estender prazo da maleta #${maleta.number}`,
-    });
+    setSelectedMaleta(maleta);
+    setExtendDialogOpen(true);
   };
 
   const handleProcessReturn = (maleta: any) => {
-    toast({
-      title: "Processar Devolução",
-      description: `Processando devolução da maleta #${maleta.number}`,
-    });
+    setSelectedMaleta(maleta);
+    setReturnDialogOpen(true);
   };
 
   if (isLoading) {
@@ -135,7 +147,10 @@ const Maletas = () => {
             Gerencie suas maletas de consignação
           </p>
         </div>
-        <Button className="bg-gradient-primary text-primary-foreground">
+        <Button 
+          className="bg-gradient-primary text-primary-foreground"
+          onClick={() => setNewMaletaDialogOpen(true)}
+        >
           <Plus className="w-4 h-4 mr-2" />
           Nova Maleta
         </Button>
@@ -191,6 +206,143 @@ const Maletas = () => {
           </p>
         </div>
       )}
+
+      {/* Dialog para Detalhes */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Detalhes da Maleta</DialogTitle>
+          </DialogHeader>
+          {selectedMaleta && (
+            <div className="space-y-4">
+              <p><strong>Número:</strong> {selectedMaleta.number}</p>
+              <p><strong>Representante:</strong> {selectedMaleta.representative_name}</p>
+              <p><strong>Cliente:</strong> {selectedMaleta.customer_name}</p>
+              <p><strong>Data de Devolução:</strong> {new Date(selectedMaleta.return_date).toLocaleDateString('pt-BR')}</p>
+              <p><strong>Status:</strong> {selectedMaleta.status}</p>
+              <p><strong>Valor Total:</strong> R$ {parseFloat(selectedMaleta.total_value || '0').toFixed(2)}</p>
+              <p><strong>Itens:</strong> {selectedMaleta.items?.length || 0}</p>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Estender Prazo */}
+      <Dialog open={extendDialogOpen} onOpenChange={setExtendDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Estender Prazo da Maleta</DialogTitle>
+          </DialogHeader>
+          {selectedMaleta && (
+            <div className="space-y-4">
+              <p>Maleta: #{selectedMaleta.number}</p>
+              <div className="space-y-2">
+                <Label htmlFor="new-date">Nova Data de Devolução</Label>
+                <Input
+                  id="new-date"
+                  type="date"
+                  value={newReturnDate}
+                  onChange={(e) => setNewReturnDate(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setExtendDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    if (newReturnDate) {
+                      try {
+                        await extendDeadline.mutateAsync({
+                          id: selectedMaleta.id,
+                          new_date: newReturnDate
+                        });
+                        setExtendDialogOpen(false);
+                        setNewReturnDate('');
+                      } catch (error) {
+                        toast({
+                          title: "Erro",
+                          description: "Erro ao estender prazo",
+                          variant: "destructive"
+                        });
+                      }
+                    }
+                  }}
+                  disabled={!newReturnDate || extendDeadline.isPending}
+                >
+                  {extendDeadline.isPending ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Processar Devolução */}
+      <Dialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Processar Devolução</DialogTitle>
+          </DialogHeader>
+          {selectedMaleta && (
+            <div className="space-y-4">
+              <p>Maleta: #{selectedMaleta.number}</p>
+              <div className="space-y-2">
+                <Label htmlFor="return-notes">Observações da Devolução</Label>
+                <Textarea
+                  id="return-notes"
+                  value={returnNotes}
+                  onChange={(e) => setReturnNotes(e.target.value)}
+                  placeholder="Observações sobre a devolução..."
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setReturnDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button 
+                  onClick={async () => {
+                    try {
+                      await processReturn.mutateAsync({
+                        id: selectedMaleta.id,
+                        returnData: {
+                          items_sold: [],
+                          items_returned: [],
+                          return_date: new Date().toISOString(),
+                          delay_days: 0,
+                          commission_amount: 0,
+                          penalty_amount: 0,
+                          final_amount: 0,
+                          notes: returnNotes
+                        }
+                      });
+                      setReturnDialogOpen(false);
+                      setReturnNotes('');
+                    } catch (error) {
+                      toast({
+                        title: "Erro",
+                        description: "Erro ao processar devolução",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                  disabled={processReturn.isPending}
+                >
+                  {processReturn.isPending ? 'Processando...' : 'Processar'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Nova Maleta */}
+      <MaletaDialog
+        open={newMaletaDialogOpen}
+        onOpenChange={setNewMaletaDialogOpen}
+        cartItems={[]}
+        onClearCart={() => {}}
+      />
     </div>
   );
 };
