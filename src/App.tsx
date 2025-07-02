@@ -19,35 +19,46 @@ import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
 // import Billing from "./pages/Billing"; // Disabled for non-SaaS mode
 
+// Bypass temporário da autenticação - altere para false quando quiser ativar autenticação
+const BYPASS_AUTH = true;
+
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <SupabaseAuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<DashboardLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="/produtos" element={<Products />} />
-              <Route path="/estoque" element={<Stock />} />
-              <Route path="/pedidos" element={<Orders />} />
-              <Route path="/clientes" element={<Customers />} />
-              <Route path="/pos" element={<POS />} />
-              <Route path="/maletas" element={<Maletas />} />
-              <Route path="/relatorios" element={<Reports />} />
-              <Route path="/logs" element={<Logs />} />
-              <Route path="/configuracoes" element={<Settings />} />
-              {/* <Route path="/assinatura" element={<Billing />} /> */} {/* Disabled for non-SaaS mode */}
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </SupabaseAuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const LayoutComponent = BYPASS_AUTH ? DashboardLayout : () => (
+    <SupabaseProtectedRoute>
+      <DashboardLayout />
+    </SupabaseProtectedRoute>
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <SupabaseAuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<LayoutComponent />}>
+                <Route index element={<Dashboard />} />
+                <Route path="/produtos" element={<Products />} />
+                <Route path="/estoque" element={<Stock />} />
+                <Route path="/pedidos" element={<Orders />} />
+                <Route path="/clientes" element={<Customers />} />
+                <Route path="/pos" element={<POS />} />
+                <Route path="/maletas" element={<Maletas />} />
+                <Route path="/relatorios" element={<Reports />} />
+                <Route path="/logs" element={<Logs />} />
+                <Route path="/configuracoes" element={<Settings />} />
+                {/* <Route path="/assinatura" element={<Billing />} /> */} {/* Disabled for non-SaaS mode */}
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </SupabaseAuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
