@@ -14,7 +14,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+
 
 interface SidebarProps {
   collapsed: boolean;
@@ -81,12 +81,9 @@ const navigationItems = [
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
-  const { hasPermission } = useAuth();
-
-  // Filtrar itens baseado nas permissões do usuário
-  const allowedItems = navigationItems.filter(item => 
-    !item.permission || hasPermission(item.permission)
-  );
+  
+  // Para desenvolvimento sem autenticação - mostrar todos os itens
+  const allowedItems = navigationItems;
 
   return (
     <div className={cn(

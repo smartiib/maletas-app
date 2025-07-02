@@ -1,18 +1,9 @@
 
 import React from 'react';
-import { Bell, Search, Sun, Moon, User, LogOut } from 'lucide-react';
+import { Bell, Search, Sun, Moon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -21,7 +12,13 @@ interface HeaderProps {
 }
 
 const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
-  const { user, logout } = useAuth();
+  // Dados mock para desenvolvimento sem autenticação
+  const mockUser = {
+    display_name: 'Usuário Demo',
+    email: 'demo@exemplo.com',
+    roles: ['administrator']
+  };
+
 
   return (
     <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm">
@@ -66,43 +63,18 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
             </span>
           </Button>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                  {user?.avatar_urls?.['48'] ? (
-                    <img 
-                      src={user.avatar_urls['48']} 
-                      alt={user.display_name}
-                      className="w-8 h-8 rounded-full"
-                    />
-                  ) : (
-                    <User className="w-4 h-4 text-white" />
-                  )}
-                </div>
-                <div className="hidden md:block text-left">
-                  <div className="text-sm font-medium">{user?.display_name}</div>
-                  <div className="text-xs text-slate-500 capitalize">
-                    {user?.roles?.[0] || 'Usuário'}
-                  </div>
-                </div>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>
-                <div>
-                  <p className="font-medium">{user?.display_name}</p>
-                  <p className="text-xs text-slate-500">{user?.email}</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={logout} className="text-red-600">
-                <LogOut className="w-4 h-4 mr-2" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* User Info - Simplificado */}
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+              <User className="w-4 h-4 text-white" />
+            </div>
+            <div className="hidden md:block text-left">
+              <div className="text-sm font-medium">{mockUser.display_name}</div>
+              <div className="text-xs text-slate-500 capitalize">
+                {mockUser.roles[0] || 'Usuário'}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </header>
