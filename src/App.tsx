@@ -3,8 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SupabaseAuthProvider from "./components/auth/SupabaseAuthProvider";
-import SupabaseProtectedRoute from "./components/auth/SupabaseProtectedRoute";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
@@ -17,10 +15,6 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
-// import Billing from "./pages/Billing"; // Disabled for non-SaaS mode
-
-// Bypass temporário da autenticação - altere para false quando quiser ativar autenticação
-const BYPASS_AUTH = true;
 
 const queryClient = new QueryClient();
 
@@ -28,35 +22,25 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <SupabaseAuthProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={
-                BYPASS_AUTH ? (
-                  <DashboardLayout />
-                ) : (
-                  <SupabaseProtectedRoute>
-                    <DashboardLayout />
-                  </SupabaseProtectedRoute>
-                )
-              }>
-                <Route index element={<Dashboard />} />
-                <Route path="/produtos" element={<Products />} />
-                <Route path="/estoque" element={<Stock />} />
-                <Route path="/pedidos" element={<Orders />} />
-                <Route path="/clientes" element={<Customers />} />
-                <Route path="/pos" element={<POS />} />
-                <Route path="/maletas" element={<Maletas />} />
-                <Route path="/relatorios" element={<Reports />} />
-                <Route path="/logs" element={<Logs />} />
-                <Route path="/configuracoes" element={<Settings />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </SupabaseAuthProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<DashboardLayout />}>
+              <Route index element={<Dashboard />} />
+              <Route path="/produtos" element={<Products />} />
+              <Route path="/estoque" element={<Stock />} />
+              <Route path="/pedidos" element={<Orders />} />
+              <Route path="/clientes" element={<Customers />} />
+              <Route path="/pos" element={<POS />} />
+              <Route path="/maletas" element={<Maletas />} />
+              <Route path="/relatorios" element={<Reports />} />
+              <Route path="/logs" element={<Logs />} />
+              <Route path="/configuracoes" element={<Settings />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );

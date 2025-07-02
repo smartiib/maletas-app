@@ -3,14 +3,13 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '@/services/auth';
 
 const ConfigButton = () => {
   const navigate = useNavigate();
   
   // Mostrar botão apenas se WordPress não estiver configurado
   const wpUrl = localStorage.getItem('wp_base_url');
-  const hasWpConfig = wpUrl && authService.isAuthenticated();
+  const hasWpConfig = !!wpUrl;
   
   if (hasWpConfig) return null;
 

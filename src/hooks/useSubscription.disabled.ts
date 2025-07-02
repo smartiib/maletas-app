@@ -2,8 +2,8 @@
 // This file contains the original subscription logic for future reactivation
 
 import { useState } from 'react';
-import { useSupabaseAuth } from './useSupabaseAuth';
-import { supabase } from '@/integrations/supabase/client';
+// import { useSupabaseAuth } from './useSupabaseAuth';
+// import { supabase } from '@/integrations/supabase/client';
 import { toast } from './use-toast';
 
 interface CreateSubscriptionData {

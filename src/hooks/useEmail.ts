@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { useSupabaseAuth } from './useSupabaseAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from './use-toast';
 
 interface SendEmailData {
@@ -12,51 +10,15 @@ interface SendEmailData {
 
 export const useEmail = () => {
   const [isLoading, setIsLoading] = useState(false);
-  
-  // No modo bypass, user pode ser null - vamos tratar isso
-  const { user } = useSupabaseAuth();
 
   const sendEmail = async (data: SendEmailData) => {
-    // No modo bypass, permitir envio sem usuário autenticado
-    if (!user) {
-      toast({
-        title: "Modo Demo",
-        description: "Funcionalidade de e-mail indisponível no modo demo",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const { data: response, error } = await supabase.functions.invoke(
-        'send-email',
-        {
-          body: {
-            ...data,
-            userId: user.id, // Simplified - use user ID instead of organization
-          },
-        }
-      );
-
-      if (error) throw error;
-
-      toast({
-        title: "E-mail enviado!",
-        description: "Mensagem enviada com sucesso.",
-      });
-
-      return response;
-    } catch (error: any) {
-      toast({
-        title: "Erro ao enviar e-mail",
-        description: error.message,
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+    // Modo demo - funcionalidade desabilitada
+    toast({
+      title: "Modo Demo",
+      description: "Funcionalidade de e-mail indisponível no modo demo",
+      variant: "destructive",
+    });
+    return;
   };
 
   const getEmailLogs = async () => {

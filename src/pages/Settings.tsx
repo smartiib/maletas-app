@@ -7,7 +7,25 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig } from '@/services/woocommerce';
-import { authService, PERMISSIONS, ROLE_PERMISSIONS } from '@/services/auth';
+// Constantes básicas para modo demo
+const PERMISSIONS = [
+  { key: 'dashboard', label: 'Dashboard', description: 'Acessar dashboard principal' },
+  { key: 'products', label: 'Produtos', description: 'Gerenciar produtos' },
+  { key: 'orders', label: 'Pedidos', description: 'Gerenciar pedidos' },
+  { key: 'customers', label: 'Clientes', description: 'Gerenciar clientes' },
+  { key: 'pos', label: 'POS', description: 'Acessar sistema POS' },
+  { key: 'maletas', label: 'Maletas', description: 'Gerenciar maletas' },
+  { key: 'reports', label: 'Relatórios', description: 'Visualizar relatórios' },
+  { key: 'logs', label: 'Logs', description: 'Visualizar logs do sistema' },
+  { key: 'settings', label: 'Configurações', description: 'Acessar configurações' },
+];
+
+const ROLE_PERMISSIONS = {
+  administrator: ['dashboard', 'products', 'orders', 'customers', 'pos', 'maletas', 'reports', 'logs', 'settings'],
+  shop_manager: ['dashboard', 'products', 'orders', 'customers', 'pos', 'reports'],
+  representante: ['dashboard', 'maletas', 'customers'],
+  customer: ['dashboard'],
+};
 import { logger } from '@/services/logger';
 
 import { Badge } from '@/components/ui/badge';
@@ -129,7 +147,6 @@ const Settings = () => {
     }
 
     try {
-      authService.setBaseUrl(wpAuthSettings.wpUrl);
       localStorage.setItem('wp_base_url', wpAuthSettings.wpUrl);
       logger.success('WordPress', 'URL configurada com sucesso');
     } catch (error) {
@@ -248,7 +265,7 @@ const Settings = () => {
                   {PERMISSIONS.map(permission => (
                     <div key={permission.key} className="flex items-center space-x-2">
                       <Switch
-                        checked={permissions.includes(permission.key)}
+                        checked={(permissions as string[]).includes(permission.key)}
                         onCheckedChange={(enabled) => 
                           handleRolePermissionChange(role, permission.key, enabled)
                         }

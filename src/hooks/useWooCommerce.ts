@@ -1,6 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData } from '@/services/woocommerce';
-import { authService } from '@/services/auth';
 import { toast } from '@/hooks/use-toast';
 
 // Products hooks
@@ -110,14 +109,13 @@ export const useCreateOrder = () => {
   
   return useMutation({
     mutationFn: (order: CreateOrderData) => {
-      const user = authService.getUser();
       const enhancedOrder = {
         ...order,
         meta_data: [
           ...(order.meta_data || []),
           { key: 'order_source', value: 'platform' },
-          { key: 'created_by_user_id', value: user?.id || 0 },
-          { key: 'created_by_user_name', value: user?.display_name || 'Sistema' },
+          { key: 'created_by_user_id', value: 0 },
+          { key: 'created_by_user_name', value: 'Sistema' },
         ]
       };
       return wooCommerceAPI.createOrder(enhancedOrder);
@@ -220,12 +218,12 @@ export const useUpdateCustomer = () => {
   });
 };
 
-// Hook para buscar representantes do WordPress
+// Hook para buscar representantes - Modo demo
 export const useRepresentantes = () => {
   return useQuery({
     queryKey: ['representantes'],
-    queryFn: () => authService.getRepresentantes(),
-    enabled: !!authService.getToken(),
+    queryFn: () => Promise.resolve([]),
+    enabled: false, // Desabilitado no modo demo
   });
 };
 
