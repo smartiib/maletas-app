@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, User, CreditCard, Package } from 'lucide-react';
+import { ShoppingCart, User, CreditCard, Package, ArrowRight } from 'lucide-react';
 import { MaletaItem } from '@/services/maletas';
 import { useCustomers, useCreateOrder } from '@/hooks/useWooCommerce';
 import { toast } from '@/hooks/use-toast';
@@ -33,6 +34,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
   soldItems,
   onOrderCreated
 }) => {
+  const navigate = useNavigate();
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isGuestSale, setIsGuestSale] = useState(false);
   const [guestData, setGuestData] = useState({ name: '', email: '', phone: '' });
@@ -179,6 +181,56 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
       toast({
         title: "Erro",
         description: "Erro ao finalizar pedido da maleta",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGoToPOS = () => {
+    try {
+      setIsProcessing(true);
+      
+      // Preparar dados para o POS
+      const posItems = soldItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        price: parseFloat(item.price),
+        quantity: item.quantity_sold,
+        sku: item.sku,
+        variation_attributes: item.variation_attributes || []
+      }));
+      
+      // Salvar dados da maleta e itens vendidos no localStorage para o POS
+      localStorage.setItem('maleta_checkout_data', JSON.stringify({
+        maleta_id: maleta?.id,
+        maleta_number: maleta?.number,
+        items: posItems,
+        customer_name: maleta?.customer_name,
+        representative_name: maleta?.representative_name,
+        from_maleta: true,
+        guest_data: isGuestSale ? guestData : null,
+        selected_customer: !isGuestSale ? selectedCustomer : null
+      }));
+      
+      // Fechar diálogos e navegar para o POS
+      onOpenChange(false);
+      onOrderCreated();
+      
+      // Navegar para o POS
+      navigate('/pos?from_maleta=true');
+      
+      toast({
+        title: "Redirecionando para POS",
+        description: "Finalize o pagamento no sistema POS",
+      });
+      
+    } catch (error) {
+      console.error('Error navigating to POS:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao redirecionar para o POS",
         variant: "destructive"
       });
     } finally {
@@ -395,10 +447,20 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
           </Button>
           <Button
             className="flex-1 bg-gradient-primary"
+            onClick={handleGoToPOS}
+            disabled={isProcessing || (!isGuestSale && !selectedCustomer)}
+          >
+            <ArrowRight className="w-4 h-4 mr-2" />
+            {isProcessing ? 'Processando...' : 'Ir para POS'}
+          </Button>
+          <Button
+            variant="outline"
+            className="flex-1"
             onClick={handleFinalizePurchase}
             disabled={isProcessing || Math.abs(getTotalPayments() - getTotalPrice()) > 0.01}
           >
-            {isProcessing ? 'Finalizando...' : 'Finalizar Pedido'}
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            {isProcessing ? 'Finalizando...' : 'Finalizar Aqui'}
           </Button>
         </div>
       </DialogContent>
