@@ -58,6 +58,29 @@ export const useUpdateProduct = () => {
   });
 };
 
+export const useUpdateStock = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => 
+      wooCommerceAPI.updateStock(productId, newStock, variationId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: "Sucesso",
+        description: "Estoque atualizado com sucesso!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar estoque",
+        variant: "destructive",
+      });
+    },
+  });
+};
+
 export const useDeleteProduct = () => {
   const queryClient = useQueryClient();
   

@@ -287,6 +287,22 @@ class WooCommerceAPI {
     });
   }
 
+  async updateStock(productId: number, newStock: number, variationId?: number): Promise<Product | ProductVariation> {
+    if (variationId) {
+      // Atualizar estoque de variação
+      return this.makeRequest(`products/${productId}/variations/${variationId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ stock_quantity: newStock }),
+      });
+    } else {
+      // Atualizar estoque do produto principal
+      return this.makeRequest(`products/${productId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ stock_quantity: newStock }),
+      });
+    }
+  }
+
   async deleteProduct(id: number): Promise<void> {
     return this.makeRequest(`products/${id}`, {
       method: 'DELETE',
