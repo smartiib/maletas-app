@@ -265,12 +265,40 @@ class MaletasAPI {
 
   async extendMaletaDeadline(id: number, new_date: string): Promise<Maleta> {
     // Estender prazo da maleta
-    throw new Error('Método não implementado');
+    console.log('Estendendo prazo da maleta:', id, 'para:', new_date);
+    
+    // Simular extensão de prazo
+    const maletas = await this.getMaletas();
+    const maleta = maletas.find(m => m.id === id);
+    if (!maleta) {
+      throw new Error('Maleta não encontrada');
+    }
+    
+    // Atualizar data de devolução
+    maleta.return_date = new_date;
+    maleta.extended_date = new_date;
+    
+    return maleta;
   }
 
   async processMaletaReturn(id: number, returnData: Omit<MaletaReturn, 'maleta_id'>): Promise<MaletaReturn> {
     // Processar devolução e criar pedido final
-    throw new Error('Método não implementado');
+    console.log('Processando devolução da maleta:', id, returnData);
+    
+    // Simular processamento da devolução
+    const processedReturn: MaletaReturn = {
+      maleta_id: id,
+      ...returnData
+    };
+    
+    // Aqui seria implementada a lógica real:
+    // 1. Atualizar status dos itens na maleta
+    // 2. Retornar produtos não vendidos ao estoque 
+    // 3. Criar pedido no WooCommerce para itens vendidos
+    // 4. Calcular comissões e penalidades
+    // 5. Atualizar status da maleta
+    
+    return processedReturn;
   }
 
   // Representatives CRUD

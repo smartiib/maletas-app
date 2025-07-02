@@ -18,6 +18,7 @@ import MaletaDialog from '@/components/maletas/MaletaDialog';
 import MaletaDetailsDialog from '@/components/maletas/MaletaDetailsDialog';
 import MaletaReturnDialog from '@/components/maletas/MaletaReturnDialog';
 import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
+import { generateMaletaPDF } from '@/services/pdfGenerator';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,9 +123,11 @@ const Maletas = () => {
 
   const handleGenerateRomaneio = (maleta: any) => {
     try {
-      // Import is already in MaletaCard, call directly
-      const { generateMaletaPDF } = require('@/services/pdfGenerator');
       generateMaletaPDF(maleta);
+      toast({
+        title: "PDF Gerado",
+        description: "Romaneio PDF foi gerado com sucesso!",
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       toast({
