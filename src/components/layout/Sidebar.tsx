@@ -11,7 +11,8 @@ import {
   BarChart3,
   Settings,
   Menu,
-  Briefcase
+  Briefcase,
+  Warehouse
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,12 @@ const navigationItems = [
     href: '/produtos', 
     icon: Package,
     permission: 'products'
+  },
+  { 
+    title: 'Estoque', 
+    href: '/estoque', 
+    icon: Warehouse,
+    permission: 'stock'
   },
   { 
     title: 'Pedidos', 
@@ -97,8 +104,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
               <ShoppingCart className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg bg-gradient-primary bg-clip-text text-transparent">
-              WooAdmin
+            <span className="font-bold text-lg text-foreground">
+              {localStorage.getItem('shop_name') || 'WooAdmin'}
             </span>
           </div>
         )}
@@ -126,8 +133,8 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               className={cn(
                 "flex items-center px-3 py-2.5 rounded-lg transition-all-smooth group relative",
                 "hover:bg-slate-100 dark:hover:bg-slate-700",
-                isActive 
-                  ? "bg-gradient-primary text-white shadow-lg" 
+                 isActive 
+                  ? "bg-primary text-primary-foreground shadow-lg" 
                   : "text-slate-600 dark:text-slate-300"
               )}
             >
