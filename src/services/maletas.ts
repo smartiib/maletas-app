@@ -1,17 +1,20 @@
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export interface Representative {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone?: string;
   commission_settings?: {
     use_global: boolean;
     custom_rates?: CommissionTier[];
-    penalty_rate?: number; // % por dia de atraso
+    penalty_rate?: number;
   };
-  referrer_id?: number; // ID do representante que indicou
+  referrer_id?: string;
   total_sales?: number;
   created_at: string;
+  updated_at: string;
 }
 
 export interface CommissionTier {
@@ -23,7 +26,8 @@ export interface CommissionTier {
 }
 
 export interface MaletaItem {
-  id: number;
+  id: string;
+  maleta_id: string;
   product_id: number;
   variation_id?: number;
   name: string;
@@ -32,23 +36,23 @@ export interface MaletaItem {
   quantity: number;
   status: 'consigned' | 'sold' | 'returned';
   variation_attributes?: Array<{ name: string; value: string }>;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Maleta {
-  id: number;
+  id: string;
   number: string;
-  representative_id: number;
+  representative_id: string;
   representative_name: string;
-  customer_id: number;
-  customer_name: string;
-  customer_email: string;
+  customer_name?: string;
+  customer_email?: string;
   status: 'active' | 'expired' | 'finalized';
   departure_date: string;
   return_date: string;
   extended_date?: string;
-  items: MaletaItem[];
+  items?: MaletaItem[];
   total_value: string;
-  commission_percentage?: number;
   commission_settings: {
     use_global: boolean;
     tiers: CommissionTier[];
@@ -60,13 +64,14 @@ export interface Maleta {
 }
 
 export interface MaletaReturn {
-  maleta_id: number;
+  id?: string;
+  maleta_id: string;
   items_sold: Array<{
-    item_id: number;
+    item_id: string;
     quantity_sold: number;
   }>;
   items_returned: Array<{
-    item_id: number;
+    item_id: string;
     quantity_returned: number;
   }>;
   return_date: string;
@@ -75,15 +80,19 @@ export interface MaletaReturn {
   penalty_amount: number;
   final_amount: number;
   notes?: string;
+  created_at?: string;
 }
 
 export interface CreateMaletaData {
-  representative_id: number;
-  customer_id: number;
+  representative_id: string;
+  customer_name?: string;
+  customer_email?: string;
   return_date: string;
   items: Array<{
     product_id: number;
     variation_id?: number;
+    name: string;
+    sku: string;
     quantity: number;
     price: string;
   }>;
@@ -140,193 +149,436 @@ export const MONTHLY_BONUS_THRESHOLD = 1000; // R$ 1.000 para ser elegível ao b
 export const REFERRAL_COMMISSION_RATE = 10; // 10% sobre vendas de indicados
 
 class MaletasAPI {
-  private config: any = null;
+  // Buscar configurações de comissão do banco
+  async getCommissionTiers(): Promise<CommissionTier[]> {
+    try {
+      const { data, error } = await supabase
+        .from('commission_tiers')
+        .select('*')
+        .eq('is_active', true)
+        .order('min_amount', { ascending: true });
 
-  constructor() {
-    this.loadConfig();
-  }
+      if (error) {
+        console.error('Erro ao buscar tiers de comissão:', error);
+        return DEFAULT_COMMISSION_TIERS;
+      }
 
-  private loadConfig() {
-    const savedConfig = localStorage.getItem('maletas_config');
-    if (savedConfig) {
-      this.config = JSON.parse(savedConfig);
+      return data || DEFAULT_COMMISSION_TIERS;
+    } catch (error) {
+      console.error('Erro na busca de tiers:', error);
+      return DEFAULT_COMMISSION_TIERS;
     }
   }
 
-  public setConfig(config: any) {
-    this.config = config;
-    localStorage.setItem('maletas_config', JSON.stringify(config));
-  }
-
-  public getConfig() {
-    return this.config;
-  }
-
   // Maletas CRUD
-  async getMaletas(page = 1, per_page = 20, status = '', representative_id = 0): Promise<Maleta[]> {
-    // Implementar integração com WooCommerce usando meta_data
-    const { mockCustomers } = await import('./mockData');
-    const mockMaletas: Maleta[] = [
-      {
-        id: 1,
-        number: 'MAL001',
-        representative_id: 1,
-        representative_name: 'João Silva',
-        customer_id: 2,
-        customer_name: 'Maria Santos',
-        customer_email: 'maria@email.com',
-        status: 'active',
-        departure_date: new Date().toISOString(),
-        return_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        items: [
-          {
-            id: 1,
-            product_id: 1,
-            name: 'Camiseta Básica',
-            sku: 'CAM001',
-            price: '29.90',
-            quantity: 5,
-            status: 'consigned'
-          }
-        ],
-        total_value: '149.50',
-        commission_settings: {
+  async getMaletas(page = 1, per_page = 20, status = '', representative_id = ''): Promise<Maleta[]> {
+    try {
+      let query = supabase
+        .from('maletas')
+        .select(`
+          *,
+          representative:representatives(name),
+          items:maleta_items(*)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      if (representative_id) {
+        query = query.eq('representative_id', representative_id);
+      }
+
+      const { data, error } = await query.range((page - 1) * per_page, page * per_page - 1);
+
+      if (error) {
+        console.error('Erro ao buscar maletas:', error);
+        throw error;
+      }
+
+      return (data || []).map((maleta: any) => ({
+        ...maleta,
+        representative_name: maleta.representative?.name || 'Representante não encontrado',
+        commission_settings: typeof maleta.commission_settings === 'object' ? maleta.commission_settings : {
           use_global: true,
           tiers: DEFAULT_COMMISSION_TIERS,
           penalty_rate: DEFAULT_PENALTY_RATE
         },
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-    ];
-    return mockMaletas;
+        items: (maleta.items || []).map((item: any) => ({
+          ...item,
+          price: item.price.toString(),
+          variation_attributes: Array.isArray(item.variation_attributes) ? item.variation_attributes : []
+        }))
+      }));
+    } catch (error) {
+      console.error('Erro na busca de maletas:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar maletas",
+        variant: "destructive"
+      });
+      return [];
+    }
   }
 
-  async getMaleta(id: number): Promise<Maleta> {
-    // Implementar busca específica
-    throw new Error('Método não implementado');
+  async getMaleta(id: string): Promise<Maleta> {
+    try {
+      const { data, error } = await supabase
+        .from('maletas')
+        .select(`
+          *,
+          representative:representatives(name),
+          items:maleta_items(*)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Erro ao buscar maleta:', error);
+        throw error;
+      }
+
+      return {
+        ...data,
+        representative_name: data.representative?.name || 'Representante não encontrado',
+        commission_settings: typeof data.commission_settings === 'object' ? data.commission_settings : {
+          use_global: true,
+          tiers: DEFAULT_COMMISSION_TIERS,
+          penalty_rate: DEFAULT_PENALTY_RATE
+        },
+        items: (data.items || []).map((item: any) => ({
+          ...item,
+          price: item.price.toString(),
+          variation_attributes: Array.isArray(item.variation_attributes) ? item.variation_attributes : []
+        }))
+      };
+    } catch (error) {
+      console.error('Erro na busca da maleta:', error);
+      throw error;
+    }
   }
 
   async createMaleta(data: CreateMaletaData): Promise<Maleta> {
-    // Simular criação de maleta com dados mock
-    const { mockCustomers } = await import('./mockData');
-    const representative = mockCustomers.find(c => c.id === data.representative_id);
-    
-    if (!representative) {
-      throw new Error('Representante não encontrado');
-    }
+    try {
+      // Buscar dados do representante
+      const { data: representative, error: repError } = await supabase
+        .from('representatives')
+        .select('*')
+        .eq('id', data.representative_id)
+        .single();
 
-    const newMaleta: Maleta = {
-      id: Date.now(), // ID temporário
-      number: `MAL${String(Date.now()).slice(-6)}`,
-      representative_id: data.representative_id,
-      representative_name: `${representative.first_name} ${representative.last_name}`,
-      customer_id: data.customer_id || 0,
-      customer_name: representative.first_name ? `${representative.first_name} ${representative.last_name}` : 'Cliente Direto',
-      customer_email: representative.email,
-      status: 'active',
-      departure_date: new Date().toISOString(),
-      return_date: data.return_date,
-      items: data.items.map((item, index) => ({
-        id: index + 1,
+      if (repError || !representative) {
+        throw new Error('Representante não encontrado');
+      }
+
+      // Gerar número da maleta
+      const { data: numberResult, error: numberError } = await supabase
+        .rpc('generate_maleta_number');
+
+      if (numberError) {
+        console.error('Erro ao gerar número da maleta:', numberError);
+        throw numberError;
+      }
+
+      const maletaNumber = numberResult;
+
+      // Calcular valor total
+      const totalValue = data.items.reduce((total, item) => {
+        return total + (parseFloat(item.price) * item.quantity);
+      }, 0);
+
+      // Buscar configurações de comissão
+      const commissionTiers = await this.getCommissionTiers();
+
+      // Criar maleta
+      const { data: newMaleta, error: maletaError } = await supabase
+        .from('maletas')
+        .insert({
+          number: maletaNumber,
+          representative_id: data.representative_id,
+          customer_name: data.customer_name || representative.name,
+          customer_email: data.customer_email || representative.email,
+          return_date: data.return_date,
+          total_value: totalValue.toFixed(2),
+          commission_settings: data.commission_settings?.use_global ? {
+            use_global: true,
+            tiers: commissionTiers,
+            penalty_rate: DEFAULT_PENALTY_RATE
+          } : {
+            use_global: false,
+            tiers: [{
+              min_amount: 0,
+              percentage: data.commission_settings?.custom_percentage || 20,
+              bonus: 0,
+              label: 'Personalizada'
+            }],
+            penalty_rate: DEFAULT_PENALTY_RATE
+          },
+          notes: data.notes
+        })
+        .select()
+        .single();
+
+      if (maletaError) {
+        console.error('Erro ao criar maleta:', maletaError);
+        throw maletaError;
+      }
+
+      // Criar itens da maleta
+      const itemsToInsert = data.items.map(item => ({
+        maleta_id: newMaleta.id,
         product_id: item.product_id,
         variation_id: item.variation_id,
-        name: `Produto ${item.product_id}`,
-        sku: `PRD${item.product_id}`,
-        price: item.price,
+        name: item.name,
+        sku: item.sku,
+        price: parseFloat(item.price),
         quantity: item.quantity,
-        status: 'consigned' as const,
-        variation_attributes: item.variation_id ? [{ name: 'Variação', value: `Var ${item.variation_id}` }] : undefined
-      })),
-      total_value: data.items.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0).toFixed(2),
-      commission_settings: data.commission_settings?.use_global ? {
-        use_global: true,
-        tiers: DEFAULT_COMMISSION_TIERS,
-        penalty_rate: DEFAULT_PENALTY_RATE
-      } : {
-        use_global: false,
-        tiers: [{
-          min_amount: 0,
-          percentage: data.commission_settings?.custom_percentage || 20,
-          bonus: 0,
-          label: 'Personalizada'
-        }],
-        penalty_rate: DEFAULT_PENALTY_RATE
-      },
-      notes: data.notes,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+        variation_attributes: item.variation_id ? [{ name: 'Variação', value: `Var ${item.variation_id}` }] : []
+      }));
 
-    // Simular salvamento
-    console.log('Maleta criada:', newMaleta);
-    return newMaleta;
-  }
+      const { data: items, error: itemsError } = await supabase
+        .from('maleta_items')
+        .insert(itemsToInsert)
+        .select();
 
-  async extendMaletaDeadline(id: number, new_date: string): Promise<Maleta> {
-    // Estender prazo da maleta
-    console.log('Estendendo prazo da maleta:', id, 'para:', new_date);
-    
-    // Simular extensão de prazo
-    const maletas = await this.getMaletas();
-    const maleta = maletas.find(m => m.id === id);
-    if (!maleta) {
-      throw new Error('Maleta não encontrada');
+      if (itemsError) {
+        console.error('Erro ao criar itens da maleta:', itemsError);
+        // Rollback: deletar maleta criada
+        await supabase.from('maletas').delete().eq('id', newMaleta.id);
+        throw itemsError;
+      }
+
+      toast({
+        title: "Maleta Criada",
+        description: `Maleta ${maletaNumber} criada com sucesso!`,
+      });
+
+      return {
+        ...newMaleta,
+        representative_name: representative.name,
+        commission_settings: newMaleta.commission_settings,
+        items: (items || []).map((item: any) => ({
+          ...item,
+          price: item.price.toString()
+        }))
+      };
+    } catch (error) {
+      console.error('Erro ao criar maleta:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar maleta",
+        variant: "destructive"
+      });
+      throw error;
     }
-    
-    // Atualizar data de devolução
-    maleta.return_date = new_date;
-    maleta.extended_date = new_date;
-    
-    return maleta;
   }
 
-  async processMaletaReturn(id: number, returnData: Omit<MaletaReturn, 'maleta_id'>): Promise<MaletaReturn> {
-    // Processar devolução e criar pedido final
-    console.log('Processando devolução da maleta:', id, returnData);
-    
-    // Simular processamento da devolução
-    const processedReturn: MaletaReturn = {
-      maleta_id: id,
-      ...returnData
-    };
-    
-    // Aqui seria implementada a lógica real:
-    // 1. Atualizar status dos itens na maleta
-    // 2. Retornar produtos não vendidos ao estoque 
-    // 3. Criar pedido no WooCommerce para itens vendidos
-    // 4. Calcular comissões e penalidades
-    // 5. Atualizar status da maleta
-    
-    return processedReturn;
+  async extendMaletaDeadline(id: string, new_date: string): Promise<Maleta> {
+    try {
+      const { data, error } = await supabase
+        .from('maletas')
+        .update({ 
+          return_date: new_date,
+          extended_date: new_date 
+        })
+        .eq('id', id)
+        .select(`
+          *,
+          representative:representatives(name),
+          items:maleta_items(*)
+        `)
+        .single();
+
+      if (error) {
+        console.error('Erro ao estender prazo:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Prazo Estendido",
+        description: "Prazo da maleta foi estendido com sucesso!",
+      });
+
+      return {
+        ...data,
+        representative_name: data.representative?.name || 'Representante não encontrado',
+        commission_settings: data.commission_settings,
+        items: (data.items || []).map((item: any) => ({
+          ...item,
+          price: item.price.toString()
+        }))
+      };
+    } catch (error) {
+      console.error('Erro ao estender prazo:', error);
+      throw error;
+    }
+  }
+
+  async processMaletaReturn(id: string, returnData: Omit<MaletaReturn, 'maleta_id'>): Promise<MaletaReturn> {
+    try {
+      // Criar registro de devolução
+      const { data: returnRecord, error: returnError } = await supabase
+        .from('maleta_returns')
+        .insert({
+          maleta_id: id,
+          items_sold: returnData.items_sold,
+          items_returned: returnData.items_returned,
+          return_date: returnData.return_date,
+          delay_days: returnData.delay_days,
+          commission_amount: returnData.commission_amount,
+          penalty_amount: returnData.penalty_amount,
+          final_amount: returnData.final_amount,
+          notes: returnData.notes
+        })
+        .select()
+        .single();
+
+      if (returnError) {
+        console.error('Erro ao processar devolução:', returnError);
+        throw returnError;
+      }
+
+      // Atualizar status dos itens
+      for (const soldItem of returnData.items_sold) {
+        await supabase
+          .from('maleta_items')
+          .update({ status: 'sold' })
+          .eq('id', soldItem.item_id);
+      }
+
+      for (const returnedItem of returnData.items_returned) {
+        await supabase
+          .from('maleta_items')
+          .update({ status: 'returned' })
+          .eq('id', returnedItem.item_id);
+      }
+
+      // Atualizar status da maleta
+      await supabase
+        .from('maletas')
+        .update({ status: 'finalized' })
+        .eq('id', id);
+
+      toast({
+        title: "Devolução Processada",
+        description: "Devolução foi processada com sucesso!",
+      });
+
+      return {
+        ...returnRecord,
+        items_sold: returnRecord.items_sold as Array<{ item_id: string; quantity_sold: number; }>,
+        items_returned: returnRecord.items_returned as Array<{ item_id: string; quantity_returned: number; }>
+      };
+    } catch (error) {
+      console.error('Erro ao processar devolução:', error);
+      throw error;
+    }
   }
 
   // Representatives CRUD
   async getRepresentatives(page = 1, per_page = 20, search = ''): Promise<Representative[]> {
-    // Buscar representantes (pode ser integrado com customers do WooCommerce)
-    const { mockCustomers } = await import('./mockData');
-    const mockReps: Representative[] = mockCustomers
-      .filter(customer => customer.meta_data?.some(meta => meta.key === 'is_representative' && meta.value))
-      .map(customer => ({
-        id: customer.id,
-        name: `${customer.first_name} ${customer.last_name}`,
-        email: customer.email,
-        phone: customer.billing?.phone,
-        commission_settings: {
+    try {
+      let query = supabase
+        .from('representatives')
+        .select('*')
+        .order('name', { ascending: true });
+
+      if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      const { data, error } = await query.range((page - 1) * per_page, page * per_page - 1);
+
+      if (error) {
+        console.error('Erro ao buscar representantes:', error);
+        throw error;
+      }
+
+      return (data || []).map(rep => ({
+        ...rep,
+        commission_settings: typeof rep.commission_settings === 'object' ? rep.commission_settings : {
           use_global: true,
-        },
-        total_sales: parseFloat(customer.total_spent || '0'),
-        created_at: customer.date_created
+          custom_rates: [],
+          penalty_rate: DEFAULT_PENALTY_RATE
+        }
       }));
-    return mockReps;
+    } catch (error) {
+      console.error('Erro na busca de representantes:', error);
+      return [];
+    }
   }
 
   async createRepresentative(data: Partial<Representative>): Promise<Representative> {
-    throw new Error('Método não implementado');
+    try {
+      const { data: newRep, error } = await supabase
+        .from('representatives')
+        .insert({
+          name: data.name!,
+          email: data.email!,
+          phone: data.phone,
+          commission_settings: data.commission_settings || {
+            use_global: true,
+            custom_rates: [],
+            penalty_rate: DEFAULT_PENALTY_RATE
+          },
+          referrer_id: data.referrer_id
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao criar representante:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Representante Criado",
+        description: `${data.name} foi cadastrado como representante!`,
+      });
+
+      return {
+        ...newRep,
+        commission_settings: newRep.commission_settings as any
+      };
+    } catch (error) {
+      console.error('Erro ao criar representante:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar representante",
+        variant: "destructive"
+      });
+      throw error;
+    }
   }
 
-  async updateRepresentative(id: number, data: Partial<Representative>): Promise<Representative> {
-    throw new Error('Método não implementado');
+  async updateRepresentative(id: string, data: Partial<Representative>): Promise<Representative> {
+    try {
+      const { data: updatedRep, error } = await supabase
+        .from('representatives')
+        .update(data)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao atualizar representante:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Representante Atualizado",
+        description: "Dados do representante foram atualizados!",
+      });
+
+      return {
+        ...updatedRep,
+        commission_settings: updatedRep.commission_settings as any
+      };
+    } catch (error) {
+      console.error('Erro ao atualizar representante:', error);
+      throw error;
+    }
   }
 
   // Cálculos de comissão

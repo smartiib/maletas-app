@@ -31,7 +31,7 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
   cartItems,
   onClearCart
 }) => {
-  const [selectedRepresentative, setSelectedRepresentative] = useState<number>(0);
+  const [selectedRepresentative, setSelectedRepresentative] = useState<string>('');
   const [returnDate, setReturnDate] = useState(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
   const [notes, setNotes] = useState('');
   const [customCommission, setCustomCommission] = useState(false);
@@ -68,11 +68,12 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
     try {
       const maletaData = {
         representative_id: selectedRepresentative,
-        customer_id: 0, // Não utilizado para maletas
         return_date: returnDate,
         items: cartItems.map(item => ({
           product_id: item.product_id,
           variation_id: item.variation_id,
+          name: item.name,
+          sku: `SKU-${item.product_id}`,
           quantity: item.quantity,
           price: item.price
         })),
@@ -88,7 +89,7 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
       await createMaleta.mutateAsync(maletaData);
       
       // Limpar formulário e carrinho
-      setSelectedRepresentative(0);
+      setSelectedRepresentative('');
       setReturnDate(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
       setNotes('');
       setCustomCommission(false);
@@ -111,7 +112,7 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
 
   const handleClose = () => {
     // Resetar formulário ao fechar
-    setSelectedRepresentative(0);
+    setSelectedRepresentative('');
     setReturnDate(format(addDays(new Date(), 30), 'yyyy-MM-dd'));
     setNotes('');
     setCustomCommission(false);
@@ -162,7 +163,7 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
           {/* Seleção de Representante */}
           <div className="space-y-2">
             <Label htmlFor="representative">Representante *</Label>
-            <Select value={selectedRepresentative.toString()} onValueChange={(value) => setSelectedRepresentative(parseInt(value))}>
+            <Select value={selectedRepresentative} onValueChange={(value) => setSelectedRepresentative(value)}>
               <SelectTrigger>
                 <User className="w-4 h-4 mr-2" />
                 <SelectValue placeholder="Selecionar representante" />

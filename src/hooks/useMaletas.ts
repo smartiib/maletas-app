@@ -4,14 +4,14 @@ import { maletasAPI, Maleta, Representative, CreateMaletaData, MaletaReturn, Com
 import { toast } from '@/hooks/use-toast';
 
 // Maletas hooks
-export const useMaletas = (page = 1, status = '', representative_id = 0) => {
+export const useMaletas = (page = 1, status = '', representative_id = '') => {
   return useQuery({
     queryKey: ['maletas', page, status, representative_id],
     queryFn: () => maletasAPI.getMaletas(page, 20, status, representative_id),
   });
 };
 
-export const useMaleta = (id: number) => {
+export const useMaleta = (id: string) => {
   return useQuery({
     queryKey: ['maleta', id],
     queryFn: () => maletasAPI.getMaleta(id),
@@ -46,14 +46,10 @@ export const useExtendMaletaDeadline = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, new_date }: { id: number; new_date: string }) => 
+    mutationFn: ({ id, new_date }: { id: string; new_date: string }) => 
       maletasAPI.extendMaletaDeadline(id, new_date),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maletas'] });
-      toast({
-        title: "Prazo Estendido",
-        description: "Prazo da maleta foi estendido com sucesso!",
-      });
     },
   });
 };
@@ -62,16 +58,12 @@ export const useProcessMaletaReturn = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, returnData }: { id: number; returnData: Omit<MaletaReturn, 'maleta_id'> }) => 
+    mutationFn: ({ id, returnData }: { id: string; returnData: Omit<MaletaReturn, 'maleta_id'> }) => 
       maletasAPI.processMaletaReturn(id, returnData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maletas'] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       queryClient.invalidateQueries({ queryKey: ['products'] }); // Atualizar estoque
-      toast({
-        title: "Devolução Processada",
-        description: "Devolução foi processada e pedido final foi criado!",
-      });
     },
   });
 };
@@ -103,7 +95,7 @@ export const useUpdateRepresentative = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Representative> }) => 
+    mutationFn: ({ id, data }: { id: string; data: Partial<Representative> }) => 
       maletasAPI.updateRepresentative(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['representatives'] });

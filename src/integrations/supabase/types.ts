@@ -9,6 +9,39 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      commission_tiers: {
+        Row: {
+          bonus: number | null
+          created_at: string
+          id: string
+          is_active: boolean | null
+          label: string
+          max_amount: number | null
+          min_amount: number
+          percentage: number
+        }
+        Insert: {
+          bonus?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          label: string
+          max_amount?: number | null
+          min_amount: number
+          percentage: number
+        }
+        Update: {
+          bonus?: number | null
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          label?: string
+          max_amount?: number | null
+          min_amount?: number
+          percentage?: number
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           created_at: string
@@ -46,6 +79,168 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maleta_items: {
+        Row: {
+          created_at: string
+          id: string
+          maleta_id: string
+          name: string
+          price: number
+          product_id: number
+          quantity: number
+          sku: string
+          status: string
+          updated_at: string
+          variation_attributes: Json | null
+          variation_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          maleta_id: string
+          name: string
+          price: number
+          product_id: number
+          quantity: number
+          sku: string
+          status?: string
+          updated_at?: string
+          variation_attributes?: Json | null
+          variation_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          maleta_id?: string
+          name?: string
+          price?: number
+          product_id?: number
+          quantity?: number
+          sku?: string
+          status?: string
+          updated_at?: string
+          variation_attributes?: Json | null
+          variation_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maleta_items_maleta_id_fkey"
+            columns: ["maleta_id"]
+            isOneToOne: false
+            referencedRelation: "maletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maleta_returns: {
+        Row: {
+          commission_amount: number | null
+          created_at: string
+          delay_days: number | null
+          final_amount: number | null
+          id: string
+          items_returned: Json
+          items_sold: Json
+          maleta_id: string
+          notes: string | null
+          penalty_amount: number | null
+          return_date: string
+        }
+        Insert: {
+          commission_amount?: number | null
+          created_at?: string
+          delay_days?: number | null
+          final_amount?: number | null
+          id?: string
+          items_returned?: Json
+          items_sold?: Json
+          maleta_id: string
+          notes?: string | null
+          penalty_amount?: number | null
+          return_date?: string
+        }
+        Update: {
+          commission_amount?: number | null
+          created_at?: string
+          delay_days?: number | null
+          final_amount?: number | null
+          id?: string
+          items_returned?: Json
+          items_sold?: Json
+          maleta_id?: string
+          notes?: string | null
+          penalty_amount?: number | null
+          return_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maleta_returns_maleta_id_fkey"
+            columns: ["maleta_id"]
+            isOneToOne: false
+            referencedRelation: "maletas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maletas: {
+        Row: {
+          commission_settings: Json | null
+          created_at: string
+          customer_email: string | null
+          customer_name: string | null
+          departure_date: string
+          extended_date: string | null
+          id: string
+          notes: string | null
+          number: string
+          representative_id: string
+          return_date: string
+          status: string
+          total_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          commission_settings?: Json | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          departure_date?: string
+          extended_date?: string | null
+          id?: string
+          notes?: string | null
+          number: string
+          representative_id: string
+          return_date: string
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          commission_settings?: Json | null
+          created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
+          departure_date?: string
+          extended_date?: string | null
+          id?: string
+          notes?: string | null
+          number?: string
+          representative_id?: string
+          return_date?: string
+          status?: string
+          total_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maletas_representative_id_fkey"
+            columns: ["representative_id"]
+            isOneToOne: false
+            referencedRelation: "representatives"
             referencedColumns: ["id"]
           },
         ]
@@ -149,6 +344,50 @@ export type Database = {
             columns: ["subscription_id"]
             isOneToOne: false
             referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      representatives: {
+        Row: {
+          commission_settings: Json | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          referrer_id: string | null
+          total_sales: number | null
+          updated_at: string
+        }
+        Insert: {
+          commission_settings?: Json | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          referrer_id?: string | null
+          total_sales?: number | null
+          updated_at?: string
+        }
+        Update: {
+          commission_settings?: Json | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          referrer_id?: string | null
+          total_sales?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "representatives_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "representatives"
             referencedColumns: ["id"]
           },
         ]
@@ -289,6 +528,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_maleta_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_organizations: {
         Args: { user_uuid?: string }
         Returns: string[]
