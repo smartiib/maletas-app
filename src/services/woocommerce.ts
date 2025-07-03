@@ -175,10 +175,12 @@ class WooCommerceAPI {
 
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     if (!this.config) {
+      console.warn('WooCommerce não configurado - usando dados mock');
       throw new Error('WooCommerce não configurado. Configure nas Configurações.');
     }
 
     const url = `${this.config.apiUrl}${endpoint}`;
+    console.log('WooCommerce API Request:', { url, config: this.config });
     
     try {
       const response = await fetch(url, {
@@ -190,16 +192,22 @@ class WooCommerceAPI {
         },
       });
 
+      console.log('WooCommerce API Response Status:', response.status);
+
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('WooCommerce API Error Response:', errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
-      return await response.json();
+      const data = await response.json();
+      console.log('WooCommerce API Success:', data);
+      return data;
     } catch (error) {
       console.error('WooCommerce API Error:', error);
       toast({
-        title: "Erro na API",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        title: "Erro na API WooCommerce",
+        description: error instanceof Error ? error.message : "Erro desconhecido na comunicação com WooCommerce",
         variant: "destructive"
       });
       throw error;
