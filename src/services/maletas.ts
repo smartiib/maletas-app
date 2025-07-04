@@ -201,6 +201,7 @@ class MaletasAPI {
       return (data || []).map((maleta: any) => ({
         ...maleta,
         status: maleta.status as 'active' | 'expired' | 'finalized',
+        total_value: maleta.total_value?.toString() || '0',
         representative_name: maleta.representative?.name || 'Representante não encontrado',
         commission_settings: this.parseCommissionSettings(maleta.commission_settings),
         commission_percentage: this.getCommissionPercentage(maleta.commission_settings),
@@ -241,6 +242,7 @@ class MaletasAPI {
       return {
         ...data,
         status: data.status as 'active' | 'expired' | 'finalized',
+        total_value: data.total_value?.toString() || '0',
         representative_name: data.representative?.name || 'Representante não encontrado',
         commission_settings: this.parseCommissionSettings(data.commission_settings),
         commission_percentage: this.getCommissionPercentage(data.commission_settings),
@@ -354,6 +356,7 @@ class MaletasAPI {
       return {
         ...newMaleta,
         status: newMaleta.status as 'active' | 'expired' | 'finalized',
+        total_value: newMaleta.total_value?.toString() || '0',
         representative_name: representative.name,
         commission_settings: this.parseCommissionSettings(newMaleta.commission_settings),
         commission_percentage: this.getCommissionPercentage(newMaleta.commission_settings),
@@ -402,6 +405,7 @@ class MaletasAPI {
       return {
         ...data,
         status: data.status as 'active' | 'expired' | 'finalized',
+        total_value: data.total_value?.toString() || '0',
         representative_name: data.representative?.name || 'Representante não encontrado',
         commission_settings: this.parseCommissionSettings(data.commission_settings),
         commission_percentage: this.getCommissionPercentage(data.commission_settings),
