@@ -103,7 +103,10 @@ export const generateMaletaPDF = (maleta: Maleta) => {
         );
       });
     } else {
-      doc.text(`Comissão personalizada: ${maleta.commission_percentage || '0'}%`, 20, finalY + 60);
+      const commissionSettings = maleta.commission_settings as any;
+      const customPercentage = !commissionSettings?.use_global ? 
+        commissionSettings?.tiers?.[0]?.percentage : null;
+      doc.text(`Comissão personalizada: ${customPercentage || '0'}%`, 20, finalY + 60);
     }
     
     // Footer info

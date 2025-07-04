@@ -58,6 +58,7 @@ export interface Maleta {
     tiers: CommissionTier[];
     penalty_rate: number;
   };
+  commission_percentage?: number; // For custom commissions
   notes?: string;
   created_at: string;
   updated_at: string;
@@ -199,12 +200,10 @@ class MaletasAPI {
 
       return (data || []).map((maleta: any) => ({
         ...maleta,
+        status: maleta.status as 'active' | 'expired' | 'finalized',
         representative_name: maleta.representative?.name || 'Representante não encontrado',
-        commission_settings: typeof maleta.commission_settings === 'object' ? maleta.commission_settings : {
-          use_global: true,
-          tiers: DEFAULT_COMMISSION_TIERS,
-          penalty_rate: DEFAULT_PENALTY_RATE
-        },
+        commission_settings: this.parseCommissionSettings(maleta.commission_settings),
+        commission_percentage: this.getCommissionPercentage(maleta.commission_settings),
         items: (maleta.items || []).map((item: any) => ({
           ...item,
           price: item.price.toString(),
@@ -241,12 +240,10 @@ class MaletasAPI {
 
       return {
         ...data,
+        status: data.status as 'active' | 'expired' | 'finalized',
         representative_name: data.representative?.name || 'Representante não encontrado',
-        commission_settings: typeof data.commission_settings === 'object' ? data.commission_settings : {
-          use_global: true,
-          tiers: DEFAULT_COMMISSION_TIERS,
-          penalty_rate: DEFAULT_PENALTY_RATE
-        },
+        commission_settings: this.parseCommissionSettings(data.commission_settings),
+        commission_percentage: this.getCommissionPercentage(data.commission_settings),
         items: (data.items || []).map((item: any) => ({
           ...item,
           price: item.price.toString(),
@@ -300,8 +297,8 @@ class MaletasAPI {
           customer_name: data.customer_name || representative.name,
           customer_email: data.customer_email || representative.email,
           return_date: data.return_date,
-          total_value: totalValue.toFixed(2),
-          commission_settings: data.commission_settings?.use_global ? {
+          total_value: totalValue,
+          commission_settings: JSON.stringify(data.commission_settings?.use_global ? {
             use_global: true,
             tiers: commissionTiers,
             penalty_rate: DEFAULT_PENALTY_RATE
@@ -314,7 +311,7 @@ class MaletasAPI {
               label: 'Personalizada'
             }],
             penalty_rate: DEFAULT_PENALTY_RATE
-          },
+          }),
           notes: data.notes
         })
         .select()
@@ -356,8 +353,10 @@ class MaletasAPI {
 
       return {
         ...newMaleta,
+        status: newMaleta.status as 'active' | 'expired' | 'finalized',
         representative_name: representative.name,
-        commission_settings: newMaleta.commission_settings,
+        commission_settings: this.parseCommissionSettings(newMaleta.commission_settings),
+        commission_percentage: this.getCommissionPercentage(newMaleta.commission_settings),
         items: (items || []).map((item: any) => ({
           ...item,
           price: item.price.toString()
@@ -402,8 +401,10 @@ class MaletasAPI {
 
       return {
         ...data,
+        status: data.status as 'active' | 'expired' | 'finalized',
         representative_name: data.representative?.name || 'Representante não encontrado',
-        commission_settings: data.commission_settings,
+        commission_settings: this.parseCommissionSettings(data.commission_settings),
+        commission_percentage: this.getCommissionPercentage(data.commission_settings),
         items: (data.items || []).map((item: any) => ({
           ...item,
           price: item.price.toString()
@@ -497,11 +498,7 @@ class MaletasAPI {
 
       return (data || []).map(rep => ({
         ...rep,
-        commission_settings: typeof rep.commission_settings === 'object' ? rep.commission_settings : {
-          use_global: true,
-          custom_rates: [],
-          penalty_rate: DEFAULT_PENALTY_RATE
-        }
+        commission_settings: this.parseRepresentativeCommissionSettings(rep.commission_settings)
       }));
     } catch (error) {
       console.error('Erro na busca de representantes:', error);
@@ -517,11 +514,11 @@ class MaletasAPI {
           name: data.name!,
           email: data.email!,
           phone: data.phone,
-          commission_settings: data.commission_settings || {
+          commission_settings: JSON.stringify(data.commission_settings || {
             use_global: true,
             custom_rates: [],
             penalty_rate: DEFAULT_PENALTY_RATE
-          },
+          }),
           referrer_id: data.referrer_id
         })
         .select()
@@ -554,9 +551,14 @@ class MaletasAPI {
 
   async updateRepresentative(id: string, data: Partial<Representative>): Promise<Representative> {
     try {
+      const updateData: any = { ...data };
+      if (data.commission_settings) {
+        updateData.commission_settings = JSON.stringify(data.commission_settings);
+      }
+
       const { data: updatedRep, error } = await supabase
         .from('representatives')
-        .update(data)
+        .update(updateData)
         .eq('id', id)
         .select()
         .single();
@@ -579,6 +581,71 @@ class MaletasAPI {
       console.error('Erro ao atualizar representante:', error);
       throw error;
     }
+  }
+
+  // Helper methods for parsing commission settings
+  private parseCommissionSettings(settings: any): { use_global: boolean; tiers: CommissionTier[]; penalty_rate: number } {
+    if (typeof settings === 'string') {
+      try {
+        settings = JSON.parse(settings);
+      } catch {
+        return {
+          use_global: true,
+          tiers: DEFAULT_COMMISSION_TIERS,
+          penalty_rate: DEFAULT_PENALTY_RATE
+        };
+      }
+    }
+    
+    if (typeof settings === 'object' && settings !== null) {
+      return {
+        use_global: settings.use_global ?? true,
+        tiers: Array.isArray(settings.tiers) ? settings.tiers : DEFAULT_COMMISSION_TIERS,
+        penalty_rate: settings.penalty_rate ?? DEFAULT_PENALTY_RATE
+      };
+    }
+    
+    return {
+      use_global: true,
+      tiers: DEFAULT_COMMISSION_TIERS,
+      penalty_rate: DEFAULT_PENALTY_RATE
+    };
+  }
+
+  private parseRepresentativeCommissionSettings(settings: any): { use_global: boolean; custom_rates?: CommissionTier[]; penalty_rate?: number } {
+    if (typeof settings === 'string') {
+      try {
+        settings = JSON.parse(settings);
+      } catch {
+        return {
+          use_global: true,
+          custom_rates: [],
+          penalty_rate: DEFAULT_PENALTY_RATE
+        };
+      }
+    }
+    
+    if (typeof settings === 'object' && settings !== null) {
+      return {
+        use_global: settings.use_global ?? true,
+        custom_rates: Array.isArray(settings.custom_rates) ? settings.custom_rates : [],
+        penalty_rate: settings.penalty_rate ?? DEFAULT_PENALTY_RATE
+      };
+    }
+    
+    return {
+      use_global: true,
+      custom_rates: [],
+      penalty_rate: DEFAULT_PENALTY_RATE
+    };
+  }
+
+  private getCommissionPercentage(settings: any): number | undefined {
+    const parsed = this.parseCommissionSettings(settings);
+    if (!parsed.use_global && parsed.tiers && parsed.tiers.length > 0) {
+      return parsed.tiers[0].percentage;
+    }
+    return undefined;
   }
 
   // Cálculos de comissão

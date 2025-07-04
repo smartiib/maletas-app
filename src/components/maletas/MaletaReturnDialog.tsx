@@ -19,7 +19,7 @@ interface MaletaReturnDialogProps {
 }
 
 interface ItemReturn {
-  item_id: number;
+  item_id: string;
   quantity_returned: number;
   quantity_sold: number;
   total_quantity: number;
@@ -54,7 +54,7 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
 
   if (!maleta) return null;
 
-  const updateItemReturn = (itemId: number, field: 'quantity_returned' | 'quantity_sold', value: number) => {
+  const updateItemReturn = (itemId: string, field: 'quantity_returned' | 'quantity_sold', value: number) => {
     setItemReturns(current =>
       current.map(item => {
         if (item.item_id === itemId) {
