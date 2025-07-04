@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCustomers, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useCreateRepresentative } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
 import PaginationControls from '@/components/ui/pagination-controls';
@@ -22,7 +23,8 @@ import CustomerDialog from '@/components/customers/CustomerDialog';
 import CustomerDetails from '@/components/customers/CustomerDetails';
 import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCustomer';
 import CustomerCard from '@/components/customers/CustomerCard';
-import { MoreHorizontal } from 'lucide-react';
+import { MoreHorizontal, RefreshCcw } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -36,6 +38,7 @@ const Customers = () => {
   const { isConfigured } = useWooCommerceConfig();
   const { data: allCustomers = [], isLoading, error, refetch } = useCustomers();
   const { viewMode, toggleViewMode } = useViewMode('customers');
+  const createRepresentative = useCreateRepresentative();
 
   // Filter and paginate data
   const filteredCustomers = useMemo(() => {
@@ -84,6 +87,58 @@ const Customers = () => {
   const toggleRepresentative = (customer: Customer) => {
     // TODO: Implementar quando integração WordPress estiver pronta
     console.log('Toggle representative status for:', customer.id);
+  };
+
+  const syncRepresentatives = async () => {
+    try {
+      const representatives = allCustomers.filter(isRepresentative);
+      
+      if (representatives.length === 0) {
+        toast({
+          title: "Nenhum representante encontrado",
+          description: "Marque clientes como representantes antes de sincronizar.",
+        });
+        return;
+      }
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const customer of representatives) {
+        try {
+          const representativeData = {
+            name: `${customer.first_name} ${customer.last_name}`,
+            email: customer.email || customer.billing.email,
+            phone: customer.billing.phone,
+            commission_settings: {
+              use_global: true,
+              penalty_rate: 1
+            }
+          };
+
+          await createRepresentative.mutateAsync(representativeData);
+          successCount++;
+        } catch (error) {
+          // Ignorar erro se representante já existe
+          if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        }
+      }
+
+      toast({
+        title: "Sincronização concluída",
+        description: `${successCount} representantes sincronizados${errorCount > 0 ? `, ${errorCount} erros` : ''}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro na sincronização",
+        description: "Erro ao sincronizar representantes com o sistema de maletas.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getTotalCustomers = () => filteredCustomers.length;
@@ -136,10 +191,23 @@ const Customers = () => {
             Gerencie sua base de clientes
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateCustomer}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            className="bg-gradient-primary hover:opacity-90"
+            onClick={handleCreateCustomer}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Cliente
+          </Button>
+          <Button
+            variant="outline"
+            onClick={syncRepresentatives}
+            disabled={createRepresentative.isPending}
+          >
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            {createRepresentative.isPending ? 'Sincronizando...' : 'Sincronizar Representantes'}
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}
