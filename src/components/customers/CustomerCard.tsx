@@ -29,7 +29,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
   onToggleRepresentative 
 }) => {
   const isRepresentative = (customer: Customer) => {
-    return customer.meta_data?.some(meta => meta.key === 'is_representative' && meta.value === true);
+    return customer.meta_data?.some(meta => meta.key === 'is_representative' && (meta.value === true || meta.value === '1' || meta.value === 1));
   };
 
   return (

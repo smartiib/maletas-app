@@ -381,8 +381,8 @@ class MaletasAPI {
       const { data, error } = await supabase
         .from('maletas')
         .update({ 
-          return_date: new_date,
-          extended_date: new_date 
+          return_date: new_date + 'T23:59:59',
+          extended_date: new_date + 'T23:59:59'
         })
         .eq('id', id)
         .select(`

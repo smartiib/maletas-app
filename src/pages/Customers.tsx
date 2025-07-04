@@ -81,7 +81,7 @@ const Customers = () => {
   };
 
   const isRepresentative = (customer: Customer) => {
-    return customer.meta_data?.some(meta => meta.key === 'is_representative' && meta.value === true);
+    return customer.meta_data?.some(meta => meta.key === 'is_representative' && (meta.value === true || meta.value === '1' || meta.value === 1));
   };
 
   const toggleRepresentative = (customer: Customer) => {
