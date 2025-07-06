@@ -276,40 +276,42 @@ const Customers = () => {
       {/* Filtros */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col lg:flex-row gap-4 flex-1">
-              <div className="flex-1">
+          <div className="flex flex-col lg:flex-row gap-4 items-stretch lg:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1">
+              <div className="flex-1 min-w-0">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                   <Input
-                    placeholder="Buscar clientes por nome, email ou telefone..."
+                    placeholder="Buscar clientes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                    className="pl-10 text-sm"
                   />
                 </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <select 
                   value={filterType} 
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className="px-3 py-2 border border-input rounded-md bg-background text-sm"
+                  className="px-3 py-2 border border-input rounded-md bg-background text-sm min-w-0"
                 >
                   <option value="all">Todos</option>
                   <option value="customers">Clientes</option>
                   <option value="representatives">Representantes</option>
                 </select>
-                <Button variant="outline" onClick={() => refetch()}>
+                <Button variant="outline" size="sm" onClick={() => refetch()}>
                   <Filter className="w-4 h-4" />
                 </Button>
               </div>
             </div>
             
-            <ViewModeToggle 
-              viewMode={viewMode} 
-              onToggle={toggleViewMode} 
-            />
+            <div className="flex justify-end lg:justify-start">
+              <ViewModeToggle 
+                viewMode={viewMode} 
+                onToggle={toggleViewMode} 
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

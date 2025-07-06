@@ -3,10 +3,10 @@ import React from 'react';
 import { Bell, Search, Sun, Moon, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { cn } from '@/lib/utils';
 
 interface HeaderProps {
-  onToggleSidebar: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
 }
@@ -21,21 +21,24 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
 
 
   return (
-    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm">
-      <div className="flex items-center justify-between">
+    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-3 md:px-6 py-4 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        {/* Sidebar Trigger */}
+        <SidebarTrigger className="flex-shrink-0" />
+        
         {/* Busca */}
         <div className="flex-1 max-w-md">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
             <Input
               placeholder="Buscar produtos, pedidos, clientes..."
-              className="pl-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
+              className="pl-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600 text-sm"
             />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 md:space-x-3 flex-shrink-0">
           {/* Toggle Theme */}
           <Button
             variant="ghost"
@@ -65,11 +68,11 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
 
           {/* User Info - Simplificado */}
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-white" />
             </div>
-            <div className="hidden md:block text-left">
-              <div className="text-sm font-medium">{mockUser.display_name}</div>
+            <div className="hidden lg:block text-left">
+              <div className="text-sm font-medium truncate max-w-32">{mockUser.display_name}</div>
               <div className="text-xs text-slate-500 capitalize">
                 {mockUser.roles[0] || 'Usuário'}
               </div>
