@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Package, User, Calendar, FileText, Download } from 'lucide-react';
+import { Package, User, Calendar, FileText, Download, Image } from 'lucide-react';
 import { Maleta } from '@/services/maletas';
 import { generateMaletaPDF } from '@/services/pdfGenerator';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MaletaDetailsDialogProps {
   open: boolean;
@@ -18,6 +19,30 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
   onOpenChange,
   maleta
 }) => {
+  const [representativeData, setRepresentativeData] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchRepresentativeData = async () => {
+      if (maleta?.representative_id) {
+        try {
+          const { data, error } = await supabase
+            .from('representatives')
+            .select('name, email, phone')
+            .eq('id', maleta.representative_id)
+            .single();
+          
+          if (!error && data) {
+            setRepresentativeData(data);
+          }
+        } catch (error) {
+          console.error('Erro ao buscar dados do representante:', error);
+        }
+      }
+    };
+
+    fetchRepresentativeData();
+  }, [maleta?.representative_id]);
+
   if (!maleta) return null;
 
   const getStatusColor = (status: string) => {
@@ -81,10 +106,18 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
                   <span className="text-sm text-muted-foreground">Nome:</span>
                   <p className="font-medium">{maleta.representative_name}</p>
                 </div>
-                <div>
-                  <span className="text-sm text-muted-foreground">ID:</span>
-                  <p className="text-sm">{maleta.representative_id}</p>
-                </div>
+                {representativeData?.email && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">E-mail:</span>
+                    <p className="text-sm">{representativeData.email}</p>
+                  </div>
+                )}
+                {representativeData?.phone && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Telefone:</span>
+                    <p className="text-sm">{representativeData.phone}</p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -134,20 +167,24 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
               <h3 className="text-lg font-semibold">Produtos ({maleta.items.length} itens)</h3>
             </div>
             
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-muted/30 p-3 grid grid-cols-12 gap-2 text-sm font-medium border-b">
-                <div className="col-span-1">ID</div>
+            <div className="border rounded-lg overflow-hidden overflow-x-auto">
+              <div className="bg-muted/30 p-3 grid grid-cols-12 gap-3 text-sm font-medium border-b min-w-[800px]">
+                <div className="col-span-1">IMG</div>
                 <div className="col-span-2">SKU</div>
                 <div className="col-span-4">Produto</div>
-                <div className="col-span-2">Qtd</div>
+                <div className="col-span-1">Qtd</div>
                 <div className="col-span-2">Valor Unit.</div>
-                <div className="col-span-1">Status</div>
+                <div className="col-span-2">Status</div>
               </div>
               
               <div className="divide-y">
                 {maleta.items.map((item) => (
-                  <div key={item.id} className="p-3 grid grid-cols-12 gap-2 text-sm">
-                    <div className="col-span-1 text-muted-foreground">{item.id}</div>
+                  <div key={item.id} className="p-3 grid grid-cols-12 gap-3 text-sm min-w-[800px]">
+                    <div className="col-span-1">
+                      <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                        <Image className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                    </div>
                     <div className="col-span-2 font-mono text-xs">{item.sku}</div>
                     <div className="col-span-4">
                       <p className="font-medium">{item.name}</p>
@@ -157,9 +194,9 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
                         </p>
                       )}
                     </div>
-                    <div className="col-span-2">{item.quantity}</div>
+                    <div className="col-span-1">{item.quantity}</div>
                     <div className="col-span-2 font-medium">R$ {parseFloat(item.price).toFixed(2)}</div>
-                    <div className="col-span-1">
+                    <div className="col-span-2">
                       <Badge 
                         variant="outline" 
                         className={
