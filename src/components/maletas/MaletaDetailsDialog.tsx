@@ -20,6 +20,7 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
   maleta
 }) => {
   const [representativeData, setRepresentativeData] = React.useState<any>(null);
+  const [productImages, setProductImages] = React.useState<{[key: number]: string}>({});
 
   React.useEffect(() => {
     const fetchRepresentativeData = async () => {
@@ -40,8 +41,35 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
       }
     };
 
+    const fetchProductImages = async () => {
+      if (maleta?.items) {
+        const imagePromises = maleta.items.map(async (item) => {
+          try {
+            const response = await fetch(`https://riejoias.com.br/new/wp-json/wc/v3/products/${item.product_id}?consumer_key=ck_9f33e07b1c484707dea60fb2b89fc93cc21a04b0&consumer_secret=cs_137c4b7c47e8374eb8543b109dd9b0d8cfe93262`);
+            const product = await response.json();
+            
+            if (product.images && product.images.length > 0) {
+              return { id: item.product_id, image: product.images[0].src };
+            }
+          } catch (error) {
+            console.error(`Erro ao buscar imagem do produto ${item.product_id}:`, error);
+          }
+          return { id: item.product_id, image: null };
+        });
+
+        const results = await Promise.all(imagePromises);
+        const imagesMap = results.reduce((acc, { id, image }) => {
+          if (image) acc[id] = image;
+          return acc;
+        }, {} as {[key: number]: string});
+        
+        setProductImages(imagesMap);
+      }
+    };
+
     fetchRepresentativeData();
-  }, [maleta?.representative_id]);
+    fetchProductImages();
+  }, [maleta?.representative_id, maleta?.items]);
 
   if (!maleta) return null;
 
@@ -181,7 +209,19 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
                 {maleta.items.map((item) => (
                   <div key={item.id} className="p-3 grid grid-cols-12 gap-3 text-sm min-w-[800px]">
                     <div className="col-span-1">
-                      <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                      {productImages[item.product_id] ? (
+                        <img 
+                          src={productImages[item.product_id]} 
+                          alt={item.name}
+                          className="w-10 h-10 object-cover rounded-lg"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                      ) : null}
+                      <div className={`w-10 h-10 bg-muted rounded-lg flex items-center justify-center ${productImages[item.product_id] ? 'hidden' : ''}`}>
                         <Image className="w-5 h-5 text-muted-foreground" />
                       </div>
                     </div>
