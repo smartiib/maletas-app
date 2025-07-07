@@ -83,31 +83,31 @@ const Dashboard = () => {
     name: product.name,
     sales: 45 - index * 8
   }));
-  return <div className="space-y-4 md:space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold text-foreground">
             Dashboard
           </h1>
-          <p className="text-slate-600 dark:text-slate-400 mt-1 text-sm md:text-base">
+          <p className="text-slate-600 dark:text-slate-400 mt-1">
             Visão geral das suas vendas e operações
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-          <Button variant="outline" size="sm" className="text-xs md:text-sm">
+        <div className="flex space-x-3">
+          <Button variant="outline" size="sm">
             <TrendingUp className="w-4 h-4 mr-2" />
             Relatório Completo
           </Button>
-          <Button size="sm" className="bg-gradient-primary hover:opacity-90 text-xs md:text-sm" onClick={() => window.location.href = '/pos'}>
+          <Button size="sm" className="bg-gradient-primary hover:opacity-90" onClick={() => window.location.href = '/pos'}>
             Novo Pedido
           </Button>
         </div>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi, index) => <KPICard key={index} {...kpi} className="animate-fade-in" style={{
         animationDelay: `${index * 100}ms`
       }} />)}
@@ -123,15 +123,15 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-2 text-sm">
-              {lowStockProducts.length > 0 && <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white dark:bg-slate-800 rounded-lg">
-                  <span className="text-sm">{lowStockProducts.length} produtos com estoque baixo</span>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/produtos'} className="text-xs">
+              {lowStockProducts.length > 0 && <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
+                  <span>{lowStockProducts.length} produtos com estoque baixo</span>
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/produtos'}>
                     Ver Produtos
                   </Button>
                 </div>}
-              {pendingOrders.length > 0 && <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 bg-white dark:bg-slate-800 rounded-lg">
-                  <span className="text-sm">{pendingOrders.length} pedidos pendentes</span>
-                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/pedidos'} className="text-xs">
+              {pendingOrders.length > 0 && <div className="flex items-center justify-between p-3 bg-white dark:bg-slate-800 rounded-lg">
+                  <span>{pendingOrders.length} pedidos pendentes</span>
+                  <Button variant="outline" size="sm" onClick={() => window.location.href = '/pedidos'}>
                     Ver Pedidos
                   </Button>
                 </div>}
@@ -140,12 +140,12 @@ const Dashboard = () => {
         </Card>}
 
       {/* Gráficos e Análises */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SalesChart orders={orders} />
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-base md:text-lg">Produtos Mais Vendidos</CardTitle>
+            <CardTitle>Produtos Mais Vendidos</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
@@ -171,7 +171,7 @@ const Dashboard = () => {
       </div>
 
       {/* Atividade Recente e Ações Rápidas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <RecentActivity orders={orders} customers={customers} products={products} />
         </div>

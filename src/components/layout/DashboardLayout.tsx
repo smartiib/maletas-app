@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from './AppSidebar';
+import Sidebar from './Sidebar';
 import Header from './Header';
 
 const DashboardLayout = () => {
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   React.useEffect(() => {
@@ -17,24 +17,28 @@ const DashboardLayout = () => {
   }, [isDarkMode]);
 
   return (
-    <SidebarProvider defaultOpen={true}>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900 transition-all-smooth w-full flex">
-        <AppSidebar />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-blue-900 dark:to-indigo-900 transition-all-smooth">
+      <div className="flex h-screen">
+        <Sidebar 
+          collapsed={sidebarCollapsed} 
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        />
         
-        <SidebarInset className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden">
           <Header 
+            onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
             isDarkMode={isDarkMode}
             onToggleTheme={() => setIsDarkMode(!isDarkMode)}
           />
           
-          <main className="flex-1 overflow-x-hidden overflow-y-auto p-3 md:p-6">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto p-6">
             <div className="animate-fade-in">
               <Outlet />
             </div>
           </main>
-        </SidebarInset>
+        </div>
       </div>
-    </SidebarProvider>
+    </div>
   );
 };
 
