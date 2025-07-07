@@ -353,6 +353,48 @@ export type Database = {
           },
         ]
       }
+      pdf_templates: {
+        Row: {
+          created_at: string
+          css_styles: string | null
+          format: string
+          html_template: string
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          settings: Json | null
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          css_styles?: string | null
+          format: string
+          html_template: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          settings?: Json | null
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          css_styles?: string | null
+          format?: string
+          html_template?: string
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          settings?: Json | null
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       representatives: {
         Row: {
           commission_settings: Json | null

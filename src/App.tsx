@@ -15,6 +15,7 @@ import Logs from "./pages/Logs";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
+import PdfTemplates from "./pages/PdfTemplates";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ const App = () => {
               <Route path="/pos" element={<POS />} />
               <Route path="/maletas" element={<Maletas />} />
               <Route path="/relatorios" element={<Reports />} />
+              <Route path="/templates-pdf" element={<PdfTemplates />} />
               <Route path="/logs" element={<Logs />} />
               <Route path="/configuracoes" element={<Settings />} />
             </Route>

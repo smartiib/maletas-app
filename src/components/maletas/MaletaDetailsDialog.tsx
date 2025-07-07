@@ -6,6 +6,7 @@ import { Separator } from '@/components/ui/separator';
 import { Package, User, Calendar, FileText, Download, Image } from 'lucide-react';
 import { Maleta } from '@/services/maletas';
 import { generateMaletaPDF } from '@/services/pdfGenerator';
+import { PdfTemplateService } from '@/services/pdfTemplates';
 import { supabase } from '@/integrations/supabase/client';
 
 interface MaletaDetailsDialogProps {
@@ -91,8 +92,27 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
     }
   };
 
-  const handleGeneratePDF = () => {
-    generateMaletaPDF(maleta);
+  const handleGeneratePDF = async () => {
+    try {
+      const result = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
+      
+      if (result.success) {
+        // Por enquanto, fazer download do HTML
+        // Em produção, isso seria um PDF real
+        PdfTemplateService.downloadHtmlAsFile(
+          result.html, 
+          `Maleta-${maleta.number}-Romaneio.html`
+        );
+        
+        console.log('PDF gerado com sucesso (modo teste)');
+      } else {
+        throw new Error('Falha ao gerar PDF');
+      }
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      // Fallback para o método antigo
+      generateMaletaPDF(maleta);
+    }
   };
 
   const daysUntilReturn = Math.ceil(

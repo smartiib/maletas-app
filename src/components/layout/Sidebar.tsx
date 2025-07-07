@@ -12,7 +12,8 @@ import {
   Settings,
   Menu,
   Briefcase,
-  Warehouse
+  Warehouse,
+  File
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -71,6 +72,12 @@ const navigationItems = [
     href: '/relatorios', 
     icon: BarChart3,
     permission: 'reports'
+  },
+  { 
+    title: 'Templates PDF', 
+    href: '/templates-pdf', 
+    icon: File,
+    permission: 'templates'
   },
   { 
     title: 'Logs', 
