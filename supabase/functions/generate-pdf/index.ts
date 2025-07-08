@@ -37,6 +37,8 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       }
     })
+    
+    console.log('Maleta response status:', maletaResponse.status)
 
     if (!maletaResponse.ok) {
       throw new Error('Erro ao buscar dados da maleta')
@@ -64,6 +66,8 @@ serve(async (req) => {
         'Content-Type': 'application/json'
       }
     })
+    
+    console.log('Template response status:', templateResponse.status)
 
     if (!templateResponse.ok) {
       throw new Error('Erro ao buscar template de PDF')

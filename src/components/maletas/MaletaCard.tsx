@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Maleta } from '@/services/maletas';
 import { ViewMode } from '@/hooks/useViewMode';
-import { generateMaletaPDF } from '@/services/pdfGenerator';
+// Removido import do pdfGenerator - agora usando pdfTemplates
 
 interface MaletaCardProps {
   maleta: Maleta;
