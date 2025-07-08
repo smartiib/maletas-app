@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from '../_shared/cors.ts'
+import puppeteer from "https://deno.land/x/puppeteer@16.2.0/mod.ts"
 
 interface PdfRequest {
   maleta_id: string;
@@ -157,19 +158,43 @@ serve(async (req) => {
       </html>
     `
 
-    // Por enquanto, retornar o HTML para teste
-    // Em produção, aqui usaria Puppeteer para gerar PDF
+    // Gerar PDF usando Puppeteer
+    console.log('Iniciando geração de PDF com Puppeteer...')
     
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        html: fullHtml,
-        message: 'PDF gerado com sucesso (modo teste - HTML)' 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    const browser = await puppeteer.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    })
+    
+    const page = await browser.newPage()
+    
+    // Configurar a página para A4
+    await page.setContent(fullHtml, { waitUntil: 'networkidle0' })
+    
+    // Gerar PDF
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: {
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm'
       }
-    )
+    })
+    
+    await browser.close()
+    
+    console.log('PDF gerado com sucesso!')
+    
+    // Retornar PDF como resposta
+    return new Response(pdfBuffer, {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="Maleta-${maleta.number}-Romaneio.pdf"`
+      }
+    })
 
   } catch (error) {
     console.error('Erro ao gerar PDF:', error)

@@ -94,20 +94,23 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
 
   const handleGeneratePDF = async () => {
     try {
-      const result = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
+      console.log('Gerando PDF para maleta:', maleta.id);
+      const pdfData = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
       
-      if (result.success) {
-        // Por enquanto, fazer download do HTML
-        // Em produção, isso seria um PDF real
-        PdfTemplateService.downloadHtmlAsFile(
-          result.html, 
-          `Maleta-${maleta.number}-Romaneio.html`
-        );
-        
-        console.log('PDF gerado com sucesso (modo teste)');
-      } else {
-        throw new Error('Falha ao gerar PDF');
-      }
+      // Criar blob do PDF e fazer download
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Maleta-${maleta.number}-Romaneio.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      URL.revokeObjectURL(url);
+      
+      console.log('PDF gerado e baixado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       // Fallback para o método antigo

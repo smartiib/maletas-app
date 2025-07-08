@@ -52,18 +52,19 @@ export class PdfTemplateService {
   }
 
   static async generatePdf(maleta_id: string, template_type: string = 'romaneio') {
-    const { data, error } = await supabase.functions.invoke('generate-pdf', {
+    const response = await supabase.functions.invoke('generate-pdf', {
       body: { 
         maleta_id,
         template_type
       }
     });
 
-    if (error) {
-      throw new Error(`Erro ao gerar PDF: ${error.message}`);
+    if (response.error) {
+      throw new Error(`Erro ao gerar PDF: ${response.error.message}`);
     }
 
-    return data;
+    // A response.data agora contém o PDF como blob
+    return response.data;
   }
 
   static async createTemplate(template: Omit<PdfTemplate, 'id' | 'created_at' | 'updated_at'>) {
