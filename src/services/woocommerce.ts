@@ -179,7 +179,10 @@ class WooCommerceAPI {
       throw new Error('WooCommerce não configurado. Configure nas Configurações.');
     }
 
-    const url = `${this.config.apiUrl}${endpoint}`;
+    // Corrigir construção da URL - garantir que há uma barra entre base e endpoint
+    const baseUrl = this.config.apiUrl.endsWith('/') ? this.config.apiUrl.slice(0, -1) : this.config.apiUrl;
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${baseUrl}${cleanEndpoint}`;
     console.log('WooCommerce API Request:', { url, config: this.config });
     
     try {

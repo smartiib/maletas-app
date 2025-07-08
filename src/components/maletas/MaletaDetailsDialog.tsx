@@ -97,8 +97,17 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
       console.log('Gerando PDF para maleta:', maleta.id);
       const pdfData = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
       
-      // Criar blob do PDF e fazer download
-      const blob = new Blob([pdfData], { type: 'application/pdf' });
+      // Verificar se pdfData é um ArrayBuffer ou já um Blob
+      let blob: Blob;
+      if (pdfData instanceof ArrayBuffer) {
+        blob = new Blob([pdfData], { type: 'application/pdf' });
+      } else if (pdfData instanceof Uint8Array) {
+        blob = new Blob([pdfData], { type: 'application/pdf' });
+      } else {
+        // Se for outro tipo, tentar converter
+        blob = new Blob([pdfData], { type: 'application/pdf' });
+      }
+      
       const url = URL.createObjectURL(blob);
       
       const a = document.createElement('a');
@@ -113,8 +122,7 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
       console.log('PDF gerado e baixado com sucesso!');
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
-      // Fallback para o método antigo
-      generateMaletaPDF(maleta);
+      alert(`Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     }
   };
 

@@ -60,10 +60,15 @@ export class PdfTemplateService {
     });
 
     if (response.error) {
+      console.error('Erro na edge function:', response.error);
       throw new Error(`Erro ao gerar PDF: ${response.error.message}`);
     }
 
-    // A response.data agora contém o PDF como blob
+    if (!response.data) {
+      throw new Error('Nenhum dado retornado pela função de geração de PDF');
+    }
+
+    // A response.data agora contém o PDF como ArrayBuffer
     return response.data;
   }
 
