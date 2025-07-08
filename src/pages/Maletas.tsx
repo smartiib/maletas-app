@@ -18,7 +18,7 @@ import MaletaDialog from '@/components/maletas/MaletaDialog';
 import MaletaDetailsDialog from '@/components/maletas/MaletaDetailsDialog';
 import MaletaReturnDialog from '@/components/maletas/MaletaReturnDialog';
 import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
-// Removido import do pdfGenerator - agora usando pdfTemplates
+import { generateMaletaPDF } from '@/services/pdfGenerator';
 
 const Maletas = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,34 +121,9 @@ const Maletas = () => {
     setReturnDialogOpen(true);
   };
 
-  const handleGenerateRomaneio = async (maleta: any) => {
+  const handleGenerateRomaneio = (maleta: any) => {
     try {
-      console.log('Gerando PDF para maleta:', maleta.id);
-      const { PdfTemplateService } = await import('@/services/pdfTemplates');
-      const pdfData = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
-      
-      // Verificar se pdfData é um ArrayBuffer ou já um Blob
-      let blob: Blob;
-      if (pdfData instanceof ArrayBuffer) {
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      } else if (pdfData instanceof Uint8Array) {
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      } else {
-        // Se for outro tipo, tentar converter
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      }
-      
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Maleta-${maleta.number}-Romaneio.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      URL.revokeObjectURL(url);
-      
+      generateMaletaPDF(maleta);
       toast({
         title: "PDF Gerado",
         description: "Romaneio PDF foi gerado com sucesso!",
@@ -157,7 +132,7 @@ const Maletas = () => {
       console.error('Error generating PDF:', error);
       toast({
         title: "Erro",
-        description: `Erro ao gerar romaneio PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        description: "Erro ao gerar romaneio PDF",
         variant: "destructive"
       });
     }

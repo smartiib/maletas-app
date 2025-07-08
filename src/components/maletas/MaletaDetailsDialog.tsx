@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Package, User, Calendar, FileText, Download, Image } from 'lucide-react';
 import { Maleta } from '@/services/maletas';
-// Removido import do pdfGenerator - agora usando pdfTemplates
+import { generateMaletaPDF } from '@/services/pdfGenerator';
 import { PdfTemplateService } from '@/services/pdfTemplates';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -44,41 +44,27 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
 
     const fetchProductImages = async () => {
       if (maleta?.items) {
-        try {
-          const { wooCommerceAPI } = await import('@/services/woocommerce');
-          const config = wooCommerceAPI.getConfig();
-          
-          if (!config) {
-            console.log('WooCommerce não configurado - não será possível carregar imagens');
-            return;
-          }
-          
-          console.log('Carregando imagens dos produtos...');
-          const imagePromises = maleta.items.map(async (item) => {
-            try {
-              const product = await wooCommerceAPI.getProduct(item.product_id);
-              
-              if (product.images && product.images.length > 0) {
-                console.log(`Imagem encontrada para produto ${item.product_id}:`, product.images[0].src);
-                return { id: item.product_id, image: product.images[0].src };
-              }
-            } catch (error) {
-              console.error(`Erro ao buscar imagem do produto ${item.product_id}:`, error);
+        const imagePromises = maleta.items.map(async (item) => {
+          try {
+            const response = await fetch(`https://riejoias.com.br/new/wp-json/wc/v3/products/${item.product_id}?consumer_key=ck_9f33e07b1c484707dea60fb2b89fc93cc21a04b0&consumer_secret=cs_137c4b7c47e8374eb8543b109dd9b0d8cfe93262`);
+            const product = await response.json();
+            
+            if (product.images && product.images.length > 0) {
+              return { id: item.product_id, image: product.images[0].src };
             }
-            return { id: item.product_id, image: null };
-          });
+          } catch (error) {
+            console.error(`Erro ao buscar imagem do produto ${item.product_id}:`, error);
+          }
+          return { id: item.product_id, image: null };
+        });
 
-          const results = await Promise.all(imagePromises);
-          const imagesMap = results.reduce((acc, { id, image }) => {
-            if (image) acc[id] = image;
-            return acc;
-          }, {} as {[key: number]: string});
-          
-          console.log('Imagens carregadas:', imagesMap);
-          setProductImages(imagesMap);
-        } catch (error) {
-          console.error('Erro geral ao buscar imagens:', error);
-        }
+        const results = await Promise.all(imagePromises);
+        const imagesMap = results.reduce((acc, { id, image }) => {
+          if (image) acc[id] = image;
+          return acc;
+        }, {} as {[key: number]: string});
+        
+        setProductImages(imagesMap);
       }
     };
 
