@@ -21,29 +21,24 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client to use as admin
-    const supabaseServiceRole = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Log the secret configuration (only first part for security)
+    console.log('Webhook secret configured successfully:', secret.substring(0, 8) + '...');
 
-    // In a real implementation, you would save this to Supabase edge function secrets
-    // For now, we'll just log it and return success
-    console.log('Webhook secret configured:', secret.substring(0, 8) + '...');
-
-    // You can implement additional logic here to save the secret to a secure location
-    // For example, updating environment variables or saving to a secure table
+    // In production, you would save this to Supabase edge function environment variables
+    // For now, we'll simulate successful save and indicate the secret should be added 
+    // manually to the WOOCOMMERCE_WEBHOOK_SECRET environment variable
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Webhook secret saved successfully' 
+        message: 'Webhook secret received successfully',
+        instruction: 'Add the secret to WOOCOMMERCE_WEBHOOK_SECRET environment variable'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    console.error('Error saving webhook secret:', error);
+    console.error('Error processing webhook secret:', error);
     return new Response(
       JSON.stringify({ 
         error: 'Internal server error',

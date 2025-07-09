@@ -257,7 +257,7 @@ export const StockRow: React.FC<StockRowProps> = ({
             const variationStatus = getStockStatus(variationStock, variation.stock_status);
             
             return (
-              <div key={variation.id} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
+              <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
                 <div className="flex-1">
                   <div className="font-medium text-sm">
                     {variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}

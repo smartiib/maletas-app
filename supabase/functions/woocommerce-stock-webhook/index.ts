@@ -52,9 +52,10 @@ async function generateHmacSignature(payload: string, secret: string): Promise<s
 
 interface WooCommerceWebhookPayload {
   id: number;
-  type: string; // 'order', 'product', etc.
-  created_at: string;
-  updated_at: string;
+  name?: string;
+  sku?: string;
+  stock_quantity?: number;
+  status?: string;
   line_items?: Array<{
     id: number;
     product_id: number;
@@ -62,8 +63,8 @@ interface WooCommerceWebhookPayload {
     quantity: number;
     name: string;
     sku: string;
+    stock_quantity?: number;
   }>;
-  status?: string;
   refunds?: Array<{
     id: number;
     amount: string;
@@ -73,10 +74,6 @@ interface WooCommerceWebhookPayload {
       variation_id: number | null;
       quantity: number;
     }>;
-  }>;
-  meta_data?: Array<{
-    key: string;
-    value: any;
   }>;
 }
 
@@ -96,7 +93,7 @@ Deno.serve(async (req) => {
     const payloadText = await req.text();
     const payload: WooCommerceWebhookPayload = JSON.parse(payloadText);
     
-    console.log('Received webhook:', payload.type, payload.id);
+    console.log('Received webhook for:', payload.id, 'with data:', Object.keys(payload));
 
     // Validar assinatura do webhook se secret estiver configurado
     const webhookSecret = Deno.env.get('WOOCOMMERCE_WEBHOOK_SECRET');
@@ -127,16 +124,16 @@ Deno.serve(async (req) => {
 
     let result;
     
-    switch (payload.type) {
-      case 'order':
-        result = await handleOrderUpdate(supabase, payload);
-        break;
-      case 'product':
-        result = await handleProductUpdate(supabase, payload);
-        break;
-      default:
-        console.log('Unhandled webhook type:', payload.type);
-        result = { success: true, message: 'Webhook type not handled' };
+    // Detectar tipo de webhook baseado no conteúdo
+    if (payload.line_items) {
+      // É um pedido
+      result = await handleOrderUpdate(supabase, payload);
+    } else if (payload.stock_quantity !== undefined) {
+      // É um produto
+      result = await handleProductUpdate(supabase, payload);
+    } else {
+      console.log('Unknown webhook payload structure');
+      result = { success: true, message: 'Webhook received but not processed' };
     }
 
     return new Response(
@@ -172,9 +169,17 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
   if (payload.status === 'completed' || payload.status === 'processing') {
     for (const item of payload.line_items) {
       try {
-        // Buscar estoque atual do WooCommerce (você precisará implementar esta chamada)
-        const currentStock = await getCurrentStockFromWC(item.product_id, item.variation_id);
-        const previousStock = currentStock + item.quantity; // Estoque antes da venda
+        // Buscar último estoque do produto no histórico
+        const { data: lastEntry } = await supabase
+          .from('stock_history')
+          .select('new_stock')
+          .eq('product_id', item.product_id)
+          .eq('variation_id', item.variation_id || null)
+          .order('created_at', { ascending: false })
+          .limit(1);
+        
+        const previousStock = lastEntry?.[0]?.new_stock || item.stock_quantity || 0;
+        const newStock = previousStock - item.quantity; // Reduzir estoque pela venda
         
         const { data, error } = await supabase.rpc('add_stock_history_entry', {
           p_product_id: item.product_id,
@@ -182,7 +187,7 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
           p_type: 'sale',
           p_quantity_change: -item.quantity, // Negativo para venda
           p_previous_stock: previousStock,
-          p_new_stock: currentStock,
+          p_new_stock: newStock,
           p_reason: `Venda - Pedido #${payload.id}`,
           p_source: 'woocommerce',
           p_user_id: null,
@@ -201,6 +206,7 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
           results.push({ item_id: item.id, success: false, error: error.message });
         } else {
           results.push({ item_id: item.id, success: true, history_id: data });
+          console.log(`Stock updated for product ${item.product_id}: ${previousStock} → ${newStock}`);
         }
       } catch (error) {
         console.error('Error processing item:', item.id, error);
@@ -209,67 +215,60 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
     }
   }
 
-  // Processar reembolsos
-  if (payload.refunds && payload.refunds.length > 0) {
-    for (const refund of payload.refunds) {
-      for (const item of refund.line_items) {
-        try {
-          const currentStock = await getCurrentStockFromWC(item.product_id, item.variation_id);
-          const previousStock = currentStock - item.quantity; // Estoque antes do reembolso
-          
-          const { data, error } = await supabase.rpc('add_stock_history_entry', {
-            p_product_id: item.product_id,
-            p_variation_id: item.variation_id,
-            p_type: 'refund',
-            p_quantity_change: item.quantity, // Positivo para reembolso
-            p_previous_stock: previousStock,
-            p_new_stock: currentStock,
-            p_reason: `Reembolso - ${refund.reason || 'Sem motivo especificado'}`,
-            p_source: 'woocommerce',
-            p_user_id: null,
-            p_user_name: 'WooCommerce',
-            p_wc_order_id: payload.id,
-            p_metadata: {
-              refund_id: refund.id,
-              refund_amount: refund.amount,
-              refund_reason: refund.reason,
-              webhook_time: new Date().toISOString()
-            }
-          });
-
-          if (error) {
-            console.error('Error adding refund history:', error);
-            results.push({ refund_item: item.product_id, success: false, error: error.message });
-          } else {
-            results.push({ refund_item: item.product_id, success: true, history_id: data });
-          }
-        } catch (error) {
-          console.error('Error processing refund item:', item.product_id, error);
-          results.push({ refund_item: item.product_id, success: false, error: error.message });
-        }
-      }
-    }
-  }
-
-  return { success: true, results, order_id: payload.id };
+  return { success: true, results, order_id: payload.id, message: `Processed ${results.length} items` };
 }
 
 async function handleProductUpdate(supabase: any, payload: WooCommerceWebhookPayload) {
-  console.log('Processing product update:', payload.id);
+  console.log('Processing product update:', payload.id, 'stock:', payload.stock_quantity);
   
-  // Aqui você pode implementar lógica para detectar mudanças manuais de estoque
-  // Comparando o estoque atual com o anterior armazenado
-  
-  return { success: true, message: 'Product update processed', product_id: payload.id };
-}
+  try {
+    const productId = payload.id;
+    const newStock = payload.stock_quantity || 0;
+    
+    // Buscar último registro de estoque para calcular mudança
+    const { data: lastEntry } = await supabase
+      .from('stock_history')
+      .select('new_stock')
+      .eq('product_id', productId)
+      .is('variation_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    const previousStock = lastEntry?.[0]?.new_stock || 0;
+    const quantityChange = newStock - previousStock;
+    
+    // Só registrar se houver mudança
+    if (quantityChange !== 0) {
+      const { data, error } = await supabase.rpc('add_stock_history_entry', {
+        p_product_id: productId,
+        p_variation_id: null,
+        p_type: 'sync',
+        p_quantity_change: quantityChange,
+        p_previous_stock: previousStock,
+        p_new_stock: newStock,
+        p_reason: 'Sincronização automática via webhook',
+        p_source: 'woocommerce',
+        p_user_id: null,
+        p_user_name: 'WooCommerce',
+        p_metadata: {
+          product_name: payload.name,
+          product_sku: payload.sku,
+          webhook_time: new Date().toISOString()
+        }
+      });
 
-// Função auxiliar para buscar estoque atual do WooCommerce
-// Você precisará implementar isso usando a API do WooCommerce
-async function getCurrentStockFromWC(productId: number, variationId: number | null): Promise<number> {
-  // Esta é uma implementação placeholder
-  // Você deve implementar a chamada real para a API do WooCommerce aqui
-  console.log('Getting current stock for product:', productId, 'variation:', variationId);
-  
-  // Por enquanto, retorna 0 - você deve implementar a lógica real
-  return 0;
+      if (error) {
+        console.error('Error adding product stock history:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log(`Product ${productId} stock updated: ${previousStock} → ${newStock} (${quantityChange > 0 ? '+' : ''}${quantityChange})`);
+      return { success: true, message: 'Product stock updated successfully', history_id: data };
+    }
+    
+    return { success: true, message: 'No stock change detected' };
+  } catch (error) {
+    console.error('Error processing product update:', error);
+    return { success: false, error: error.message };
+  }
 }
