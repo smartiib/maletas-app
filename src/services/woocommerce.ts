@@ -279,21 +279,22 @@ class WooCommerceAPI {
       throw new Error('WooCommerce não configurado. Configure nas Configurações.');
     }
 
-    // Normalizar URL seguindo documentação
-    const baseUrl = this.config.apiUrl.replace(/\/+$/, ''); // Remove barras finais
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const apiPath = cleanEndpoint.startsWith('/wp-json/wc/v3/') ? cleanEndpoint : `/wp-json/wc/v3${cleanEndpoint}`;
-    const url = `${baseUrl}${apiPath}`;
-    
-    console.log('WooCommerce API Request:', { url, method: options.method || 'GET' });
+    // Usar modo no-cors para evitar problemas de CORS
+    console.log('WooCommerce API Request:', { endpoint, method: options.method || 'GET' });
     
     try {
+      // Normalizar URL seguindo documentação
+      const baseUrl = this.config.apiUrl.replace(/\/+$/, ''); // Remove barras finais
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      const apiPath = cleanEndpoint.startsWith('/wp-json/wc/v3/') ? cleanEndpoint : `/wp-json/wc/v3${cleanEndpoint}`;
+      const url = `${baseUrl}${apiPath}`;
+      
       const response = await fetch(url, {
         ...options,
+        mode: 'cors', // Explicitamente definir mode cors
         headers: {
           'Authorization': `Basic ${this.getAuthString()}`,
           'Content-Type': 'application/json',
-          'User-Agent': 'WooAdmin/4.0 (Sistema de Gestão Comercial)', // User-Agent personalizado da documentação
           'Accept': 'application/json',
           ...options.headers,
         },
