@@ -5,6 +5,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Função para validar a assinatura do webhook
+async function validateWebhookSignature(
+  payload: string,
+  signature: string | null,
+  secret: string
+): Promise<boolean> {
+  if (!signature || !secret) {
+    console.log('Missing signature or secret for validation');
+    return false;
+  }
+
+  try {
+    // WooCommerce usa HMAC-SHA256 com formato base64
+    const expectedSignature = await generateHmacSignature(payload, secret);
+    const isValid = signature === expectedSignature;
+    
+    console.log('Webhook signature validation:', {
+      received: signature.substring(0, 20) + '...',
+      expected: expectedSignature.substring(0, 20) + '...',
+      isValid
+    });
+    
+    return isValid;
+  } catch (error) {
+    console.error('Error validating webhook signature:', error);
+    return false;
+  }
+}
+
+async function generateHmacSignature(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload));
+  const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)));
+  
+  return base64Signature;
+}
+
 interface WooCommerceWebhookPayload {
   id: number;
   type: string; // 'order', 'product', etc.
@@ -47,8 +92,38 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const payload: WooCommerceWebhookPayload = await req.json();
+    // Ler o payload como texto para validação de assinatura
+    const payloadText = await req.text();
+    const payload: WooCommerceWebhookPayload = JSON.parse(payloadText);
+    
     console.log('Received webhook:', payload.type, payload.id);
+
+    // Validar assinatura do webhook se secret estiver configurado
+    const webhookSecret = Deno.env.get('WOOCOMMERCE_WEBHOOK_SECRET');
+    const webhookSignature = req.headers.get('X-WC-Webhook-Signature');
+    
+    if (webhookSecret) {
+      const isValidSignature = await validateWebhookSignature(
+        payloadText,
+        webhookSignature,
+        webhookSecret
+      );
+      
+      if (!isValidSignature) {
+        console.error('Invalid webhook signature');
+        return new Response(
+          JSON.stringify({ error: 'Invalid webhook signature' }),
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401 
+          }
+        );
+      }
+      
+      console.log('Webhook signature validated successfully');
+    } else {
+      console.warn('Webhook secret not configured - skipping signature validation');
+    }
 
     let result;
     

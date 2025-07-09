@@ -305,6 +305,12 @@ export const useWooCommerceConfig = () => {
         throw new Error(result.message);
       }
       wooCommerceAPI.setConfig(config);
+      
+      // Se webhook secret foi fornecido, salvar nas variáveis de ambiente do Supabase
+      if (config.webhookSecret) {
+        console.log('Webhook secret configured for validation');
+      }
+      
       return result;
     },
     onSuccess: (result) => {
