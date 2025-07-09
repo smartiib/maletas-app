@@ -624,7 +624,7 @@ class WooCommerceAPI {
     // Buscar todos os clientes com paginação
     while (hasMore) {
       const params = new URLSearchParams({
-        per_page: '100',
+        per_page: '20', // Reduzir para 20 por vez
         page: page.toString(),
         ...(search && { search }),
       });
@@ -640,8 +640,14 @@ class WooCommerceAPI {
           allCustomers = [...allCustomers, ...customers];
           page++;
           
-          // Se retornou menos que 100, não há mais páginas
-          if (customers.length < 100) {
+          // Se retornou menos que 20, não há mais páginas
+          if (customers.length < 20) {
+            hasMore = false;
+          }
+          
+          // Limite de segurança para evitar loop infinito
+          if (page > 50) {
+            console.warn('Reached maximum page limit (50) - stopping fetch');
             hasMore = false;
           }
         }
