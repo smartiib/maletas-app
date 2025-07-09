@@ -16,6 +16,7 @@ export const useAllProducts = (search = '', status = '', category = '') => {
     queryKey: ['all-products', search, status, category],
     queryFn: () => wooCommerceAPI.getAllProducts(search, status, category),
     enabled: !!wooCommerceAPI.getConfig(),
+    staleTime: 30 * 60 * 1000, // 30 minutos
   });
 };
 
@@ -24,6 +25,7 @@ export const useCategories = () => {
     queryKey: ['categories'],
     queryFn: () => wooCommerceAPI.getCategories(),
     enabled: !!wooCommerceAPI.getConfig(),
+    staleTime: 60 * 60 * 1000, // 60 minutos
   });
 };
 
@@ -152,6 +154,7 @@ export const useAllOrders = (status = '') => {
     queryKey: ['all-orders', status],
     queryFn: () => wooCommerceAPI.getAllOrders(status),
     enabled: !!wooCommerceAPI.getConfig(),
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
@@ -194,6 +197,7 @@ export const useAllCustomers = (search = '') => {
     queryKey: ['all-customers', search],
     queryFn: () => wooCommerceAPI.getAllCustomers(search),
     enabled: !!wooCommerceAPI.getConfig(),
+    staleTime: 10 * 60 * 1000, // 10 minutos
   });
 };
 
