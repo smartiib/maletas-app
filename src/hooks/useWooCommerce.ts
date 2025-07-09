@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData } from '@/services/woocommerce';
+import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData, WooCommerceTestResult } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 
 // Products hooks
@@ -227,24 +227,25 @@ export const useRepresentantes = () => {
   });
 };
 
-// Configuration hooks
+// Configuration hooks melhorados
 export const useWooCommerceConfig = () => {
   const queryClient = useQueryClient();
   
+  // Teste de conexão básico (compatibilidade)
   const testConnection = useMutation({
     mutationFn: async (config: WooCommerceConfig) => {
-      wooCommerceAPI.setConfig(config);
-      const isConnected = await wooCommerceAPI.testConnection();
-      if (!isConnected) {
-        throw new Error('Falha na conexão com WooCommerce');
+      const result = await wooCommerceAPI.testConnectionDetailed(config);
+      if (!result.success) {
+        throw new Error(result.message);
       }
-      return isConnected;
+      wooCommerceAPI.setConfig(config);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries();
       toast({
-        title: "Sucesso",
-        description: "Conexão com WooCommerce estabelecida!",
+        title: "Conexão Estabelecida",
+        description: `${result.message} ${result.store_info?.name ? `Loja: ${result.store_info.name}` : ''}`,
       });
     },
     onError: (error) => {
@@ -256,18 +257,51 @@ export const useWooCommerceConfig = () => {
     },
   });
 
+  // Teste detalhado conforme documentação
+  const testConnectionDetailed = useMutation({
+    mutationFn: (config: WooCommerceConfig) => wooCommerceAPI.testConnectionDetailed(config),
+  });
+
+  // Validação de configuração
+  const validateConfig = (config: WooCommerceConfig) => {
+    return wooCommerceAPI.validateConfig(config);
+  };
+
   const saveConfig = (config: WooCommerceConfig) => {
+    const validation = validateConfig(config);
+    if (validation) {
+      toast({
+        title: "Configuração Inválida",
+        description: validation.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+
     wooCommerceAPI.setConfig(config);
     toast({
       title: "Configuração Salva",
-      description: "Configurações do WooCommerce foram salvas",
+      description: "Configurações do WooCommerce foram salvas com sucesso",
+    });
+    return true;
+  };
+
+  const disconnect = () => {
+    wooCommerceAPI.setConfig(null as any);
+    queryClient.invalidateQueries();
+    toast({
+      title: "Desconectado",
+      description: "WooCommerce foi desconectado com sucesso",
     });
   };
 
   return {
     config: wooCommerceAPI.getConfig(),
     testConnection,
+    testConnectionDetailed,
+    validateConfig,
     saveConfig,
+    disconnect,
     isConfigured: !!wooCommerceAPI.getConfig(),
   };
 };

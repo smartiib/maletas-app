@@ -8,6 +8,23 @@ export interface WooCommerceConfig {
   webhookSecret?: string;
 }
 
+export interface WooCommerceError {
+  error: string;
+  message: string;
+  details?: string;
+}
+
+export interface WooCommerceTestResult {
+  success: boolean;
+  error?: string;
+  message: string;
+  store_info?: {
+    name: string;
+    version: string;
+    currency: string;
+  };
+}
+
 export interface ProductVariation {
   id: number;
   sku: string;
@@ -173,17 +190,102 @@ class WooCommerceAPI {
     return btoa(`${this.config.consumerKey}:${this.config.consumerSecret}`);
   }
 
+  // Validação de configuração baseada na documentação
+  public validateConfig(config: WooCommerceConfig): WooCommerceError | null {
+    // Validar URL
+    if (!config.apiUrl) {
+      return { error: 'INVALID_URL', message: 'URL é obrigatória' };
+    }
+    
+    if (!config.apiUrl.startsWith('https://')) {
+      return { error: 'INVALID_URL', message: 'URL deve usar HTTPS para segurança' };
+    }
+    
+    try {
+      new URL(config.apiUrl);
+    } catch {
+      return { error: 'INVALID_URL', message: 'Formato de URL inválido' };
+    }
+
+    // Validar Consumer Key
+    if (!config.consumerKey || !config.consumerKey.startsWith('ck_')) {
+      return { 
+        error: 'INVALID_CREDENTIALS', 
+        message: 'Consumer Key deve começar com "ck_"',
+        details: 'Exemplo: ck_abc123def456...'
+      };
+    }
+
+    // Validar Consumer Secret
+    if (!config.consumerSecret || !config.consumerSecret.startsWith('cs_')) {
+      return { 
+        error: 'INVALID_CREDENTIALS', 
+        message: 'Consumer Secret deve começar com "cs_"',
+        details: 'Exemplo: cs_abc123def456...'
+      };
+    }
+
+    return null;
+  }
+
+  private handleApiError(response: Response, errorText: string): WooCommerceError {
+    const status = response.status;
+    
+    switch (status) {
+      case 401:
+        return {
+          error: 'INVALID_CREDENTIALS',
+          message: 'Credenciais inválidas. Verifique Consumer Key e Secret.',
+          details: 'Verifique se as chaves estão corretas e têm permissões de leitura/escrita.'
+        };
+      case 403:
+        return {
+          error: 'ACCESS_FORBIDDEN',
+          message: 'Acesso negado. Verifique permissões da API e certificado SSL.',
+          details: 'A API pode estar desabilitada ou sem permissões adequadas.'
+        };
+      case 404:
+        return {
+          error: 'API_NOT_FOUND',
+          message: 'API WooCommerce não encontrada. Verifique URL da loja.',
+          details: 'Certifique-se que a loja tem WooCommerce instalado e API habilitada.'
+        };
+      case 429:
+        return {
+          error: 'RATE_LIMIT',
+          message: 'Limite de requisições excedido. Tente novamente em alguns minutos.',
+          details: 'WooCommerce limita a 100 requisições por minuto.'
+        };
+      case 500:
+      case 502:
+      case 503:
+        return {
+          error: 'SERVER_ERROR',
+          message: 'Erro no servidor da loja. Tente novamente.',
+          details: 'O servidor WooCommerce pode estar temporariamente indisponível.'
+        };
+      default:
+        return {
+          error: 'UNKNOWN_ERROR',
+          message: `Erro HTTP ${status}: ${errorText}`,
+          details: 'Erro não categorizado. Verifique logs do servidor.'
+        };
+    }
+  }
+
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     if (!this.config) {
       console.warn('WooCommerce não configurado - usando dados mock');
       throw new Error('WooCommerce não configurado. Configure nas Configurações.');
     }
 
-    // Corrigir construção da URL - garantir que há uma barra entre base e endpoint
-    const baseUrl = this.config.apiUrl.endsWith('/') ? this.config.apiUrl.slice(0, -1) : this.config.apiUrl;
+    // Normalizar URL seguindo documentação
+    const baseUrl = this.config.apiUrl.replace(/\/+$/, ''); // Remove barras finais
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    const url = `${baseUrl}${cleanEndpoint}`;
-    console.log('WooCommerce API Request:', { url, config: this.config });
+    const apiPath = cleanEndpoint.startsWith('/wp-json/wc/v3/') ? cleanEndpoint : `/wp-json/wc/v3${cleanEndpoint}`;
+    const url = `${baseUrl}${apiPath}`;
+    
+    console.log('WooCommerce API Request:', { url, method: options.method || 'GET' });
     
     try {
       const response = await fetch(url, {
@@ -191,6 +293,8 @@ class WooCommerceAPI {
         headers: {
           'Authorization': `Basic ${this.getAuthString()}`,
           'Content-Type': 'application/json',
+          'User-Agent': 'WooAdmin/4.0 (Sistema de Gestão Comercial)', // User-Agent personalizado da documentação
+          'Accept': 'application/json',
           ...options.headers,
         },
       });
@@ -200,20 +304,58 @@ class WooCommerceAPI {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('WooCommerce API Error Response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        
+        const apiError = this.handleApiError(response, errorText);
+        const errorMessage = `${apiError.message}${apiError.details ? ` ${apiError.details}` : ''}`;
+        
+        toast({
+          title: "Erro na API WooCommerce",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        
+        throw apiError;
       }
 
       const data = await response.json();
-      console.log('WooCommerce API Success:', data);
+      console.log('WooCommerce API Success:', { endpoint, itemsCount: Array.isArray(data) ? data.length : 'single' });
       return data;
     } catch (error) {
-      console.error('WooCommerce API Error:', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        const networkError = {
+          error: 'CONNECTION_ERROR',
+          message: 'Erro de conexão com a loja. Verifique se a URL está correta e acessível.',
+          details: 'Problemas de rede ou servidor offline.'
+        };
+        
+        toast({
+          title: "Erro de Conexão",
+          description: networkError.message,
+          variant: "destructive"
+        });
+        
+        throw networkError;
+      }
+      
+      // Se já é um erro da API processado, apenas re-throw
+      if (error && typeof error === 'object' && 'error' in error) {
+        throw error;
+      }
+      
+      console.error('WooCommerce API Unexpected Error:', error);
+      const unknownError = {
+        error: 'UNKNOWN_ERROR',
+        message: 'Erro inesperado na comunicação com WooCommerce',
+        details: error instanceof Error ? error.message : 'Erro desconhecido'
+      };
+      
       toast({
-        title: "Erro na API WooCommerce",
-        description: error instanceof Error ? error.message : "Erro desconhecido na comunicação com WooCommerce",
+        title: "Erro Inesperado",
+        description: unknownError.message,
         variant: "destructive"
       });
-      throw error;
+      
+      throw unknownError;
     }
   }
 
@@ -437,13 +579,71 @@ class WooCommerceAPI {
     });
   }
 
-  // Test connection
+  // Test connection melhorado conforme documentação
   async testConnection(): Promise<boolean> {
     try {
       await this.makeRequest('products?per_page=1');
       return true;
     } catch (error) {
       return false;
+    }
+  }
+
+  async testConnectionDetailed(config?: WooCommerceConfig): Promise<WooCommerceTestResult> {
+    // Se config é fornecida, use temporariamente para teste
+    const originalConfig = this.config;
+    if (config) {
+      // Validar antes de testar
+      const validationError = this.validateConfig(config);
+      if (validationError) {
+        return {
+          success: false,
+          error: validationError.error,
+          message: validationError.message
+        };
+      }
+      this.config = config;
+    }
+
+    try {
+      // Tentar buscar informações do sistema WooCommerce
+      const systemInfo = await this.makeRequest('system_status');
+      const storeInfo = await this.makeRequest('');
+      
+      // Restaurar config original se estava testando
+      if (config && originalConfig) {
+        this.config = originalConfig;
+      }
+
+      return {
+        success: true,
+        message: 'Conexão estabelecida com sucesso!',
+        store_info: {
+          name: storeInfo.name || 'Loja WooCommerce',
+          version: systemInfo.environment?.version || 'Desconhecida',
+          currency: storeInfo.woocommerce_currency || 'BRL'
+        }
+      };
+    } catch (error: any) {
+      // Restaurar config original se estava testando
+      if (config && originalConfig) {
+        this.config = originalConfig;
+      }
+
+      // Se é um erro estruturado da API, use-o
+      if (error && typeof error === 'object' && 'error' in error) {
+        return {
+          success: false,
+          error: error.error,
+          message: error.message
+        };
+      }
+
+      return {
+        success: false,
+        error: 'CONNECTION_ERROR',
+        message: 'Falha na conexão. Verifique as configurações.'
+      };
     }
   }
 }
