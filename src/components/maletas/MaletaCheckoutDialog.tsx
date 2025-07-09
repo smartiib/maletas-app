@@ -123,7 +123,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
       const orderData = {
         payment_method: paymentMethods.map(p => p.name).join(', '),
         payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
-        status: 'processing' as const,
+        status: 'completed' as const,
         line_items: soldItems.map(item => ({
           product_id: item.product_id,
           variation_id: item.variation_id || 0,
