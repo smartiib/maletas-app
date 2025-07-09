@@ -76,7 +76,7 @@ const POS = () => {
       } else if (searchTerm.length === 0) {
         setApiSearchTerm('');
       }
-    }, 300);
+    }, 500); // Aumentando delay para 500ms
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -90,10 +90,13 @@ const POS = () => {
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
   const filteredProducts = products.filter(product => {
-    // Filtro de busca local (instantâneo)
+    // Filtro de busca local (instantâneo) - busca por nome, SKU do produto e SKUs das variações
     const matchesSearch = searchTerm.length === 0 || 
                          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.variations?.some(variation => 
+                           variation.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+                         );
     
     // Filtro de categoria
     const matchesCategory = selectedCategory === 'Todos' || 
