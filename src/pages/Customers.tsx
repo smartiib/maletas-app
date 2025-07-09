@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCustomers, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
 import { useCreateRepresentative } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -37,6 +37,7 @@ const Customers = () => {
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: allCustomers = [], isLoading, error, refetch } = useCustomers();
+  const updateCustomer = useUpdateCustomer();
   const { viewMode, toggleViewMode } = useViewMode('customers');
   const createRepresentative = useCreateRepresentative();
 
@@ -84,9 +85,42 @@ const Customers = () => {
     return customer.meta_data?.some(meta => meta.key === 'is_representative' && (meta.value === true || meta.value === '1' || meta.value === 1));
   };
 
-  const toggleRepresentative = (customer: Customer) => {
-    // TODO: Implementar quando integração WordPress estiver pronta
-    console.log('Toggle representative status for:', customer.id);
+  const toggleRepresentative = async (customer: Customer) => {
+    try {
+      const isCurrentlyRepresentative = isRepresentative(customer);
+      
+      const updatedMetaData = customer.meta_data ? [...customer.meta_data] : [];
+      
+      // Encontrar ou criar o meta_data para is_representative
+      const representativeMetaIndex = updatedMetaData.findIndex(meta => meta.key === 'is_representative');
+      
+      if (representativeMetaIndex >= 0) {
+        updatedMetaData[representativeMetaIndex].value = !isCurrentlyRepresentative;
+      } else {
+        updatedMetaData.push({
+          key: 'is_representative',
+          value: !isCurrentlyRepresentative
+        });
+      }
+      
+      await updateCustomer.mutateAsync({
+        id: customer.id,
+        customer: {
+          meta_data: updatedMetaData
+        }
+      });
+      
+      toast({
+        title: !isCurrentlyRepresentative ? "Representante Adicionado" : "Representante Removido",
+        description: `${customer.first_name} ${customer.last_name} ${!isCurrentlyRepresentative ? 'foi marcado como representante' : 'não é mais representante'}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar status do representante",
+        variant: "destructive"
+      });
+    }
   };
 
   const syncRepresentatives = async () => {
@@ -145,7 +179,10 @@ const Customers = () => {
   const getTotalRepresentatives = () => filteredCustomers.filter(isRepresentative).length;
   const getAverageSpent = () => {
     if (filteredCustomers.length === 0) return 0;
-    const total = filteredCustomers.reduce((sum: number, customer: Customer) => sum + parseFloat(customer.total_spent || '0'), 0);
+    const total = filteredCustomers.reduce((sum: number, customer: Customer) => {
+      const spent = parseFloat(customer.total_spent || '0');
+      return sum + (isNaN(spent) ? 0 : spent);
+    }, 0);
     return total / filteredCustomers.length;
   };
 
@@ -247,9 +284,9 @@ const Customers = () => {
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
                  Total de Pedidos
                 </p>
-                <p className="text-2xl font-bold text-success-600">
-                  {allCustomers.reduce((sum: number, customer: Customer) => sum + customer.orders_count, 0)}
-                </p>
+                 <p className="text-2xl font-bold text-success-600">
+                   {allCustomers.reduce((sum: number, customer: Customer) => sum + (customer.orders_count || 0), 0)}
+                 </p>
               </div>
               <Package className="w-8 h-8 text-success-600" />
             </div>
@@ -403,9 +440,9 @@ const Customers = () => {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold">
-                      R$ {parseFloat(customer.total_spent || '0').toFixed(2)}
-                    </TableCell>
+                     <TableCell className="font-semibold">
+                       R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
+                     </TableCell>
                     <TableCell>
                       {isRepresentative(customer) ? (
                         <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">

@@ -71,9 +71,9 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
                 <MapPin className="w-3 h-3" />
                 {customer.billing.city}, {customer.billing.state}
               </div>
-              <span className="font-semibold">
-                R$ {parseFloat(customer.total_spent || '0').toFixed(2)}
-              </span>
+               <span className="font-semibold">
+                 R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
+               </span>
               {isRepresentative(customer) ? (
                 <Badge variant="secondary" className="bg-warning-100 text-warning-800">
                   <Crown className="w-3 h-3 mr-1" />
