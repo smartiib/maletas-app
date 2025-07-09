@@ -162,16 +162,27 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
 
       const createdOrder = await createOrder.mutateAsync(orderData);
       
+      console.log('Created order:', createdOrder);
+      console.log('Order ID:', createdOrder?.id);
+      console.log('Order Number:', createdOrder?.number);
+      
+      // Determinar o número do pedido
+      const orderNumber = createdOrder?.number || createdOrder?.id;
+      
       toast({
         title: "Pedido Finalizado",
-        description: `Pedido #${createdOrder.id} foi criado com sucesso no WooCommerce`,
+        description: `Pedido #${orderNumber} foi criado com sucesso no WooCommerce`,
       });
 
       // Construir URL do pedido no WooCommerce
       const wooConfig = (window as any).wooCommerceConfig;
       const orderUrl = wooConfig ? `${wooConfig.url}/wp-admin/post.php?post=${createdOrder.id}&action=edit` : '';
+      
+      console.log('WooCommerce Config:', wooConfig);
+      console.log('Order URL:', orderUrl);
+      console.log('Order Number:', orderNumber);
 
-      onOrderCreated(createdOrder.id, orderUrl);
+      onOrderCreated(typeof orderNumber === 'string' ? parseInt(orderNumber) : orderNumber, orderUrl);
       onOpenChange(false);
       
       // Reset form

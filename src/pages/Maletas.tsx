@@ -171,6 +171,8 @@ const Maletas = () => {
   };
 
   const handleOrderCreated = async (orderNumber: number, orderUrl: string) => {
+    console.log('handleOrderCreated called with:', { orderNumber, orderUrl });
+    
     try {
       // Processar a devolução automaticamente após criar o pedido
       if (selectedMaleta && soldItems.length > 0) {
@@ -188,10 +190,12 @@ const Maletas = () => {
           notes: `Pedido #${orderNumber} criado com itens vendidos`
         };
 
+        console.log('Processing return with data:', returnData);
         await processReturn.mutateAsync({
           id: selectedMaleta.id,
           returnData
         });
+        console.log('Return processed successfully');
       }
 
       setReturnDialogOpen(false);
@@ -199,11 +203,13 @@ const Maletas = () => {
       setSoldItems([]);
       
       const openOrderLink = () => {
+        console.log('Opening order link:', orderUrl);
         if (orderUrl) {
           window.open(orderUrl, '_blank', 'noopener,noreferrer');
         }
       };
 
+      console.log('Showing toast with order number:', orderNumber);
       toast({
         title: "Devolução Processada",
         description: `Maleta finalizada com sucesso! Pedido #${orderNumber} criado para os itens vendidos.`,
