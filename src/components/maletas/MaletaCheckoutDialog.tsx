@@ -38,6 +38,9 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [isGuestSale, setIsGuestSale] = useState(false);
   const [guestData, setGuestData] = useState({ name: '', email: '', phone: '' });
+  
+  // Se a maleta tem cliente associado, usa automaticamente esses dados
+  const hasAssociatedCustomer = maleta?.customer_name && maleta?.customer_email;
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     { id: '1', name: 'PIX', amount: 0 }
   ]);
@@ -105,7 +108,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
       return;
     }
 
-    if (!isGuestSale && !selectedCustomer) {
+    if (!hasAssociatedCustomer && !isGuestSale && !selectedCustomer) {
       toast({
         title: "Erro",
         description: "Selecione um cliente ou marque como venda de convidado",
@@ -128,7 +131,17 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
           name: item.name,
           total: (parseFloat(item.price) * item.quantity_sold).toFixed(2)
         })),
-        billing: isGuestSale ? {
+        billing: hasAssociatedCustomer ? {
+          first_name: maleta?.customer_name?.split(' ')[0] || 'Cliente',
+          last_name: maleta?.customer_name?.split(' ').slice(1).join(' ') || '',
+          email: maleta?.customer_email || 'cliente@loja.com',
+          phone: '',
+          address_1: 'Loja Física',
+          city: 'Cidade',
+          state: 'Estado',
+          postcode: '00000-000',
+          country: 'BR'
+        } : isGuestSale ? {
           first_name: guestData.name.split(' ')[0] || 'Convidado',
           last_name: guestData.name.split(' ').slice(1).join(' ') || '',
           email: guestData.email || 'convidado@loja.com',
@@ -225,6 +238,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
         customer_name: maleta?.customer_name,
         representative_name: maleta?.representative_name,
         from_maleta: true,
+        has_associated_customer: hasAssociatedCustomer,
         guest_data: isGuestSale ? guestData : null,
         selected_customer: !isGuestSale ? selectedCustomer : null
       }));
@@ -304,67 +318,95 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
               <h3 className="font-semibold">Cliente</h3>
             </div>
             
-            <RadioGroup
-              value={isGuestSale ? 'guest' : 'customer'}
-              onValueChange={(value) => setIsGuestSale(value === 'guest')}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="customer" id="customer" />
-                <Label htmlFor="customer">Cliente Cadastrado</Label>
+            {hasAssociatedCustomer ? (
+              <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-2">
+                  <strong>Cliente da Maleta:</strong> Este pedido será faturado para o cliente associado à maleta.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Nome do Cliente</Label>
+                    <Input
+                      value={maleta?.customer_name || ''}
+                      disabled
+                      className="bg-gray-50 dark:bg-gray-800"
+                    />
+                  </div>
+                  <div>
+                    <Label>E-mail do Cliente</Label>
+                    <Input
+                      value={maleta?.customer_email || ''}
+                      disabled
+                      className="bg-gray-50 dark:bg-gray-800"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="guest" id="guest" />
-                <Label htmlFor="guest">Venda de Convidado</Label>
-              </div>
-            </RadioGroup>
-
-            {!isGuestSale ? (
-              <Select value={selectedCustomer?.id?.toString() || ''} onValueChange={(value) => {
-                const customer = customers.find(c => c.id.toString() === value);
-                setSelectedCustomer(customer || null);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id.toString()}>
-                      {customer.first_name} {customer.last_name} - {customer.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <Label htmlFor="guest-name">Nome</Label>
-                  <Input
-                    id="guest-name"
-                    value={guestData.name}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nome do cliente"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guest-email">E-mail</Label>
-                  <Input
-                    id="guest-email"
-                    type="email"
-                    value={guestData.email}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="E-mail do cliente"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guest-phone">Telefone</Label>
-                  <Input
-                    id="guest-phone"
-                    value={guestData.phone}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Telefone do cliente"
-                  />
-                </div>
-              </div>
+              <>
+                <RadioGroup
+                  value={isGuestSale ? 'guest' : 'customer'}
+                  onValueChange={(value) => setIsGuestSale(value === 'guest')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="customer" id="customer" />
+                    <Label htmlFor="customer">Cliente Cadastrado</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="guest" id="guest" />
+                    <Label htmlFor="guest">Venda de Convidado</Label>
+                  </div>
+                </RadioGroup>
+
+                {!isGuestSale ? (
+                  <Select value={selectedCustomer?.id?.toString() || ''} onValueChange={(value) => {
+                    const customer = customers.find(c => c.id.toString() === value);
+                    setSelectedCustomer(customer || null);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(customer => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.first_name} {customer.last_name} - {customer.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="guest-name">Nome</Label>
+                      <Input
+                        id="guest-name"
+                        value={guestData.name}
+                        onChange={(e) => setGuestData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Nome do cliente"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="guest-email">E-mail</Label>
+                      <Input
+                        id="guest-email"
+                        type="email"
+                        value={guestData.email}
+                        onChange={(e) => setGuestData(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="E-mail do cliente"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="guest-phone">Telefone</Label>
+                      <Input
+                        id="guest-phone"
+                        value={guestData.phone}
+                        onChange={(e) => setGuestData(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="Telefone do cliente"
+                      />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -462,7 +504,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
           <Button
             className="flex-1 bg-gradient-primary"
             onClick={handleGoToPOS}
-            disabled={isProcessing || (!isGuestSale && !selectedCustomer)}
+            disabled={isProcessing || (!hasAssociatedCustomer && !isGuestSale && !selectedCustomer)}
           >
             <ArrowRight className="w-4 h-4 mr-2" />
             {isProcessing ? 'Processando...' : 'Ir para POS'}
