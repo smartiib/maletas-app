@@ -5,7 +5,17 @@ export interface WooCommerceConfig {
   apiUrl: string;
   consumerKey: string;
   consumerSecret: string;
-  webhookSecret?: string;
+}
+
+export interface WooCommerceWebhook {
+  id?: number;
+  name: string;
+  status: 'active' | 'paused' | 'disabled';
+  topic: string;
+  delivery_url: string;
+  secret: string;
+  date_created?: string;
+  date_modified?: string;
 }
 
 export interface WooCommerceError {
@@ -23,6 +33,8 @@ export interface WooCommerceTestResult {
     version: string;
     currency: string;
   };
+  webhook_created?: boolean;
+  webhook_error?: string;
 }
 
 export interface ProductVariation {
@@ -890,6 +902,100 @@ class WooCommerceAPI {
         message: 'Falha na conexão. Verifique as configurações.'
       };
     }
+  }
+
+  // Webhooks Management
+  private generateWebhookSecret(): string {
+    return crypto.randomUUID().replace(/-/g, '').substring(0, 32);
+  }
+
+  async getWebhooks(): Promise<WooCommerceWebhook[]> {
+    if (!this.config) {
+      return [];
+    }
+    return this.makeRequest('webhooks');
+  }
+
+  async createWebhook(webhook: Partial<WooCommerceWebhook>): Promise<WooCommerceWebhook> {
+    if (!this.config) {
+      throw new Error('WooCommerce não configurado');
+    }
+    return this.makeRequest('webhooks', {
+      method: 'POST',
+      body: JSON.stringify(webhook),
+    });
+  }
+
+  async updateWebhook(id: number, webhook: Partial<WooCommerceWebhook>): Promise<WooCommerceWebhook> {
+    if (!this.config) {
+      throw new Error('WooCommerce não configurado');
+    }
+    return this.makeRequest(`webhooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(webhook),
+    });
+  }
+
+  async deleteWebhook(id: number): Promise<{ message: string }> {
+    if (!this.config) {
+      throw new Error('WooCommerce não configurado');
+    }
+    return this.makeRequest(`webhooks/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async setupStockWebhook(): Promise<{ webhook: WooCommerceWebhook; secret: string }> {
+    if (!this.config) {
+      throw new Error('WooCommerce não configurado');
+    }
+
+    const secret = this.generateWebhookSecret();
+    const webhookUrl = 'https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook';
+
+    // Verificar se já existe um webhook para o nosso endpoint
+    const existingWebhooks = await this.getWebhooks();
+    const existingWebhook = existingWebhooks.find(w => w.delivery_url === webhookUrl);
+
+    if (existingWebhook) {
+      // Atualizar webhook existente com novo secret
+      const updatedWebhook = await this.updateWebhook(existingWebhook.id!, {
+        status: 'active',
+        secret: secret,
+      });
+      
+      return { webhook: updatedWebhook, secret };
+    }
+
+    // Criar novo webhook para cada evento relevante
+    const events = [
+      'order.created',
+      'order.updated', 
+      'order.refunded',
+      'product.updated'
+    ];
+
+    let createdWebhook: WooCommerceWebhook | null = null;
+
+    for (const event of events) {
+      const webhook = await this.createWebhook({
+        name: `Stock Webhook - ${event}`,
+        status: 'active',
+        topic: event,
+        delivery_url: webhookUrl,
+        secret: secret,
+      });
+
+      if (!createdWebhook) {
+        createdWebhook = webhook;
+      }
+    }
+
+    if (!createdWebhook) {
+      throw new Error('Falha ao criar webhook');
+    }
+
+    return { webhook: createdWebhook, secret };
   }
 }
 

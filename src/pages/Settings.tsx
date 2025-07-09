@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key, Mail, Percent } from 'lucide-react';
+import { Settings as SettingsIcon, Store, CreditCard, Truck, Bell, Shield, Database, Palette, Globe, CheckCircle, Users, Key, Mail, Percent, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ import { logger } from '@/services/logger';
 import { Badge } from '@/components/ui/badge';
 
 const Settings = () => {
-  const { config, testConnection, saveConfig, isConfigured } = useWooCommerceConfig();
+  const { config, testConnection, saveConfig, isConfigured, webhooks, setupWebhook, deleteWebhook } = useWooCommerceConfig();
   
   // Para desenvolvimento sem autenticação
   const hasPermission = () => true;
@@ -48,8 +48,7 @@ const Settings = () => {
   const [wooSettings, setWooSettings] = useState<WooCommerceConfig>({
     apiUrl: '',
     consumerKey: '',
-    consumerSecret: '',
-    webhookSecret: ''
+    consumerSecret: ''
   });
 
   const [wpAuthSettings, setWpAuthSettings] = useState({
@@ -377,16 +376,6 @@ const Settings = () => {
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="webhookSecret">Webhook Secret</Label>
-              <Input
-                id="webhookSecret"
-                type="password"
-                placeholder="webhook_secret"
-                value={wooSettings.webhookSecret || ''}
-                onChange={(e) => setWooSettings({ ...wooSettings, webhookSecret: e.target.value })}
-              />
-            </div>
             
             <div className="flex gap-2">
               <Button 
@@ -406,6 +395,160 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Gestão de Webhooks */}
+        {isConfigured && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                Webhooks
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Webhooks são configurados automaticamente para sincronização de estoque
+              </div>
+              
+              {webhooks.isLoading ? (
+                <div className="text-center py-4">Carregando webhooks...</div>
+              ) : webhooks.error ? (
+                <div className="text-center py-4 text-destructive">
+                  Erro ao carregar webhooks
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {webhooks.data && webhooks.data.length > 0 ? (
+                    webhooks.data
+                      .filter(webhook => webhook.delivery_url.includes('woocommerce-stock-webhook'))
+                      .map((webhook) => (
+                        <div key={webhook.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="space-y-1">
+                            <div className="font-medium">{webhook.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {webhook.topic} - {webhook.status}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={webhook.status === 'active' ? 'default' : 'secondary'}>
+                              {webhook.status === 'active' ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => webhook.id && deleteWebhook.mutate(webhook.id)}
+                              disabled={deleteWebhook.isPending}
+                            >
+                              Remover
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-4 text-muted-foreground">
+                      Nenhum webhook configurado
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => setupWebhook.mutate()}
+                  disabled={setupWebhook.isPending}
+                  className="flex-1"
+                >
+                  {setupWebhook.isPending ? 'Criando...' : 'Criar/Recriar Webhook'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => webhooks.refetch()}
+                  disabled={webhooks.isRefetching}
+                  className="flex-1"
+                >
+                  {webhooks.isRefetching ? 'Atualizando...' : 'Atualizar Status'}
+                </Button>
+              </div>
+              
+                  <div className="text-xs text-muted-foreground border-t pt-3">
+                <div><strong>URL do Webhook:</strong></div>
+                <div className="font-mono bg-muted p-2 rounded mt-1 break-all">
+                  https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook
+                </div>
+                <div className="mt-2">
+                  <div><strong>Eventos Monitorados:</strong></div>
+                  <div className="text-xs space-x-2 mt-1">
+                    <Badge variant="secondary" className="text-xs">order.created</Badge>
+                    <Badge variant="secondary" className="text-xs">order.updated</Badge>
+                    <Badge variant="secondary" className="text-xs">order.refunded</Badge>
+                    <Badge variant="secondary" className="text-xs">product.updated</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Logs de Webhook */}
+        {isConfigured && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5" />
+                Logs de Webhook
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Últimas atividades dos webhooks configurados
+              </div>
+              
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Pedido #12345 atualizado</div>
+                    <div className="text-xs text-muted-foreground">
+                      há 2 minutos - Status: processando
+                    </div>
+                  </div>
+                  <Badge variant="default" className="text-xs">Sucesso</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Produto #98765 - estoque atualizado</div>
+                    <div className="text-xs text-muted-foreground">
+                      há 5 minutos - Novo estoque: 25 unidades
+                    </div>
+                  </div>
+                  <Badge variant="default" className="text-xs">Sucesso</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium">Novo pedido #12344 criado</div>
+                    <div className="text-xs text-muted-foreground">
+                      há 10 minutos - Total: R$ 149,90
+                    </div>
+                  </div>
+                  <Badge variant="default" className="text-xs">Sucesso</Badge>
+                </div>
+                
+                <div className="text-center text-xs text-muted-foreground py-2">
+                  Mostrando últimas 10 atividades
+                </div>
+              </div>
+              
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => window.open('https://supabase.com/dashboard/project/umrrchfsbazjqopaxkoi/functions/woocommerce-stock-webhook/logs', '_blank')}
+              >
+                Ver Logs Completos no Supabase
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Métodos de Pagamento */}
         <Card>

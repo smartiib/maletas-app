@@ -306,18 +306,39 @@ export const useWooCommerceConfig = () => {
       }
       wooCommerceAPI.setConfig(config);
       
-      // Se webhook secret foi fornecido, salvar nas variáveis de ambiente do Supabase
-      if (config.webhookSecret) {
-        console.log('Webhook secret configured for validation');
+      // Após conexão bem-sucedida, criar webhook automaticamente
+      try {
+        const { webhook, secret } = await wooCommerceAPI.setupStockWebhook();
+        console.log('Webhook criado automaticamente:', webhook.id);
+        
+        // Salvar o secret gerado no Supabase via Edge Function
+        await fetch('https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/save-webhook-secret', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ secret }),
+        });
+        
+        result.webhook_created = true;
+      } catch (error) {
+        console.error('Erro ao criar webhook:', error);
+        result.webhook_error = error instanceof Error ? error.message : 'Erro desconhecido';
       }
       
       return result;
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries();
+      const webhookMessage = result.webhook_created 
+        ? ' Webhook configurado automaticamente.'
+        : result.webhook_error 
+        ? ` Aviso: ${result.webhook_error}` 
+        : '';
+      
       toast({
         title: "Conexão Estabelecida",
-        description: `${result.message} ${result.store_info?.name ? `Loja: ${result.store_info.name}` : ''}`,
+        description: `${result.message} ${result.store_info?.name ? `Loja: ${result.store_info.name}` : ''}${webhookMessage}`,
       });
     },
     onError: (error) => {
@@ -367,6 +388,42 @@ export const useWooCommerceConfig = () => {
     });
   };
 
+  // Webhooks hooks
+  const webhooks = useQuery({
+    queryKey: ['webhooks'],
+    queryFn: () => wooCommerceAPI.getWebhooks(),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+
+  const setupWebhook = useMutation({
+    mutationFn: () => wooCommerceAPI.setupStockWebhook(),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+      toast({
+        title: "Webhook Criado",
+        description: "Webhook configurado com sucesso!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro no Webhook",
+        description: error instanceof Error ? error.message : "Erro ao configurar webhook",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteWebhook = useMutation({
+    mutationFn: (id: number) => wooCommerceAPI.deleteWebhook(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['webhooks'] });
+      toast({
+        title: "Webhook Removido",
+        description: "Webhook removido com sucesso!",
+      });
+    },
+  });
+
   return {
     config: wooCommerceAPI.getConfig(),
     testConnection,
@@ -375,5 +432,9 @@ export const useWooCommerceConfig = () => {
     saveConfig,
     disconnect,
     isConfigured: !!wooCommerceAPI.getConfig(),
+    // Webhook management
+    webhooks,
+    setupWebhook,
+    deleteWebhook,
   };
 };
