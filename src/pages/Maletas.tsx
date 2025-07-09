@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { Package, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -169,13 +170,57 @@ const Maletas = () => {
     setCheckoutDialogOpen(true);
   };
 
-  const handleOrderCreated = () => {
-    setReturnDialogOpen(false);
-    setCheckoutDialogOpen(false);
-    toast({
-      title: "Devolução Processada",
-      description: "Pedido criado com sucesso para os itens vendidos!",
-    });
+  const handleOrderCreated = async (orderNumber: number, orderUrl: string) => {
+    try {
+      // Processar a devolução automaticamente após criar o pedido
+      if (selectedMaleta && soldItems.length > 0) {
+        const returnData = {
+          items_sold: soldItems.map(item => ({
+            item_id: item.id,
+            quantity_sold: item.quantity_sold
+          })),
+          items_returned: [], // Apenas itens vendidos, sem devolução
+          return_date: new Date().toISOString(),
+          delay_days: Math.max(0, Math.ceil((new Date().getTime() - new Date(selectedMaleta.return_date).getTime()) / (1000 * 60 * 60 * 24))),
+          commission_amount: 0,
+          penalty_amount: 0,
+          final_amount: 0,
+          notes: `Pedido #${orderNumber} criado com itens vendidos`
+        };
+
+        await processReturn.mutateAsync({
+          id: selectedMaleta.id,
+          returnData
+        });
+      }
+
+      setReturnDialogOpen(false);
+      setCheckoutDialogOpen(false);
+      setSoldItems([]);
+      
+      const openOrderLink = () => {
+        if (orderUrl) {
+          window.open(orderUrl, '_blank', 'noopener,noreferrer');
+        }
+      };
+
+      toast({
+        title: "Devolução Processada",
+        description: `Maleta finalizada com sucesso! Pedido #${orderNumber} criado para os itens vendidos.`,
+        action: orderUrl ? (
+          <ToastAction altText="Ver Pedido" onClick={openOrderLink}>
+            Ver Pedido #{orderNumber}
+          </ToastAction>
+        ) : undefined,
+      });
+    } catch (error) {
+      console.error('Error processing return after order creation:', error);
+      toast({
+        title: "Erro",
+        description: "Pedido criado, mas erro ao processar devolução",
+        variant: "destructive"
+      });
+    }
   };
 
   if (isLoading) {

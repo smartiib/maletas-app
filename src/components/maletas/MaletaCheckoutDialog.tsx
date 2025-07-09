@@ -18,7 +18,7 @@ interface MaletaCheckoutDialogProps {
   onOpenChange: (open: boolean) => void;
   maleta: any;
   soldItems: Array<MaletaItem & { quantity_sold: number }>;
-  onOrderCreated: () => void;
+  onOrderCreated: (orderNumber: number, orderUrl: string) => void;
 }
 
 interface PaymentMethod {
@@ -160,14 +160,18 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
         ]
       };
 
-      await createOrder.mutateAsync(orderData);
+      const createdOrder = await createOrder.mutateAsync(orderData);
       
       toast({
         title: "Pedido Finalizado",
-        description: "Pedido da maleta foi criado com sucesso no WooCommerce",
+        description: `Pedido #${createdOrder.id} foi criado com sucesso no WooCommerce`,
       });
 
-      onOrderCreated();
+      // Construir URL do pedido no WooCommerce
+      const wooConfig = (window as any).wooCommerceConfig;
+      const orderUrl = wooConfig ? `${wooConfig.url}/wp-admin/post.php?post=${createdOrder.id}&action=edit` : '';
+
+      onOrderCreated(createdOrder.id, orderUrl);
       onOpenChange(false);
       
       // Reset form
@@ -216,7 +220,6 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
       
       // Fechar diálogos e navegar para o POS
       onOpenChange(false);
-      onOrderCreated();
       
       // Navegar para o POS
       navigate('/pos?from_maleta=true');
