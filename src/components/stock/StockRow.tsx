@@ -38,6 +38,18 @@ export const StockRow: React.FC<StockRowProps> = ({
     
     const newStock = Math.max(0, currentStock + change);
     
+    // Atualizar visualmente primeiro (otimistic update)
+    if (isVariation) {
+      // Atualizar variação no produto
+      const variationIndex = product.variations?.findIndex((v: any) => v.id === variationId);
+      if (variationIndex !== -1 && product.variations) {
+        product.variations[variationIndex].stock_quantity = newStock;
+      }
+    } else {
+      // Atualizar produto principal
+      product.stock_quantity = newStock;
+    }
+    
     // Adicionar ao histórico
     stockHistoryService.addEntry({
       productId,
@@ -58,6 +70,15 @@ export const StockRow: React.FC<StockRowProps> = ({
       });
     } catch (error) {
       console.error('Erro ao atualizar estoque:', error);
+      // Em caso de erro, reverter a mudança visual
+      if (isVariation) {
+        const variationIndex = product.variations?.findIndex((v: any) => v.id === variationId);
+        if (variationIndex !== -1 && product.variations) {
+          product.variations[variationIndex].stock_quantity = currentStock;
+        }
+      } else {
+        product.stock_quantity = currentStock;
+      }
     }
   };
 
