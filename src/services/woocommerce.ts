@@ -563,9 +563,14 @@ class WooCommerceAPI {
 
     const customers = await this.makeRequest(`customers?${params}`);
     
+    console.log('Raw customer data from WooCommerce:', customers[0]); // Debug log
+    
     // Adicionar data de nascimento dos meta_data se existir
     return customers.map((customer: any) => ({
       ...customer,
+      // Garantir que orders_count e total_spent existam
+      orders_count: customer.orders_count || 0,
+      total_spent: customer.total_spent || '0.00',
       date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
     }));
   }
@@ -593,9 +598,14 @@ class WooCommerceAPI {
 
     const customers = await this.makeRequest(`customers?${params}`);
     
+    console.log('Raw getAllCustomers data from WooCommerce:', customers[0]); // Debug log
+    
     // Adicionar data de nascimento dos meta_data se existir
     return customers.map((customer: any) => ({
       ...customer,
+      // Garantir que orders_count e total_spent existam
+      orders_count: customer.orders_count || 0,
+      total_spent: customer.total_spent || '0.00',
       date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
     }));
   }
