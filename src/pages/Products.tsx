@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useAllProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
 import PaginationControls from '@/components/ui/pagination-controls';
@@ -33,7 +33,7 @@ const Products = () => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allProducts = [], isLoading, error, refetch } = useProducts();
+  const { data: allProducts = [] } = useAllProducts();
   const deleteProduct = useDeleteProduct();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
@@ -227,7 +227,7 @@ const Products = () => {
                   ))}
                 </select>
                 
-                <Button variant="outline" onClick={() => refetch()}>
+                <Button variant="outline" onClick={() => window.location.reload()}>
                   <Filter className="w-4 h-4" />
                 </Button>
               </div>
@@ -246,24 +246,11 @@ const Products = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Lista de Produtos {!isLoading && `(${filteredProducts.length})`}
+            Lista de Produtos ({filteredProducts.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-slate-500 mt-2">Carregando produtos...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-red-600">Erro ao carregar produtos</p>
-              <Button onClick={() => refetch()} className="mt-2">
-                Tentar novamente
-              </Button>
-            </div>
-          ) : paginatedProducts.length === 0 ? (
+          {paginatedProducts.length === 0 ? (
             <div className="text-center py-8">
               <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground">Nenhum produto encontrado</p>

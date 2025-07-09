@@ -11,6 +11,14 @@ export const useProducts = (page = 1, search = '', status = '', category = '') =
   });
 };
 
+export const useAllProducts = (search = '', status = '', category = '') => {
+  return useQuery({
+    queryKey: ['all-products', search, status, category],
+    queryFn: () => wooCommerceAPI.getAllProducts(search, status, category),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+};
+
 export const useCategories = () => {
   return useQuery({
     queryKey: ['categories'],

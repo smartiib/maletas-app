@@ -423,6 +423,91 @@ class WooCommerceAPI {
     return productsWithVariations;
   }
 
+  async getAllProducts(search = '', status = '', category = ''): Promise<Product[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let products = [...mockProducts] as any[];
+      
+      if (search) {
+        products = products.filter(p => 
+          p.name.toLowerCase().includes(search.toLowerCase()) ||
+          p.description.toLowerCase().includes(search.toLowerCase()) ||
+          p.sku.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      
+      if (status) {
+        products = products.filter(p => p.status === status);
+      }
+      
+      return products;
+    }
+
+    let allProducts: any[] = [];
+    let page = 1;
+    let hasMore = true;
+    
+    console.log('Starting to fetch all products with pagination...');
+    
+    // Buscar todos os produtos com paginação
+    while (hasMore) {
+      const params = new URLSearchParams({
+        per_page: '20', // Reduzir para 20 por vez
+        page: page.toString(),
+        ...(search && { search }),
+        ...(status && { status }),
+        ...(category && { category }),
+      });
+
+      try {
+        console.log(`Fetching products page ${page} with params: ${params.toString()}`);
+        const products = await this.makeRequest(`products?${params}`);
+        console.log(`Page ${page} returned ${products.length} products`);
+        
+        if (products.length === 0) {
+          hasMore = false;
+        } else {
+          allProducts = [...allProducts, ...products];
+          page++;
+          
+          // Se retornou menos que 20, não há mais páginas
+          if (products.length < 20) {
+            hasMore = false;
+          }
+          
+          // Limite de segurança para evitar loop infinito
+          if (page > 50) {
+            console.warn('Reached maximum page limit (50) - stopping fetch');
+            hasMore = false;
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching products page ${page}:`, error);
+        hasMore = false;
+      }
+    }
+    
+    console.log(`Total products fetched: ${allProducts.length}`);
+    
+    // Para produtos variáveis, buscar as variações
+    const productsWithVariations = await Promise.all(
+      allProducts.map(async (product: Product) => {
+        if (product.type === 'variable') {
+          try {
+            const variations = await this.getProductVariations(product.id);
+            return { ...product, variations };
+          } catch (error) {
+            console.error(`Error fetching variations for product ${product.id}:`, error);
+            return product;
+          }
+        }
+        return product;
+      })
+    );
+
+    return productsWithVariations;
+  }
+
   async getProduct(id: number): Promise<Product> {
     const product = await this.makeRequest(`products/${id}`);
     
@@ -512,12 +597,50 @@ class WooCommerceAPI {
       return orders;
     }
 
-    const params = new URLSearchParams({
-      per_page: '100',
-      ...(status && { status }),
-    });
+    let allOrders: any[] = [];
+    let page = 1;
+    let hasMore = true;
+    
+    console.log('Starting to fetch all orders with pagination...');
+    
+    // Buscar todos os pedidos com paginação
+    while (hasMore) {
+      const params = new URLSearchParams({
+        per_page: '20', // Reduzir para 20 por vez
+        page: page.toString(),
+        ...(status && { status }),
+      });
 
-    return this.makeRequest(`orders?${params}`);
+      try {
+        console.log(`Fetching orders page ${page} with params: ${params.toString()}`);
+        const orders = await this.makeRequest(`orders?${params}`);
+        console.log(`Page ${page} returned ${orders.length} orders`);
+        
+        if (orders.length === 0) {
+          hasMore = false;
+        } else {
+          allOrders = [...allOrders, ...orders];
+          page++;
+          
+          // Se retornou menos que 20, não há mais páginas
+          if (orders.length < 20) {
+            hasMore = false;
+          }
+          
+          // Limite de segurança para evitar loop infinito
+          if (page > 50) {
+            console.warn('Reached maximum page limit (50) - stopping fetch');
+            hasMore = false;
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching orders page ${page}:`, error);
+        hasMore = false;
+      }
+    }
+    
+    console.log(`Total orders fetched: ${allOrders.length}`);
+    return allOrders;
   }
 
   async getOrder(id: number): Promise<Order> {

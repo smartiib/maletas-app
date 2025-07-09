@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useOrders, useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { Order } from '@/services/woocommerce';
 import OrderDialog from '@/components/orders/OrderDialog';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -15,6 +15,7 @@ const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedOrder, setSelectedOrder] = useState<Order | undefined>();
@@ -22,8 +23,21 @@ const Orders = () => {
   const [orderForDetails, setOrderForDetails] = useState<Order | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: orders = [], isLoading, error, refetch } = useOrders(currentPage, selectedStatus);
-  const { data: allOrders = [] } = useAllOrders();
+  const { data: allOrders = [] } = useAllOrders(selectedStatus);
+  
+  // Filtrar e paginar os pedidos
+  const filteredOrders = allOrders.filter(order => {
+    const matchesSearch = order.billing?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.billing?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         order.number?.toString().includes(searchTerm);
+    return matchesSearch;
+  });
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const orders = filteredOrders.slice(startIndex, endIndex);
 
   const statuses = ['', 'pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
 
@@ -181,7 +195,10 @@ const Orders = () => {
                 <Input
                   placeholder="Buscar pedidos por cliente, email ou ID..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1); // Reset para primeira página
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -190,7 +207,10 @@ const Orders = () => {
             <div className="flex gap-2">
               <select
                 value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1); // Reset para primeira página
+                }}
                 className="px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-md bg-background"
               >
                 <option value="">Todos os Status</option>
@@ -201,7 +221,7 @@ const Orders = () => {
                 ))}
               </select>
               
-              <Button variant="outline" onClick={() => refetch()}>
+              <Button variant="outline" onClick={() => window.location.reload()}>
                 <Filter className="w-4 h-4" />
               </Button>
             </div>
@@ -214,24 +234,11 @@ const Orders = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="w-5 h-5" />
-            Lista de Pedidos {!isLoading && `(${orders.length})`}
+            Lista de Pedidos ({filteredOrders.length} total, {orders.length} exibidos)
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-slate-500 mt-2">Carregando pedidos...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-red-600">Erro ao carregar pedidos</p>
-              <Button onClick={() => refetch()} className="mt-2">
-                Tentar novamente
-              </Button>
-            </div>
-          ) : orders.length === 0 ? (
+          {orders.length === 0 ? (
             <div className="text-center py-8">
               <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
               <p className="text-slate-500">Nenhum pedido encontrado</p>
@@ -300,25 +307,30 @@ const Orders = () => {
       </Card>
 
       {/* Paginação */}
-      {!isLoading && orders.length > 0 && (
-        <div className="flex justify-center gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-            disabled={currentPage === 1}
-          >
-            Anterior
-          </Button>
-          <span className="px-4 py-2 text-sm">
-            Página {currentPage}
-          </span>
-          <Button 
-            variant="outline" 
-            onClick={() => setCurrentPage(p => p + 1)}
-            disabled={orders.length < 20}
-          >
-            Próxima
-          </Button>
+      {filteredOrders.length > 0 && (
+        <div className="flex justify-between items-center">
+          <div className="flex justify-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Anterior
+            </Button>
+            <span className="px-4 py-2 text-sm">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button 
+              variant="outline" 
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={currentPage >= totalPages}
+            >
+              Próxima
+            </Button>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} de {filteredOrders.length} pedidos
+          </div>
         </div>
       )}
 
