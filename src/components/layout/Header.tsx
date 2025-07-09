@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Bell, Search, Sun, Moon, User } from 'lucide-react';
+import { Bell, Search, Sun, Moon, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -12,11 +13,17 @@ interface HeaderProps {
 }
 
 const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
+  const { logout } = useAuth();
+  
   // Dados mock para desenvolvimento sem autenticação
   const mockUser = {
-    display_name: 'Usuário Demo',
-    email: 'demo@exemplo.com',
+    display_name: 'Riê Joias',
+    email: 'rie@joias.com',
     roles: ['administrator']
+  };
+
+  const handleLogout = () => {
+    logout();
   };
 
 
@@ -74,6 +81,14 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
                 {mockUser.roles[0] || 'Usuário'}
               </div>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="text-slate-600 hover:text-red-600"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
