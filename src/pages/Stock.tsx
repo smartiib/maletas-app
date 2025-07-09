@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useProducts, useCategories } from '@/hooks/useWooCommerce';
+import { useAllProducts, useCategories } from '@/hooks/useWooCommerce';
 import { Search, Package, Filter } from 'lucide-react';
 import { StockRow } from '@/components/stock/StockRow';
 
@@ -10,8 +10,9 @@ const Stock = () => {
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
-  const { data: products, isLoading } = useProducts(1, search, '', category === 'all' ? '' : category);
+  const { data: allProducts } = useAllProducts(search, '', category === 'all' ? '' : category);
   const { data: categories } = useCategories();
+  const products = allProducts || [];
 
   const toggleExpanded = (productId: number) => {
     const newExpanded = new Set(expandedProducts);
@@ -43,13 +44,6 @@ const Stock = () => {
     return Math.max(0, product.stock_quantity || 0); // Não permitir valores negativos
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -93,21 +87,28 @@ const Stock = () => {
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <Package className="w-5 h-5" />
-            <span>Produtos em Estoque</span>
+            <span>Produtos em Estoque ({products.length})</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {products?.map((product: any) => (
-              <StockRow
-                key={product.id}
-                product={product}
-                isExpanded={expandedProducts.has(product.id)}
-                onToggleExpand={() => toggleExpanded(product.id)}
-                getTotalStock={getTotalStock}
-                getStockStatus={getStockStatus}
-              />
-            ))}
+            {products.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground">Nenhum produto encontrado</p>
+              </div>
+            ) : (
+              products.map((product: any) => (
+                <StockRow
+                  key={product.id}
+                  product={product}
+                  isExpanded={expandedProducts.has(product.id)}
+                  onToggleExpand={() => toggleExpanded(product.id)}
+                  getTotalStock={getTotalStock}
+                  getStockStatus={getStockStatus}
+                />
+              ))
+            )}
           </div>
         </CardContent>
       </Card>

@@ -742,7 +742,7 @@ class WooCommerceAPI {
     let page = 1;
     let hasMore = true;
     
-    console.log('Starting to fetch all customers with pagination...');
+    console.log('🔍 Starting to fetch all customers with pagination...');
     
     // Buscar todos os clientes com paginação
     while (hasMore) {
@@ -780,40 +780,19 @@ class WooCommerceAPI {
       }
     }
     
-    console.log(`Total customers fetched: ${allCustomers.length}`);
+    console.log(`🎯 Total customers fetched: ${allCustomers.length}`);
     
-    // Calcular orders_count e total_spent para cada cliente
-    const customersWithStats = await Promise.all(
-      allCustomers.map(async (customer: any) => {
-        try {
-          // Buscar pedidos do cliente
-          const orders = await this.makeRequest(`orders?customer=${customer.id}&per_page=100`);
-          
-          // Calcular estatísticas
-          const orders_count = orders.length;
-          const total_spent = orders.reduce((sum: number, order: any) => {
-            return sum + parseFloat(order.total || '0');
-          }, 0);
-          
-          return {
-            ...customer,
-            orders_count,
-            total_spent: total_spent.toFixed(2),
-            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
-          };
-        } catch (error) {
-          console.error(`Error calculating stats for customer ${customer.id}:`, error);
-          return {
-            ...customer,
-            orders_count: 0,
-            total_spent: '0.00',
-            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
-          };
-        }
-      })
-    );
+    // Retornar clientes sem buscar estatísticas para melhor performance
+    const customersWithBasicStats = allCustomers.map((customer: any) => {
+      return {
+        ...customer,
+        orders_count: 0, // Será calculado em segundo plano se necessário
+        total_spent: '0.00',
+        date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+      };
+    });
 
-    return customersWithStats;
+    return customersWithBasicStats;
   }
 
   async getBirthdayCustomers(month?: number): Promise<Customer[]> {

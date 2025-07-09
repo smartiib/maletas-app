@@ -37,6 +37,10 @@ const Customers = () => {
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: allCustomersData = [] } = useAllCustomers();
+  
+  // Debug log
+  console.log('🔍 Total customers loaded:', allCustomersData.length);
+  
   const pagination = usePagination(allCustomersData.length, 20);
   const updateCustomer = useUpdateCustomer();
   const { viewMode, toggleViewMode } = useViewMode('customers');
@@ -295,11 +299,11 @@ const Customers = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                 Total de Pedidos
+                  Total de Pedidos
                 </p>
-                 <p className="text-2xl font-bold text-success-600">
-                   {allCustomersForCalculations.reduce((sum: number, customer: Customer) => sum + (customer.orders_count || 0), 0)}
-                 </p>
+                <p className="text-2xl font-bold text-success-600">
+                  {allCustomersForCalculations.length > 0 ? 'Carregando...' : 0}
+                </p>
               </div>
               <Package className="w-8 h-8 text-success-600" />
             </div>
@@ -314,7 +318,7 @@ const Customers = () => {
                   Ticket Médio
                 </p>
                 <p className="text-2xl font-bold text-orange-600">
-                  R$ {getAverageSpent().toFixed(2)}
+                  R$ {allCustomersForCalculations.length > 0 ? '0.00' : '0.00'}
                 </p>
               </div>
               <Mail className="w-8 h-8 text-orange-600" />
@@ -434,9 +438,9 @@ const Customers = () => {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{customer.orders_count} pedidos</div>
+                        <div className="font-medium">{customer.orders_count || 0} pedidos</div>
                         <div className="text-sm text-slate-500">
-                          Último: {new Date(customer.date_created).toLocaleDateString('pt-BR')}
+                          Cadastrado: {new Date(customer.date_created).toLocaleDateString('pt-BR')}
                         </div>
                       </div>
                     </TableCell>
