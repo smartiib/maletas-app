@@ -211,28 +211,6 @@ const Reports = () => {
         />
       </div>
 
-      {/* Status das Maletas */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Status das Maletas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { status: 'active', label: 'Ativas', color: 'bg-blue-500', count: maletasStatusAnalysis.active },
-              { status: 'returned', label: 'Retornadas', color: 'bg-green-500', count: maletasStatusAnalysis.returned },
-              { status: 'extended', label: 'Prorrogadas', color: 'bg-yellow-500', count: maletasStatusAnalysis.extended },
-              { status: 'completed', label: 'Finalizadas', color: 'bg-purple-500', count: maletasStatusAnalysis.completed }
-            ].map(({ status, label, color, count }) => (
-              <div key={status} className="text-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                <div className={`w-4 h-4 ${color} rounded-full mx-auto mb-2`} />
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">{label}</p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Filtros */}
       <Card>
