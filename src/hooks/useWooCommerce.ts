@@ -81,8 +81,37 @@ export const useUpdateStock = () => {
   return useMutation({
     mutationFn: ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => 
       wooCommerceAPI.updateStock(productId, newStock, variationId),
+    onMutate: async ({ productId, newStock, variationId }) => {
+      // Cancelar queries pendentes para evitar conflitos
+      await queryClient.cancelQueries({ queryKey: ['all-products'] });
+      
+      // Atualização otimista - atualizar o cache imediatamente
+      queryClient.setQueryData(['all-products'], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        return oldData.map((product: any) => {
+          if (product.id === productId) {
+            if (variationId && product.variations) {
+              // Atualizar variação específica
+              return {
+                ...product,
+                variations: product.variations.map((variation: any) => 
+                  variation.id === variationId 
+                    ? { ...variation, stock_quantity: newStock }
+                    : variation
+                )
+              };
+            } else {
+              // Atualizar produto principal
+              return { ...product, stock_quantity: newStock };
+            }
+          }
+          return product;
+        });
+      });
+    },
     onSuccess: () => {
-      // Invalidar todas as queries relacionadas a produtos
+      // Invalidar todas as queries relacionadas a produtos para garantir consistência
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['all-products'] });
       queryClient.invalidateQueries({ queryKey: ['product'] });
@@ -92,6 +121,8 @@ export const useUpdateStock = () => {
       });
     },
     onError: (error) => {
+      // Em caso de erro, invalidar para reverter mudanças otimistas
+      queryClient.invalidateQueries({ queryKey: ['all-products'] });
       toast({
         title: "Erro",
         description: "Erro ao atualizar estoque",
