@@ -154,6 +154,7 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
 
     if (soldItems.length > 0) {
       // Open checkout for sold items
+      console.log('Opening checkout for sold items:', soldItems);
       onOpenCheckout(soldItems);
     } else {
       // Process only returns

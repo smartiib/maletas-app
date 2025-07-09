@@ -93,6 +93,7 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
   };
 
   const handleFinalizePurchase = async () => {
+    console.log('handleFinalizePurchase called');
     const totalPayments = getTotalPayments();
     const orderTotal = getTotalPrice();
     
