@@ -82,7 +82,10 @@ export const useUpdateStock = () => {
     mutationFn: ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => 
       wooCommerceAPI.updateStock(productId, newStock, variationId),
     onSuccess: () => {
+      // Invalidar todas as queries relacionadas a produtos
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['all-products'] });
+      queryClient.invalidateQueries({ queryKey: ['product'] });
       toast({
         title: "Sucesso",
         description: "Estoque atualizado com sucesso!",
