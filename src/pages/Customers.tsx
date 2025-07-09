@@ -36,10 +36,11 @@ const Customers = () => {
   const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allCustomersData = [] } = useAllCustomers();
+  const { data: allCustomersData = [], isLoading: customersLoading } = useAllCustomers();
   
   // Debug log
   console.log('🔍 Total customers loaded:', allCustomersData.length);
+  console.log('🔍 Customers loading state:', customersLoading);
   
   const pagination = usePagination(allCustomersData.length, 20);
   const updateCustomer = useUpdateCustomer();
@@ -379,7 +380,12 @@ const Customers = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {paginatedCustomers.length === 0 ? (
+          {customersLoading ? (
+            <div className="text-center py-8">
+              <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3 animate-spin" />
+              <p className="text-muted-foreground">Carregando clientes...</p>
+            </div>
+          ) : paginatedCustomers.length === 0 ? (
             <div className="text-center py-8">
               <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground">Nenhum cliente encontrado</p>

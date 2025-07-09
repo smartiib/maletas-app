@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign, Printer, User, UserPlus } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign, Printer, User, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useProducts, useCreateOrder, useCustomers } from '@/hooks/useWooCommerce';
+import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
+import CategorySlider from '@/components/pos/CategorySlider';
 
 interface CartItem extends Product {
   quantity: number;
@@ -52,8 +53,9 @@ const POS = () => {
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
 
-  const { data: products = [], isLoading, error } = useProducts(1, searchTerm);
-  const { data: customers = [] } = useCustomers(1, '');
+  const { data: products = [], isLoading, error } = useAllProducts(searchTerm);
+  const { data: customers = [] } = useAllCustomers();
+  const { data: categoriesData = [] } = useCategories();
   const createOrder = useCreateOrder();
 
   // Carregar carrinhos salvos do localStorage
@@ -64,13 +66,18 @@ const POS = () => {
     }
   }, []);
 
-  // Extrair categorias únicas dos produtos
-  const categories = ['Todos', ...Array.from(new Set(products.map(p => p.categories?.[0]?.name).filter(Boolean)))];
+  // Ordenar categorias por quantidade de produtos (mais produtos primeiro)
+  const categoriesWithCounts = categoriesData.map(cat => ({
+    ...cat,
+    productCount: products.filter(p => p.categories?.some(c => c.id === cat.id)).length
+  })).sort((a, b) => b.productCount - a.productCount);
+
+  const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'Todos' || product.categories?.[0]?.name === selectedCategory;
+    const matchesCategory = selectedCategory === 'Todos' || product.categories?.some(cat => cat.name === selectedCategory);
     return matchesSearch && matchesCategory;
   });
 
@@ -391,18 +398,11 @@ const POS = () => {
               />
             </div>
 
-            <div className="flex space-x-2 overflow-x-auto pb-2">
-              {categories.map(category => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? "default" : "outline"}
-                  onClick={() => setSelectedCategory(category)}
-                  className={selectedCategory === category ? "bg-gradient-primary" : ""}
-                >
-                  {category}
-                </Button>
-              ))}
-            </div>
+            <CategorySlider
+              categories={categories}
+              selectedCategory={selectedCategory}
+              onCategoryChange={setSelectedCategory}
+            />
           </div>
 
           {/* Carrinhos Salvos */}
