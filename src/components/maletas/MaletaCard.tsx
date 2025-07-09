@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, User, Package, CheckCircle, AlertTriangle, Clock, FileText } from 'lucide-react';
+import { Calendar, User, Package, CheckCircle, AlertTriangle, Clock, FileText, ShoppingCart, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +88,28 @@ const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails
                 R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
               </span>
             </div>
+            
+            {/* Informações do pedido quando a maleta estiver finalizada */}
+            {maleta.status === 'finalized' && (maleta.order_number || maleta.order_url) && (
+              <div className={viewMode === 'grid' ? 'mt-2 space-y-1' : 'mt-2'}>
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4 text-success" />
+                  <span className="text-sm font-medium text-success">
+                    Pedido #{maleta.order_number}
+                  </span>
+                  {maleta.order_url && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-auto p-0 text-primary hover:text-primary/80"
+                      onClick={() => window.open(maleta.order_url, '_blank')}
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           
           <div className={viewMode === 'grid' ? 'flex flex-col gap-2' : 'flex gap-2'}>

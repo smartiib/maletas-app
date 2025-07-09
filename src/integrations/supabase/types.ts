@@ -202,6 +202,8 @@ export type Database = {
           id: string
           notes: string | null
           number: string
+          order_number: number | null
+          order_url: string | null
           representative_id: string
           return_date: string
           status: string
@@ -218,6 +220,8 @@ export type Database = {
           id?: string
           notes?: string | null
           number: string
+          order_number?: number | null
+          order_url?: string | null
           representative_id: string
           return_date: string
           status?: string
@@ -234,6 +238,8 @@ export type Database = {
           id?: string
           notes?: string | null
           number?: string
+          order_number?: number | null
+          order_url?: string | null
           representative_id?: string
           return_date?: string
           status?: string

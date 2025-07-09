@@ -19,6 +19,7 @@ import MaletaDialog from '@/components/maletas/MaletaDialog';
 import MaletaDetailsDialog from '@/components/maletas/MaletaDetailsDialog';
 import MaletaReturnDialog from '@/components/maletas/MaletaReturnDialog';
 import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
+import { supabase } from '@/integrations/supabase/client';
 // Removido import do pdfGenerator - agora usando pdfTemplates
 
 const Maletas = () => {
@@ -171,9 +172,23 @@ const Maletas = () => {
   };
 
   const handleOrderCreated = async (orderNumber: number, orderUrl: string) => {
-    console.log('handleOrderCreated called with:', { orderNumber, orderUrl });
-    
     try {
+      // Atualizar a maleta com as informações do pedido
+      if (selectedMaleta) {
+        const { error: updateError } = await supabase
+          .from('maletas')
+          .update({
+            order_number: orderNumber,
+            order_url: orderUrl
+          })
+          .eq('id', selectedMaleta.id);
+
+        if (updateError) {
+          console.error('Error updating maleta with order info:', updateError);
+          throw updateError;
+        }
+      }
+
       // Processar a devolução automaticamente após criar o pedido
       if (selectedMaleta && soldItems.length > 0) {
         const returnData = {
@@ -190,12 +205,10 @@ const Maletas = () => {
           notes: `Pedido #${orderNumber} criado com itens vendidos`
         };
 
-        console.log('Processing return with data:', returnData);
         await processReturn.mutateAsync({
           id: selectedMaleta.id,
           returnData
         });
-        console.log('Return processed successfully');
       }
 
       setReturnDialogOpen(false);
@@ -203,13 +216,11 @@ const Maletas = () => {
       setSoldItems([]);
       
       const openOrderLink = () => {
-        console.log('Opening order link:', orderUrl);
         if (orderUrl) {
           window.open(orderUrl, '_blank', 'noopener,noreferrer');
         }
       };
 
-      console.log('Showing toast with order number:', orderNumber);
       toast({
         title: "Devolução Processada",
         description: `Maleta finalizada com sucesso! Pedido #${orderNumber} criado para os itens vendidos.`,

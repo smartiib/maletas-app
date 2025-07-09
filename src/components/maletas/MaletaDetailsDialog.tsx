@@ -370,6 +370,39 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
             </div>
           </div>
 
+          {/* Informações do Pedido */}
+          {maleta.status === 'finalized' && (maleta.order_number || maleta.order_url) && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <FileText className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-semibold">Informações do Pedido</h3>
+              </div>
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg space-y-3">
+                {maleta.order_number && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Número do Pedido:</span>
+                    <p className="font-semibold text-success">#{maleta.order_number}</p>
+                  </div>
+                )}
+                {maleta.order_url && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Link do Pedido:</span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(maleta.order_url, '_blank')}
+                        className="h-8 text-xs"
+                      >
+                        Ver Pedido #{maleta.order_number}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Observações */}
           {maleta.notes && (
             <div>

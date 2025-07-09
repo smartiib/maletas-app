@@ -60,6 +60,8 @@ export interface Maleta {
   };
   commission_percentage?: number; // For custom commissions
   notes?: string;
+  order_number?: number;
+  order_url?: string;
   created_at: string;
   updated_at: string;
 }
