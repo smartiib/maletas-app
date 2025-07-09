@@ -619,6 +619,8 @@ class WooCommerceAPI {
     let page = 1;
     let hasMore = true;
     
+    console.log('Starting to fetch all customers with pagination...');
+    
     // Buscar todos os clientes com paginação
     while (hasMore) {
       const params = new URLSearchParams({
@@ -628,7 +630,9 @@ class WooCommerceAPI {
       });
 
       try {
+        console.log(`Fetching page ${page} with params: ${params.toString()}`);
         const customers = await this.makeRequest(`customers?${params}`);
+        console.log(`Page ${page} returned ${customers.length} customers`);
         
         if (customers.length === 0) {
           hasMore = false;
