@@ -172,7 +172,7 @@ export const useUpdateOrderStatus = () => {
   });
 };
 
-// Customers hooks
+// Customers hooks - usa paginação da API
 export const useCustomers = (page = 1, search = '') => {
   return useQuery({
     queryKey: ['customers', page, search],

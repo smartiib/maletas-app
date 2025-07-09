@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCustomers, useAllCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
+import { useAllCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
 import { useCreateRepresentative } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -36,15 +36,15 @@ const Customers = () => {
   const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allCustomers = [], isLoading, error, refetch } = useCustomers();
   const { data: allCustomersData = [] } = useAllCustomers();
+  const pagination = usePagination(allCustomersData.length, 20);
   const updateCustomer = useUpdateCustomer();
   const { viewMode, toggleViewMode } = useViewMode('customers');
   const createRepresentative = useCreateRepresentative();
 
   // Filter and paginate data
   const filteredCustomers = useMemo(() => {
-    return allCustomers.filter(customer => {
+    return allCustomersData.filter(customer => {
       const matchesSearch = customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -55,7 +55,7 @@ const Customers = () => {
       
       return matchesSearch && matchesFilter;
     });
-  }, [allCustomers, searchTerm, filterType]);
+  }, [allCustomersData, searchTerm, filterType]);
 
   // Use allCustomersData for calculations
   const allCustomersForCalculations = useMemo(() => {
@@ -68,13 +68,14 @@ const Customers = () => {
     });
   }, [allCustomersData, filterType]);
 
-  const pagination = usePagination(filteredCustomers.length, 20);
+  // Update pagination to use filtered customers length
+  const paginationWithUpdatedTotal = usePagination(filteredCustomers.length, 20);
   
   const paginatedCustomers = useMemo(() => {
-    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
-    const end = start + pagination.state.itemsPerPage;
+    const start = (paginationWithUpdatedTotal.state.currentPage - 1) * paginationWithUpdatedTotal.state.itemsPerPage;
+    const end = start + paginationWithUpdatedTotal.state.itemsPerPage;
     return filteredCustomers.slice(start, end);
-  }, [filteredCustomers, pagination.state.currentPage, pagination.state.itemsPerPage]);
+  }, [filteredCustomers, paginationWithUpdatedTotal.state.currentPage, paginationWithUpdatedTotal.state.itemsPerPage]);
 
   const handleCreateCustomer = () => {
     setSelectedCustomer(undefined);
@@ -137,7 +138,7 @@ const Customers = () => {
 
   const syncRepresentatives = async () => {
     try {
-      const representatives = allCustomers.filter(isRepresentative);
+      const representatives = allCustomersData.filter(isRepresentative);
       
       if (representatives.length === 0) {
         toast({
@@ -349,7 +350,7 @@ const Customers = () => {
                   <option value="customers">Clientes</option>
                   <option value="representatives">Representantes</option>
                 </select>
-                <Button variant="outline" onClick={() => refetch()}>
+                <Button variant="outline" onClick={() => window.location.reload()}>
                   <Filter className="w-4 h-4" />
                 </Button>
               </div>
@@ -368,26 +369,13 @@ const Customers = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <User className="w-5 h-5" />
-            Lista de Clientes {!isLoading && `(${filteredCustomers.length})`}
+            Lista de Clientes ({filteredCustomers.length})
             {filterType === 'representatives' && ' - Representantes'}
             {filterType === 'customers' && ' - Apenas Clientes'}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-slate-500 mt-2">Carregando clientes...</p>
-            </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-red-600">Erro ao carregar clientes</p>
-              <Button onClick={() => refetch()} className="mt-2">
-                Tentar novamente
-              </Button>
-            </div>
-          ) : paginatedCustomers.length === 0 ? (
+          {paginatedCustomers.length === 0 ? (
             <div className="text-center py-8">
               <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-muted-foreground">Nenhum cliente encontrado</p>
@@ -520,11 +508,11 @@ const Customers = () => {
       {/* Paginação */}
       {filteredCustomers.length > 0 && (
         <PaginationControls
-          info={pagination.info}
-          actions={pagination.actions}
-          itemsPerPage={pagination.state.itemsPerPage}
-          totalItems={pagination.state.totalItems}
-          currentPage={pagination.state.currentPage}
+          info={paginationWithUpdatedTotal.info}
+          actions={paginationWithUpdatedTotal.actions}
+          itemsPerPage={paginationWithUpdatedTotal.state.itemsPerPage}
+          totalItems={paginationWithUpdatedTotal.state.totalItems}
+          currentPage={paginationWithUpdatedTotal.state.currentPage}
           className="mt-6"
         />
       )}
