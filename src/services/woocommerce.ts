@@ -565,14 +565,38 @@ class WooCommerceAPI {
     
     console.log('Raw customer data from WooCommerce:', customers[0]); // Debug log
     
-    // Adicionar data de nascimento dos meta_data se existir
-    return customers.map((customer: any) => ({
-      ...customer,
-      // Garantir que orders_count e total_spent existam
-      orders_count: customer.orders_count || 0,
-      total_spent: customer.total_spent || '0.00',
-      date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
-    }));
+    // Calcular orders_count e total_spent para cada cliente
+    const customersWithStats = await Promise.all(
+      customers.map(async (customer: any) => {
+        try {
+          // Buscar pedidos do cliente
+          const orders = await this.makeRequest(`orders?customer=${customer.id}&per_page=100`);
+          
+          // Calcular estatísticas
+          const orders_count = orders.length;
+          const total_spent = orders.reduce((sum: number, order: any) => {
+            return sum + parseFloat(order.total || '0');
+          }, 0);
+          
+          return {
+            ...customer,
+            orders_count,
+            total_spent: total_spent.toFixed(2),
+            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+          };
+        } catch (error) {
+          console.error(`Error calculating stats for customer ${customer.id}:`, error);
+          return {
+            ...customer,
+            orders_count: 0,
+            total_spent: '0.00',
+            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+          };
+        }
+      })
+    );
+
+    return customersWithStats;
   }
 
   async getAllCustomers(search = ''): Promise<Customer[]> {
@@ -600,14 +624,38 @@ class WooCommerceAPI {
     
     console.log('Raw getAllCustomers data from WooCommerce:', customers[0]); // Debug log
     
-    // Adicionar data de nascimento dos meta_data se existir
-    return customers.map((customer: any) => ({
-      ...customer,
-      // Garantir que orders_count e total_spent existam
-      orders_count: customer.orders_count || 0,
-      total_spent: customer.total_spent || '0.00',
-      date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
-    }));
+    // Calcular orders_count e total_spent para cada cliente
+    const customersWithStats = await Promise.all(
+      customers.map(async (customer: any) => {
+        try {
+          // Buscar pedidos do cliente
+          const orders = await this.makeRequest(`orders?customer=${customer.id}&per_page=100`);
+          
+          // Calcular estatísticas
+          const orders_count = orders.length;
+          const total_spent = orders.reduce((sum: number, order: any) => {
+            return sum + parseFloat(order.total || '0');
+          }, 0);
+          
+          return {
+            ...customer,
+            orders_count,
+            total_spent: total_spent.toFixed(2),
+            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+          };
+        } catch (error) {
+          console.error(`Error calculating stats for customer ${customer.id}:`, error);
+          return {
+            ...customer,
+            orders_count: 0,
+            total_spent: '0.00',
+            date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+          };
+        }
+      })
+    );
+
+    return customersWithStats;
   }
 
   async getBirthdayCustomers(month?: number): Promise<Customer[]> {
