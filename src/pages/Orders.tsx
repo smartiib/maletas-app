@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useOrders, useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { Order } from '@/services/woocommerce';
 import OrderDialog from '@/components/orders/OrderDialog';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -23,6 +23,7 @@ const Orders = () => {
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: orders = [], isLoading, error, refetch } = useOrders(currentPage, selectedStatus);
+  const { data: allOrders = [] } = useAllOrders();
 
   const statuses = ['', 'pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed'];
 
@@ -68,9 +69,12 @@ const Orders = () => {
     setDetailsOpen(true);
   };
 
-  const getTotalOrders = () => orders.length;
-  const getPendingOrders = () => orders.filter((o: Order) => o.status === 'pending').length;
-  const getTotalRevenue = () => orders.reduce((sum: number, order: Order) => sum + parseFloat(order.total), 0);
+  const getTotalOrders = () => allOrders.length;
+  const getPendingOrders = () => allOrders.filter((o: Order) => o.status === 'pending').length;
+  const getTotalRevenue = () => allOrders.reduce((sum: number, order: Order) => {
+    const total = parseFloat(order.total || '0');
+    return sum + (isNaN(total) ? 0 : total);
+  }, 0);
 
   if (!isConfigured) {
     return (
@@ -266,7 +270,7 @@ const Orders = () => {
                       </div>
                     </TableCell>
                     <TableCell className="font-semibold">
-                      {order.currency} {parseFloat(order.total).toFixed(2)}
+                      {order.currency} {(parseFloat(order.total || '0') || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge className={getStatusColor(order.status)}>

@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
+import { useCustomers, useAllCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
 import { useCreateRepresentative } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -37,6 +37,7 @@ const Customers = () => {
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: allCustomers = [], isLoading, error, refetch } = useCustomers();
+  const { data: allCustomersData = [] } = useAllCustomers();
   const updateCustomer = useUpdateCustomer();
   const { viewMode, toggleViewMode } = useViewMode('customers');
   const createRepresentative = useCreateRepresentative();
@@ -55,6 +56,17 @@ const Customers = () => {
       return matchesSearch && matchesFilter;
     });
   }, [allCustomers, searchTerm, filterType]);
+
+  // Use allCustomersData for calculations
+  const allCustomersForCalculations = useMemo(() => {
+    return allCustomersData.filter(customer => {
+      const matchesFilter = filterType === 'all' || 
+                           (filterType === 'representatives' && isRepresentative(customer)) ||
+                           (filterType === 'customers' && !isRepresentative(customer));
+      
+      return matchesFilter;
+    });
+  }, [allCustomersData, filterType]);
 
   const pagination = usePagination(filteredCustomers.length, 20);
   
@@ -175,15 +187,15 @@ const Customers = () => {
     }
   };
 
-  const getTotalCustomers = () => filteredCustomers.length;
-  const getTotalRepresentatives = () => filteredCustomers.filter(isRepresentative).length;
+  const getTotalCustomers = () => allCustomersForCalculations.length;
+  const getTotalRepresentatives = () => allCustomersForCalculations.filter(isRepresentative).length;
   const getAverageSpent = () => {
-    if (filteredCustomers.length === 0) return 0;
-    const total = filteredCustomers.reduce((sum: number, customer: Customer) => {
+    if (allCustomersForCalculations.length === 0) return 0;
+    const total = allCustomersForCalculations.reduce((sum: number, customer: Customer) => {
       const spent = parseFloat(customer.total_spent || '0');
       return sum + (isNaN(spent) ? 0 : spent);
     }, 0);
-    return total / filteredCustomers.length;
+    return total / allCustomersForCalculations.length;
   };
 
   if (!isConfigured) {
@@ -285,7 +297,7 @@ const Customers = () => {
                  Total de Pedidos
                 </p>
                  <p className="text-2xl font-bold text-success-600">
-                   {allCustomers.reduce((sum: number, customer: Customer) => sum + (customer.orders_count || 0), 0)}
+                   {allCustomersForCalculations.reduce((sum: number, customer: Customer) => sum + (customer.orders_count || 0), 0)}
                  </p>
               </div>
               <Package className="w-8 h-8 text-success-600" />

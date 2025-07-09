@@ -500,6 +500,26 @@ class WooCommerceAPI {
     return this.makeRequest(`orders?${params}`);
   }
 
+  async getAllOrders(status = ''): Promise<Order[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let orders = [...mockOrders] as any[];
+      
+      if (status) {
+        orders = orders.filter(o => o.status === status);
+      }
+      
+      return orders;
+    }
+
+    const params = new URLSearchParams({
+      per_page: '100',
+      ...(status && { status }),
+    });
+
+    return this.makeRequest(`orders?${params}`);
+  }
+
   async getOrder(id: number): Promise<Order> {
     return this.makeRequest(`orders/${id}`);
   }
@@ -538,6 +558,36 @@ class WooCommerceAPI {
     const params = new URLSearchParams({
       page: page.toString(),
       per_page: per_page.toString(),
+      ...(search && { search }),
+    });
+
+    const customers = await this.makeRequest(`customers?${params}`);
+    
+    // Adicionar data de nascimento dos meta_data se existir
+    return customers.map((customer: any) => ({
+      ...customer,
+      date_of_birth: customer.meta_data?.find((meta: any) => meta.key === 'date_of_birth')?.value || ''
+    }));
+  }
+
+  async getAllCustomers(search = ''): Promise<Customer[]> {
+    // Se não configurado, retornar dados mock
+    if (!this.config) {
+      let customers = [...mockCustomers] as any[];
+      
+      if (search) {
+        customers = customers.filter(c => 
+          c.first_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.last_name.toLowerCase().includes(search.toLowerCase()) ||
+          c.email.toLowerCase().includes(search.toLowerCase())
+        );
+      }
+      
+      return customers;
+    }
+
+    const params = new URLSearchParams({
+      per_page: '100',
       ...(search && { search }),
     });
 

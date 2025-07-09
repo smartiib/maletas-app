@@ -122,6 +122,7 @@ export const useCreateOrder = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['all-orders'] });
       toast({
         title: "Sucesso",
         description: "Pedido criado com sucesso!",
@@ -134,6 +135,14 @@ export const useOrders = (page = 1, status = '') => {
   return useQuery({
     queryKey: ['orders', page, status],
     queryFn: () => wooCommerceAPI.getOrders(page, 20, status),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+};
+
+export const useAllOrders = (status = '') => {
+  return useQuery({
+    queryKey: ['all-orders', status],
+    queryFn: () => wooCommerceAPI.getAllOrders(status),
     enabled: !!wooCommerceAPI.getConfig(),
   });
 };
@@ -154,6 +163,7 @@ export const useUpdateOrderStatus = () => {
       wooCommerceAPI.updateOrderStatus(id, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['all-orders'] });
       toast({
         title: "Sucesso",
         description: "Status do pedido atualizado!",
@@ -167,6 +177,14 @@ export const useCustomers = (page = 1, search = '') => {
   return useQuery({
     queryKey: ['customers', page, search],
     queryFn: () => wooCommerceAPI.getCustomers(page, 20, search),
+    enabled: !!wooCommerceAPI.getConfig(),
+  });
+};
+
+export const useAllCustomers = (search = '') => {
+  return useQuery({
+    queryKey: ['all-customers', search],
+    queryFn: () => wooCommerceAPI.getAllCustomers(search),
     enabled: !!wooCommerceAPI.getConfig(),
   });
 };
@@ -194,6 +212,7 @@ export const useCreateCustomer = () => {
     mutationFn: (customer: Partial<Customer>) => wooCommerceAPI.createCustomer(customer),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['all-customers'] });
       toast({
         title: "Sucesso",
         description: "Cliente criado com sucesso!",
@@ -210,6 +229,7 @@ export const useUpdateCustomer = () => {
       wooCommerceAPI.updateCustomer(id, customer),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
+      queryClient.invalidateQueries({ queryKey: ['all-customers'] });
       toast({
         title: "Sucesso",
         description: "Cliente atualizado com sucesso!",
