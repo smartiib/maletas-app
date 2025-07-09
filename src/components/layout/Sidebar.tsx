@@ -73,12 +73,12 @@ const navigationItems = [
     icon: BarChart3,
     permission: 'reports'
   },
-  { 
-    title: 'Templates PDF', 
-    href: '/templates-pdf', 
-    icon: File,
-    permission: 'templates'
-  },
+  // { 
+  //   title: 'Templates PDF', 
+  //   href: '/templates-pdf', 
+  //   icon: File,
+  //   permission: 'templates'
+  // },
   { 
     title: 'Logs', 
     href: '/logs', 
