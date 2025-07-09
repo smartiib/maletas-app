@@ -445,6 +445,57 @@ export type Database = {
           },
         ]
       }
+      stock_history: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_stock: number
+          previous_stock: number
+          product_id: number
+          quantity_change: number
+          reason: string | null
+          source: string
+          type: string
+          user_id: string | null
+          user_name: string | null
+          variation_id: number | null
+          wc_order_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_stock: number
+          previous_stock: number
+          product_id: number
+          quantity_change: number
+          reason?: string | null
+          source?: string
+          type: string
+          user_id?: string | null
+          user_name?: string | null
+          variation_id?: number | null
+          wc_order_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_stock?: number
+          previous_stock?: number
+          product_id?: number
+          quantity_change?: number
+          reason?: string | null
+          source?: string
+          type?: string
+          user_id?: string | null
+          user_name?: string | null
+          variation_id?: number | null
+          wc_order_id?: number | null
+        }
+        Relationships: []
+      }
       subscription_plans: {
         Row: {
           created_at: string
@@ -581,6 +632,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_stock_history_entry: {
+        Args: {
+          p_product_id: number
+          p_variation_id?: number
+          p_type?: string
+          p_quantity_change?: number
+          p_previous_stock?: number
+          p_new_stock?: number
+          p_reason?: string
+          p_source?: string
+          p_user_id?: string
+          p_user_name?: string
+          p_wc_order_id?: number
+          p_metadata?: Json
+        }
+        Returns: string
+      }
       generate_maleta_number: {
         Args: Record<PropertyKey, never>
         Returns: string
