@@ -615,18 +615,43 @@ class WooCommerceAPI {
       return customers;
     }
 
-    const params = new URLSearchParams({
-      per_page: '100',
-      ...(search && { search }),
-    });
-
-    const customers = await this.makeRequest(`customers?${params}`);
+    let allCustomers: any[] = [];
+    let page = 1;
+    let hasMore = true;
     
-    console.log('Raw getAllCustomers data from WooCommerce:', customers[0]); // Debug log
+    // Buscar todos os clientes com paginação
+    while (hasMore) {
+      const params = new URLSearchParams({
+        per_page: '100',
+        page: page.toString(),
+        ...(search && { search }),
+      });
+
+      try {
+        const customers = await this.makeRequest(`customers?${params}`);
+        
+        if (customers.length === 0) {
+          hasMore = false;
+        } else {
+          allCustomers = [...allCustomers, ...customers];
+          page++;
+          
+          // Se retornou menos que 100, não há mais páginas
+          if (customers.length < 100) {
+            hasMore = false;
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching customers page ${page}:`, error);
+        hasMore = false;
+      }
+    }
+    
+    console.log(`Total customers fetched: ${allCustomers.length}`);
     
     // Calcular orders_count e total_spent para cada cliente
     const customersWithStats = await Promise.all(
-      customers.map(async (customer: any) => {
+      allCustomers.map(async (customer: any) => {
         try {
           // Buscar pedidos do cliente
           const orders = await this.makeRequest(`orders?customer=${customer.id}&per_page=100`);
