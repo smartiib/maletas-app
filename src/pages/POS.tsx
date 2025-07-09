@@ -35,7 +35,8 @@ interface PaymentMethod {
 }
 
 const POS = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(''); // Input de busca local
+  const [apiSearchTerm, setApiSearchTerm] = useState(''); // Busca para API
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -53,7 +54,8 @@ const POS = () => {
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
 
-  const { data: products = [], isLoading, error } = useAllProducts(searchTerm);
+  // Carregar todos os produtos - usa apiSearchTerm para buscar na API apenas quando necessário
+  const { data: products = [], isLoading, error } = useAllProducts(apiSearchTerm);
   const { data: customers = [] } = useAllCustomers();
   const { data: categoriesData = [] } = useCategories();
   const createOrder = useCreateOrder();
@@ -66,6 +68,19 @@ const POS = () => {
     }
   }, []);
 
+  // Debounce para busca - só busca na API após 3 caracteres e com delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm.length >= 3) {
+        setApiSearchTerm(searchTerm);
+      } else if (searchTerm.length === 0) {
+        setApiSearchTerm('');
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   // Ordenar categorias por quantidade de produtos (mais produtos primeiro)
   const categoriesWithCounts = categoriesData.map(cat => ({
     ...cat,
@@ -75,9 +90,15 @@ const POS = () => {
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    // Filtro de busca local (instantâneo)
+    const matchesSearch = searchTerm.length === 0 || 
+                         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = selectedCategory === 'Todos' || product.categories?.some(cat => cat.name === selectedCategory);
+    
+    // Filtro de categoria
+    const matchesCategory = selectedCategory === 'Todos' || 
+                           product.categories?.some(cat => cat.name === selectedCategory);
+    
     return matchesSearch && matchesCategory;
   });
 
