@@ -20,7 +20,7 @@ const Reports = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [selectedRepresentative, setSelectedRepresentative] = useState('all');
 
-  const { maletas, returns, representatives, maletaItems } = useReportsData();
+  const { maletas, returns, representatives, maletaItems, orders } = useReportsData();
 
   // Filtrar dados por período se especificado
   const filteredMaletas = useMemo(() => {
@@ -63,17 +63,17 @@ const Reports = () => {
     };
   }, [filteredMaletas]);
 
-  // Análise por representante
+  // Análise por representante (incluindo pedidos)
   const representativeAnalysis = useMemo(() => {
     const repMap = representatives.reduce((acc, rep) => {
-      acc[rep.id] = { ...rep, maletas: 0, returns: 0, totalValue: 0, commission: 0 };
+      acc[rep.id] = { ...rep, maletas: 0, returns: 0, totalValue: 0, commission: 0, orders: 0 };
       return acc;
     }, {} as Record<string, any>);
 
     filteredMaletas.forEach(maleta => {
       if (repMap[maleta.representative_id]) {
         repMap[maleta.representative_id].maletas += 1;
-        repMap[maleta.representative_id].totalValue += maleta.total_value || 0;
+        repMap[maleta.representative_id].totalValue += Number(maleta.total_value) || 0;
       }
     });
 
@@ -81,9 +81,14 @@ const Reports = () => {
       const maleta = maletas.find(m => m.id === returnItem.maleta_id);
       if (maleta && repMap[maleta.representative_id]) {
         repMap[maleta.representative_id].returns += 1;
-        repMap[maleta.representative_id].commission += returnItem.commission_amount || 0;
+        repMap[maleta.representative_id].commission += Number(returnItem.commission_amount) || 0;
+        repMap[maleta.representative_id].totalValue += Number(returnItem.final_amount) || 0;
       }
     });
+
+    // Adicionar dados dos pedidos WooCommerce se disponível
+    // Para isso, seria necessário mapear pedidos aos representantes
+    // Por ora, vamos focar nos dados das maletas
 
     return Object.values(repMap).sort((a: any, b: any) => b.totalValue - a.totalValue);
   }, [representatives, filteredMaletas, filteredReturns, maletas]);
@@ -117,8 +122,8 @@ const Reports = () => {
         };
       }
       
-      acc[key].sales += returnItem.final_amount || 0;
-      acc[key].commission += returnItem.commission_amount || 0;
+      acc[key].sales += Number(returnItem.final_amount) || 0;
+      acc[key].commission += Number(returnItem.commission_amount) || 0;
       acc[key].returns += 1;
       
       return acc;
@@ -129,10 +134,14 @@ const Reports = () => {
     );
   }, [filteredReturns, selectedPeriod]);
 
-  // Métricas principais
-  const totalSales = filteredReturns.reduce((sum, returnItem) => sum + (returnItem.final_amount || 0), 0);
-  const totalCommission = filteredReturns.reduce((sum, returnItem) => sum + (returnItem.commission_amount || 0), 0);
-  const averageTicket = filteredReturns.length > 0 ? totalSales / filteredReturns.length : 0;
+  // Métricas principais (incluindo pedidos WooCommerce)
+  const totalSalesFromReturns = filteredReturns.reduce((sum, returnItem) => sum + (Number(returnItem.final_amount) || 0), 0);
+  const totalSalesFromOrders = (orders || []).reduce((sum: number, order: any) => sum + (parseFloat(order.total || '0') || 0), 0);
+  const totalSales = totalSalesFromReturns + totalSalesFromOrders;
+  
+  const totalCommission = filteredReturns.reduce((sum, returnItem) => sum + (Number(returnItem.commission_amount) || 0), 0);
+  const totalTransactions = filteredReturns.length + (orders || []).length;
+  const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
   const conversionRate = filteredMaletas.length > 0 ? (filteredReturns.length / filteredMaletas.length) * 100 : 0;
 
   const exportToCSV = (data: any[], filename: string) => {
