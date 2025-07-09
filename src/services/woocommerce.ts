@@ -967,35 +967,16 @@ class WooCommerceAPI {
       return { webhook: updatedWebhook, secret };
     }
 
-    // Criar novo webhook para cada evento relevante
-    const events = [
-      'order.created',
-      'order.updated', 
-      'order.refunded',
-      'product.updated'
-    ];
+    // Criar novo webhook combinado para todos os eventos relevantes
+    const webhook = await this.createWebhook({
+      name: 'Stock Sync Webhook',
+      status: 'active',
+      topic: 'order.updated',
+      delivery_url: webhookUrl,
+      secret: secret,
+    });
 
-    let createdWebhook: WooCommerceWebhook | null = null;
-
-    for (const event of events) {
-      const webhook = await this.createWebhook({
-        name: `Stock Webhook - ${event}`,
-        status: 'active',
-        topic: event,
-        delivery_url: webhookUrl,
-        secret: secret,
-      });
-
-      if (!createdWebhook) {
-        createdWebhook = webhook;
-      }
-    }
-
-    if (!createdWebhook) {
-      throw new Error('Falha ao criar webhook');
-    }
-
-    return { webhook: createdWebhook, secret };
+    return { webhook, secret };
   }
 }
 
