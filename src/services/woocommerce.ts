@@ -978,6 +978,88 @@ class WooCommerceAPI {
 
     return { webhook, secret };
   }
+
+  // Search functions for POS
+  async searchProducts(search: string): Promise<Product[]> {
+    if (!this.config) {
+      // Busca nos dados mock
+      let products = [...mockProducts] as any[];
+      products = products.filter(p => 
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        p.description.toLowerCase().includes(search.toLowerCase()) ||
+        p.sku.toLowerCase().includes(search.toLowerCase())
+      );
+      return products;
+    }
+
+    const params = new URLSearchParams({
+      per_page: '20',
+      search: search,
+    });
+
+    const products = await this.makeRequest(`products?${params}`);
+    
+    // Para produtos variáveis, buscar as variações
+    const productsWithVariations = await Promise.all(
+      products.map(async (product: Product) => {
+        if (product.type === 'variable') {
+          try {
+            const variations = await this.getProductVariations(product.id);
+            return { ...product, variations };
+          } catch (error) {
+            console.error(`Error fetching variations for product ${product.id}:`, error);
+            return product;
+          }
+        }
+        return product;
+      })
+    );
+
+    return productsWithVariations;
+  }
+
+  async searchProductsBySku(sku: string): Promise<Product[]> {
+    if (!this.config) {
+      // Busca nos dados mock por SKU exato
+      let products = [...mockProducts] as any[];
+      products = products.filter(p => 
+        p.sku?.toLowerCase() === sku.toLowerCase()
+      );
+      return products;
+    }
+
+    const params = new URLSearchParams({
+      per_page: '20',
+      sku: sku, // WooCommerce suporta busca direta por SKU
+    });
+
+    try {
+      console.log(`Buscando por SKU: ${sku}`);
+      const products = await this.makeRequest(`products?${params}`);
+      console.log(`Encontrados ${products.length} produtos com SKU ${sku}`);
+      
+      // Para produtos variáveis, buscar as variações
+      const productsWithVariations = await Promise.all(
+        products.map(async (product: Product) => {
+          if (product.type === 'variable') {
+            try {
+              const variations = await this.getProductVariations(product.id);
+              return { ...product, variations };
+            } catch (error) {
+              console.error(`Error fetching variations for product ${product.id}:`, error);
+              return product;
+            }
+          }
+          return product;
+        })
+      );
+
+      return productsWithVariations;
+    } catch (error) {
+      console.error('Erro na busca por SKU:', error);
+      return [];
+    }
+  }
 }
 
 export const wooCommerceAPI = new WooCommerceAPI();

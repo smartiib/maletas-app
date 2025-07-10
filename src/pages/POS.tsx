@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { useQuery } from '@tanstack/react-query';
 import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
-import { Product } from '@/services/woocommerce';
+import { Product, wooCommerceAPI } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
 import CategorySlider from '@/components/pos/CategorySlider';
@@ -57,7 +58,29 @@ const POS = () => {
   const [notes, setNotes] = useState('');
 
   // Carregar todos os produtos - usa apiSearchTerm para buscar na API apenas quando necessário
-  const { data: products = [], isLoading, error } = useAllProducts(apiSearchTerm);
+  const { data: products = [], isLoading, error } = useQuery({
+    queryKey: ['wc-products', apiSearchTerm],
+    queryFn: async () => {
+      if (!apiSearchTerm) return [];
+      console.log('Fazendo busca na API para:', apiSearchTerm);
+      
+      // Para SKUs (formato com letras seguidas de números), buscar diretamente por SKU
+      const isSKUFormat = /^[A-Z]+\d+$/i.test(apiSearchTerm);
+      if (isSKUFormat) {
+        console.log('Detectado formato SKU, buscando por SKU:', apiSearchTerm);
+        // Busca direta por SKU usando parâmetro sku
+        const skuResults = await wooCommerceAPI.searchProductsBySku(apiSearchTerm);
+        if (skuResults.length > 0) {
+          return skuResults;
+        }
+        // Se não encontrar por SKU exato, busca parcial no search
+        return wooCommerceAPI.searchProducts(apiSearchTerm);
+      }
+      
+      return wooCommerceAPI.searchProducts(apiSearchTerm);
+    },
+    enabled: !!apiSearchTerm,
+  });
   const { data: customers = [] } = useAllCustomers();
   const { data: categoriesData = [] } = useCategories();
   const createOrder = useCreateOrder();
