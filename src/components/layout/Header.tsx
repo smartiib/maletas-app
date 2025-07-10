@@ -89,5 +89,3 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
 };
 
 export default Header;
-
-export default Header;
