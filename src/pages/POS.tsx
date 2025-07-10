@@ -70,15 +70,22 @@ const POS = () => {
     }
   }, []);
 
-  // Debounce para busca - só busca na API após 3 caracteres e com delay
+  // Debounce para busca - busca na API mais rapidamente para SKUs
   useEffect(() => {
+    // Para SKUs (formato com letras seguidas de números), buscar mais rapidamente
+    const isSKUFormat = /^[A-Z]+\d+$/i.test(searchTerm);
+    
     const timer = setTimeout(() => {
-      if (searchTerm.length >= 3) {
+      if (isSKUFormat && searchTerm.length >= 3) {
+        // SKUs buscam imediatamente com 3+ caracteres
+        setApiSearchTerm(searchTerm);
+      } else if (searchTerm.length >= 3) {
+        // Busca normal com delay menor
         setApiSearchTerm(searchTerm);
       } else if (searchTerm.length === 0) {
         setApiSearchTerm('');
       }
-    }, 500); // Aumentando delay para 500ms
+    }, isSKUFormat ? 200 : 300); // Delay menor para SKUs
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
@@ -93,11 +100,15 @@ const POS = () => {
 
   const filteredProducts = products.filter(product => {
     // Filtro de busca local (instantâneo) - busca por nome, SKU do produto e SKUs das variações
+    const searchLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm.length === 0 || 
-                         product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         product.name.toLowerCase().includes(searchLower) ||
+                         product.sku?.toLowerCase().includes(searchLower) ||
+                         // Busca exata por SKU também (para casos como ARO0500)
+                         product.sku?.toLowerCase() === searchLower ||
                          product.variations?.some(variation => 
-                           variation.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+                           variation.sku?.toLowerCase().includes(searchLower) ||
+                           variation.sku?.toLowerCase() === searchLower
                          );
     
     // Filtro de categoria
