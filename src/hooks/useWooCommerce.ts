@@ -14,7 +14,26 @@ export const useProducts = (page = 1, search = '', status = '', category = '') =
 export const useAllProducts = (search = '', status = '', category = '') => {
   return useQuery({
     queryKey: ['all-products', search, status, category],
-    queryFn: () => wooCommerceAPI.getAllProducts(search, status, category),
+    queryFn: async () => {
+      if (!search) {
+        return wooCommerceAPI.getAllProducts('', status, category);
+      }
+      
+      // Para SKUs (formato com letras seguidas de números), buscar diretamente por SKU
+      const isSKUFormat = /^[A-Z]+\d+$/i.test(search);
+      if (isSKUFormat) {
+        console.log('Detectado formato SKU, buscando por SKU:', search);
+        // Busca direta por SKU usando parâmetro sku
+        const skuResults = await wooCommerceAPI.searchProductsBySku(search);
+        if (skuResults.length > 0) {
+          return skuResults;
+        }
+        // Se não encontrar por SKU exato, busca parcial no search
+        return wooCommerceAPI.searchProducts(search);
+      }
+      
+      return wooCommerceAPI.searchProducts(search);
+    },
     enabled: !!wooCommerceAPI.getConfig(),
     staleTime: 30 * 60 * 1000, // 30 minutos
   });
