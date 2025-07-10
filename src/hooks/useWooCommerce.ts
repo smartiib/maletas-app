@@ -19,16 +19,16 @@ export const useAllProducts = (search = '', status = '', category = '') => {
         return wooCommerceAPI.getAllProducts('', status, category);
       }
       
-      // Para SKUs (formato com letras seguidas de números), buscar diretamente por SKU
-      const isSKUFormat = /^[A-Z]+\d+$/i.test(search);
+      // Para SKUs (formato com letras seguidas de números), buscar por SKU parcial também
+      const isSKUFormat = /^[A-Z]+\d*$/i.test(search);
       if (isSKUFormat) {
-        console.log('Detectado formato SKU, buscando por SKU:', search);
-        // Busca direta por SKU usando parâmetro sku
+        console.log('Detectado formato SKU (parcial ou completo), buscando:', search);
+        // Primeiro tenta busca por SKU exato
         const skuResults = await wooCommerceAPI.searchProductsBySku(search);
         if (skuResults.length > 0) {
           return skuResults;
         }
-        // Se não encontrar por SKU exato, busca parcial no search
+        // Se não encontrar exato, busca parcial no search geral (inclui SKUs parciais)
         return wooCommerceAPI.searchProducts(search);
       }
       

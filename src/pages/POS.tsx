@@ -73,11 +73,11 @@ const POS = () => {
   // Debounce para busca - busca na API mais rapidamente para SKUs
   useEffect(() => {
     // Para SKUs (formato com letras seguidas de números), buscar mais rapidamente
-    const isSKUFormat = /^[A-Z]+\d+$/i.test(searchTerm);
+    const isSKUFormat = /^[A-Z]+\d*$/i.test(searchTerm);
     
     const timer = setTimeout(() => {
       if (isSKUFormat && searchTerm.length >= 3) {
-        // SKUs buscam imediatamente com 3+ caracteres
+        // SKUs buscam imediatamente com 3+ caracteres (mesmo parciais)
         setApiSearchTerm(searchTerm);
       } else if (searchTerm.length >= 3) {
         // Busca normal com delay menor
