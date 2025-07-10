@@ -13,6 +13,8 @@ import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
 import CategorySlider from '@/components/pos/CategorySlider';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 interface CartItem extends Product {
   quantity: number;
@@ -387,6 +389,15 @@ const POS = () => {
 
   return (
     <div className="h-full bg-slate-50 dark:bg-slate-900">
+      {/* Ajuda da Página */}
+      <div className="bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700">
+        <PageHelp 
+          title={helpContent.pos.title}
+          description={helpContent.pos.description}
+          helpContent={helpContent.pos}
+        />
+      </div>
+
       {/* Header POS */}
       <div className="bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center justify-between">

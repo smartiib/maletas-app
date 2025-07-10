@@ -10,6 +10,8 @@ import { useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { Order } from '@/services/woocommerce';
 import OrderDialog from '@/components/orders/OrderDialog';
 import OrderDetails from '@/components/orders/OrderDetails';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -122,6 +124,13 @@ const Orders = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.pedidos.title}
+        description={helpContent.pedidos.description}
+        helpContent={helpContent.pedidos}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

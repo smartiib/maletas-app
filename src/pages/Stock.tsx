@@ -5,6 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAllProducts, useCategories } from '@/hooks/useWooCommerce';
 import { Search, Package, Filter } from 'lucide-react';
 import { StockRow } from '@/components/stock/StockRow';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 const Stock = () => {
   const [search, setSearch] = useState('');
@@ -47,6 +49,13 @@ const Stock = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.estoque.title}
+        description={helpContent.estoque.description}
+        helpContent={helpContent.estoque}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Controle de Estoque</h1>

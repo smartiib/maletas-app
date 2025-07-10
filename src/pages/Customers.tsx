@@ -25,6 +25,8 @@ import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCusto
 import CustomerCard from '@/components/customers/CustomerCard';
 import { MoreHorizontal, RefreshCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -236,6 +238,13 @@ const Customers = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.clientes.title}
+        description={helpContent.clientes.description}
+        helpContent={helpContent.clientes}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

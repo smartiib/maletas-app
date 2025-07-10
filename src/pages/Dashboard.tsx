@@ -7,6 +7,8 @@ import QuickActions from '@/components/dashboard/QuickActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useProducts, useOrders, useCustomers } from '@/hooks/useWooCommerce';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 const Dashboard = () => {
   const {
     data: products = []
@@ -84,6 +86,13 @@ const Dashboard = () => {
     sales: 45 - index * 8
   }));
   return <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.dashboard.title}
+        description={helpContent.dashboard.description}
+        helpContent={helpContent.dashboard}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

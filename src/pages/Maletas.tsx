@@ -20,6 +20,8 @@ import MaletaDetailsDialog from '@/components/maletas/MaletaDetailsDialog';
 import MaletaReturnDialog from '@/components/maletas/MaletaReturnDialog';
 import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
 import { supabase } from '@/integrations/supabase/client';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 // Removido import do pdfGenerator - agora usando pdfTemplates
 
 const Maletas = () => {
@@ -264,6 +266,13 @@ const Maletas = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.maletas.title}
+        description={helpContent.maletas.description}
+        helpContent={helpContent.maletas}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

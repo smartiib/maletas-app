@@ -13,6 +13,8 @@ import { useReportsData } from '@/hooks/useReports';
 import ReportsKPI from '@/components/reports/ReportsKPI';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 const Reports = () => {
   const [dateFrom, setDateFrom] = useState('');
@@ -166,6 +168,13 @@ const Reports = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.relatorios.title}
+        description={helpContent.relatorios.description}
+        helpContent={helpContent.relatorios}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

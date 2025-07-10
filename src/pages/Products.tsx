@@ -21,6 +21,8 @@ import { Product } from '@/services/woocommerce';
 import ProductDialog from '@/components/products/ProductDialog';
 import ProductDetails from '@/components/products/ProductDetails';
 import ProductCard from '@/components/products/ProductCard';
+import PageHelp from '@/components/ui/page-help';
+import { helpContent } from '@/data/helpContent';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -180,6 +182,13 @@ const Products = () => {
 
   return (
     <div className="space-y-6">
+      {/* Ajuda da Página */}
+      <PageHelp 
+        title={helpContent.produtos.title}
+        description={helpContent.produtos.description}
+        helpContent={helpContent.produtos}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
