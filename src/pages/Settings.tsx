@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig } from '@/services/woocommerce';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 // Constantes básicas para modo demo
 const PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard', description: 'Acessar dashboard principal' },
@@ -32,6 +34,26 @@ import { Badge } from '@/components/ui/badge';
 
 const Settings = () => {
   const { config, testConnection, saveConfig, isConfigured, webhooks, setupWebhook, deleteWebhook } = useWooCommerceConfig();
+  
+  // Hook para buscar logs de webhook reais
+  const webhookLogs = useQuery({
+    queryKey: ['webhook-logs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('webhook_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (error) {
+        console.error('Error fetching webhook logs:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
   
   // Para desenvolvimento sem autenticação
   const hasPermission = () => true;
@@ -504,35 +526,49 @@ const Settings = () => {
               </div>
               
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Pedido #12345 atualizado</div>
-                    <div className="text-xs text-muted-foreground">
-                      há 2 minutos - Status: processando
-                    </div>
+                {webhookLogs.data && webhookLogs.data.length > 0 ? (
+                  webhookLogs.data.map((log) => {
+                    const eventData = log.event_data as any;
+                    const timeAgo = new Date(log.created_at).toLocaleString('pt-BR');
+                    
+                    let title = 'Evento de Webhook';
+                    let description = timeAgo;
+                    
+                    if (log.event_type === 'order') {
+                      if (eventData?.status) {
+                        title = `Pedido #${eventData.id} ${eventData.status === 'completed' ? 'finalizado' : 'atualizado'}`;
+                        description = `${timeAgo} - Status: ${eventData.status}`;
+                      } else {
+                        title = `Pedido #${eventData?.id || 'N/A'} criado`;
+                        description = `${timeAgo} - Total: R$ ${eventData?.total || '0,00'}`;
+                      }
+                    } else if (log.event_type === 'product') {
+                      title = `Produto #${eventData?.id || 'N/A'} - estoque atualizado`;
+                      description = `${timeAgo} - Novo estoque: ${eventData?.stock_quantity || 0} unidades`;
+                    }
+                    
+                    return (
+                      <div key={log.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="space-y-1">
+                          <div className="text-sm font-medium">{title}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {description}
+                          </div>
+                        </div>
+                        <Badge 
+                          variant={log.status === 'success' ? 'default' : 'destructive'} 
+                          className="text-xs"
+                        >
+                          {log.status === 'success' ? 'Sucesso' : 'Erro'}
+                        </Badge>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    {webhookLogs.isLoading ? 'Carregando logs...' : 'Nenhum log de webhook encontrado'}
                   </div>
-                  <Badge variant="default" className="text-xs">Sucesso</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Produto #98765 - estoque atualizado</div>
-                    <div className="text-xs text-muted-foreground">
-                      há 5 minutos - Novo estoque: 25 unidades
-                    </div>
-                  </div>
-                  <Badge variant="default" className="text-xs">Sucesso</Badge>
-                </div>
-                
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="space-y-1">
-                    <div className="text-sm font-medium">Novo pedido #12344 criado</div>
-                    <div className="text-xs text-muted-foreground">
-                      há 10 minutos - Total: R$ 149,90
-                    </div>
-                  </div>
-                  <Badge variant="default" className="text-xs">Sucesso</Badge>
-                </div>
+                )}
                 
                 <div className="text-center text-xs text-muted-foreground py-2">
                   Mostrando últimas 10 atividades

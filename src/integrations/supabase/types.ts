@@ -401,6 +401,39 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          role: Database["public"]["Enums"]["user_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          name: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       representatives: {
         Row: {
           commission_settings: Json | null
@@ -592,6 +625,36 @@ export type Database = {
           },
         ]
       }
+      user_configurations: {
+        Row: {
+          config_data: Json
+          config_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config_data?: Json
+          config_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config_data?: Json
+          config_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_organizations: {
         Row: {
           created_at: string
@@ -626,6 +689,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_data: Json
+          event_type: string
+          id: string
+          processing_time_ms: number | null
+          response_data: Json | null
+          source_ip: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+          webhook_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_data?: Json
+          event_type: string
+          id?: string
+          processing_time_ms?: number | null
+          response_data?: Json | null
+          source_ip?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          webhook_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_data?: Json
+          event_type?: string
+          id?: string
+          processing_time_ms?: number | null
+          response_data?: Json | null
+          source_ip?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+          webhook_id?: number | null
+        }
+        Relationships: []
       }
     }
     Views: {

@@ -945,7 +945,7 @@ class WooCommerceAPI {
     });
   }
 
-  async setupStockWebhook(): Promise<{ webhook: WooCommerceWebhook; secret: string }> {
+  async setupStockWebhook(): Promise<{ webhooks: WooCommerceWebhook[]; secret: string }> {
     if (!this.config) {
       throw new Error('WooCommerce não configurado');
     }
@@ -953,30 +953,44 @@ class WooCommerceAPI {
     const secret = this.generateWebhookSecret();
     const webhookUrl = 'https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook';
 
-    // Verificar se já existe um webhook para o nosso endpoint
+    // Verificar webhooks existentes
     const existingWebhooks = await this.getWebhooks();
-    const existingWebhook = existingWebhooks.find(w => w.delivery_url === webhookUrl);
+    const webhooks: WooCommerceWebhook[] = [];
 
-    if (existingWebhook) {
-      // Atualizar webhook existente com novo secret
-      const updatedWebhook = await this.updateWebhook(existingWebhook.id!, {
-        status: 'active',
-        secret: secret,
-      });
-      
-      return { webhook: updatedWebhook, secret };
+    // Definir tipos de webhooks necessários
+    const webhookTopics = [
+      { topic: 'order.created', name: 'Stock Webhook - order.created' },
+      { topic: 'order.updated', name: 'Stock Webhook - order.updated' },
+      { topic: 'product.updated', name: 'Stock Webhook - product.updated' }
+    ];
+
+    // Criar ou atualizar cada webhook
+    for (const { topic, name } of webhookTopics) {
+      const existingWebhook = existingWebhooks.find(w => 
+        w.delivery_url === webhookUrl && w.topic === topic
+      );
+
+      if (existingWebhook) {
+        // Atualizar webhook existente
+        const updatedWebhook = await this.updateWebhook(existingWebhook.id!, {
+          status: 'active',
+          secret: secret,
+        });
+        webhooks.push(updatedWebhook);
+      } else {
+        // Criar novo webhook
+        const webhook = await this.createWebhook({
+          name,
+          status: 'active',
+          topic,
+          delivery_url: webhookUrl,
+          secret: secret,
+        });
+        webhooks.push(webhook);
+      }
     }
 
-    // Criar novo webhook combinado para todos os eventos relevantes
-    const webhook = await this.createWebhook({
-      name: 'Stock Sync Webhook',
-      status: 'active',
-      topic: 'order.updated',
-      delivery_url: webhookUrl,
-      secret: secret,
-    });
-
-    return { webhook, secret };
+    return { webhooks, secret };
   }
 
   // Search functions for POS

@@ -325,10 +325,10 @@ export const useWooCommerceConfig = () => {
       }
       wooCommerceAPI.setConfig(config);
       
-      // Após conexão bem-sucedida, criar webhook automaticamente
+      // Após conexão bem-sucedida, criar webhooks automaticamente
       try {
-        const { webhook, secret } = await wooCommerceAPI.setupStockWebhook();
-        console.log('Webhook criado automaticamente:', webhook.id);
+        const { webhooks, secret } = await wooCommerceAPI.setupStockWebhook();
+        console.log('Webhooks criados automaticamente:', webhooks.map(w => w.id));
         
         // Salvar o secret gerado no Supabase via Edge Function
         await fetch('https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/save-webhook-secret', {
@@ -415,12 +415,29 @@ export const useWooCommerceConfig = () => {
   });
 
   const setupWebhook = useMutation({
-    mutationFn: () => wooCommerceAPI.setupStockWebhook(),
+    mutationFn: async () => {
+      const result = await wooCommerceAPI.setupStockWebhook();
+      
+      // Salvar o secret gerado no Supabase
+      try {
+        await fetch('https://umrrcgfsbazjqopaxkoi.supabase.co/functions/v1/save-webhook-secret', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ secret: result.secret }),
+        });
+      } catch (error) {
+        console.error('Erro ao salvar secret do webhook:', error);
+      }
+      
+      return result;
+    },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       toast({
-        title: "Webhook Criado",
-        description: "Webhook configurado com sucesso!",
+        title: "Webhooks Criados",
+        description: `${result.webhooks.length} webhooks configurados com sucesso!`,
       });
     },
     onError: (error) => {

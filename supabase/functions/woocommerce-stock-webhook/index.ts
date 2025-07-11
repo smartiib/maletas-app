@@ -95,6 +95,22 @@ Deno.serve(async (req) => {
     
     console.log('Received webhook for:', payload.id, 'with data:', Object.keys(payload));
 
+    // Log webhook para tracking
+    const { error: logError } = await supabase
+      .from('webhook_logs')
+      .insert({
+        event_type: payload.line_items ? 'order' : 'product',
+        event_data: payload,
+        status: 'received',
+        source_ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
+        user_agent: req.headers.get('user-agent'),
+        webhook_id: payload.id
+      });
+
+    if (logError) {
+      console.error('Error logging webhook:', logError);
+    }
+
     // Validar assinatura do webhook se secret estiver configurado
     const webhookSecret = Deno.env.get('WOOCOMMERCE_WEBHOOK_SECRET');
     const webhookSignature = req.headers.get('X-WC-Webhook-Signature');
@@ -199,7 +215,6 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
             item_sku: item.sku,
             webhook_time: new Date().toISOString()
           }
-        });
 
         if (error) {
           console.error('Error adding stock history:', error);
@@ -207,6 +222,12 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
         } else {
           results.push({ item_id: item.id, success: true, history_id: data });
           console.log(`Stock updated for product ${item.product_id}: ${previousStock} → ${newStock}`);
+          
+          // Log successful processing
+          await supabase.from('webhook_logs').update({
+            status: 'success',
+            processing_time_ms: Date.now() - startTime
+          }).eq('id', logId);
         }
       } catch (error) {
         console.error('Error processing item:', item.id, error);
