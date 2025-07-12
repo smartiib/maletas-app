@@ -215,6 +215,7 @@ async function handleOrderUpdate(supabase: any, payload: WooCommerceWebhookPaylo
             item_sku: item.sku,
             webhook_time: new Date().toISOString()
           }
+        });
 
         if (error) {
           console.error('Error adding stock history:', error);
