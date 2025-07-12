@@ -961,7 +961,10 @@ class WooCommerceAPI {
     const webhookTopics = [
       { topic: 'order.created', name: 'Stock Webhook - order.created' },
       { topic: 'order.updated', name: 'Stock Webhook - order.updated' },
-      { topic: 'product.updated', name: 'Stock Webhook - product.updated' }
+      { topic: 'product.updated', name: 'Stock Webhook - product.updated' },
+      { topic: 'customer.created', name: 'Customer Webhook - customer.created' },
+      { topic: 'customer.updated', name: 'Customer Webhook - customer.updated' },
+      { topic: 'customer.deleted', name: 'Customer Webhook - customer.deleted' }
     ];
 
     // Criar ou atualizar cada webhook

@@ -32,6 +32,17 @@ interface WooCommerceWebhookPayload {
       quantity: number;
     }>;
   }>;
+  // Customer fields
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  username?: string;
+  is_paying_customer?: boolean;
+  avatar_url?: string;
+  orders_count?: number;
+  total_spent?: string;
+  date_last_order?: string;
 }
 
 interface ProcessingResult {
@@ -92,10 +103,20 @@ async function logWebhookEvent(
   req: Request,
   status: string = 'received'
 ) {
+  let eventType = 'unknown';
+  
+  if (payload.line_items) {
+    eventType = 'order';
+  } else if (payload.stock_quantity !== undefined) {
+    eventType = 'product';
+  } else if (payload.email && (payload.first_name || payload.last_name)) {
+    eventType = 'customer';
+  }
+
   const { error } = await supabase
     .from('webhook_logs')
     .insert({
-      event_type: payload.line_items ? 'order' : 'product',
+      event_type: eventType,
       event_data: payload,
       status,
       source_ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
@@ -310,6 +331,87 @@ async function handleProductUpdate(
   }
 }
 
+// Customer processing
+async function handleCustomerUpdate(
+  supabase: any, 
+  payload: WooCommerceWebhookPayload
+): Promise<ProcessingResult> {
+  console.log('Processing customer update:', payload.id, payload.email);
+  
+  try {
+    // Check if customer should be synchronized as representative
+    const shouldSyncAsRepresentative = payload.role === 'customer' && 
+                                     (payload.total_spent && parseFloat(payload.total_spent) > 0 ||
+                                      payload.orders_count && payload.orders_count > 0);
+    
+    if (shouldSyncAsRepresentative && payload.email) {
+      // Check if representative already exists
+      const { data: existingRep, error: repError } = await supabase
+        .from('representatives')
+        .select('id, email')
+        .eq('email', payload.email)
+        .maybeSingle();
+
+      if (repError && repError.code !== 'PGRST116') {
+        console.error('Error checking existing representative:', repError);
+      }
+
+      if (!existingRep) {
+        // Create new representative
+        const { data: newRep, error: createError } = await supabase
+          .from('representatives')
+          .insert({
+            name: `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || payload.email,
+            email: payload.email,
+            total_sales: payload.total_spent ? parseFloat(payload.total_spent) : 0,
+            commission_settings: {
+              use_global: true,
+              custom_rates: [],
+              penalty_rate: 1
+            }
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating representative:', createError);
+        } else {
+          console.log('Created new representative:', newRep.id);
+        }
+      } else {
+        // Update existing representative
+        const { error: updateError } = await supabase
+          .from('representatives')
+          .update({
+            name: `${payload.first_name || ''} ${payload.last_name || ''}`.trim() || payload.email,
+            total_sales: payload.total_spent ? parseFloat(payload.total_spent) : 0
+          })
+          .eq('id', existingRep.id);
+
+        if (updateError) {
+          console.error('Error updating representative:', updateError);
+        } else {
+          console.log('Updated existing representative:', existingRep.id);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      message: `Customer ${payload.id} processed successfully`
+    };
+
+  } catch (error) {
+    console.error('Error processing customer update:', error);
+    
+    return {
+      success: false,
+      message: `Error processing customer ${payload.id}: ${error.message}`,
+      error: error.message
+    };
+  }
+}
+
 // Main webhook handler
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
@@ -366,6 +468,8 @@ Deno.serve(async (req) => {
       result = await handleOrderUpdate(supabase, payload);
     } else if (payload.stock_quantity !== undefined) {
       result = await handleProductUpdate(supabase, payload);
+    } else if (payload.email && (payload.first_name || payload.last_name)) {
+      result = await handleCustomerUpdate(supabase, payload);
     } else {
       console.log('Unknown webhook payload structure');
       result = { 
