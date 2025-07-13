@@ -1,4 +1,7 @@
 project_id = "umrrchfsbazjqopaxkoi"
 
+[functions.generate-pdf]
+verify_jwt = false
+
 [functions.save-webhook-secret]
 verify_jwt = false

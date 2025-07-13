@@ -107,43 +107,60 @@ serve(async (req) => {
       commission_tiers: maleta.commission_settings?.use_global ? maleta.commission_settings?.tiers : null
     }
 
-    // Renderizar template simples (sem Handlebars por simplicidade)
+    // Processar template com substituições melhoradas
     let htmlContent = template.html_template
+    
+    console.log('Processando template com dados:', templateData_final)
     
     // Substituir variáveis básicas
     Object.entries(templateData_final).forEach(([key, value]) => {
       if (typeof value === 'string' || typeof value === 'number') {
-        htmlContent = htmlContent.replace(new RegExp(`{{${key}}}`, 'g'), String(value))
+        const regex = new RegExp(`{{${key}}}`, 'g')
+        htmlContent = htmlContent.replace(regex, String(value))
       }
     })
 
-    // Tratar items (simplificado)
-    if (templateData_final.items.length > 0) {
+    // Processar loop de items
+    const itemsMatch = htmlContent.match(/{{#each items}}([\s\S]*?){{\/each}}/s)
+    if (itemsMatch && templateData_final.items.length > 0) {
+      const itemTemplate = itemsMatch[1]
       let itemsHtml = ''
-      templateData_final.items.forEach((item: any) => {
-        itemsHtml += `
-          <tr>
-            <td>${item.index}</td>
-            <td>${item.sku}</td>
-            <td>${item.name}</td>
-            <td>${item.quantity}</td>
-            <td>R$ ${item.price}</td>
-          </tr>
-        `
+      
+      templateData_final.items.forEach((item: any, index: number) => {
+        let itemHtml = itemTemplate
+        itemHtml = itemHtml.replace(/{{@index}}/g, String(index + 1))
+        itemHtml = itemHtml.replace(/{{sku}}/g, item.sku)
+        itemHtml = itemHtml.replace(/{{name}}/g, item.name)
+        itemHtml = itemHtml.replace(/{{quantity}}/g, String(item.quantity))
+        itemHtml = itemHtml.replace(/{{price}}/g, item.price)
+        itemsHtml += itemHtml
       })
-      htmlContent = htmlContent.replace(/{{#each items}}.*?{{\/each}}/s, itemsHtml)
+      
+      htmlContent = htmlContent.replace(/{{#each items}}[\s\S]*?{{\/each}}/s, itemsHtml)
     }
 
-    // Tratar commission_tiers
-    if (templateData_final.commission_tiers) {
-      let tiersHtml = ''
-      templateData_final.commission_tiers.forEach((tier: any) => {
-        tiersHtml += `<p>${tier.label}: De R$ ${tier.min_amount},00 a R$ ${tier.max_amount || '∞'} = ${tier.percentage}% + R$ ${tier.bonus},00</p>`
-      })
-      htmlContent = htmlContent.replace(/{{#if commission_tiers}}.*?{{else}}.*?{{\/if}}/s, tiersHtml)
-    } else {
-      const customCommission = `<p>Comissão personalizada: ${templateData_final.commission_percentage}%</p>`
-      htmlContent = htmlContent.replace(/{{#if commission_tiers}}.*?{{else}}(.*?){{\/if}}/s, customCommission)
+    // Processar condicional de commission_tiers
+    const commissionMatch = htmlContent.match(/{{#if commission_tiers}}([\s\S]*?){{else}}([\s\S]*?){{\/if}}/s)
+    if (commissionMatch) {
+      if (templateData_final.commission_tiers) {
+        const tiersTemplate = commissionMatch[1]
+        let tiersHtml = ''
+        
+        templateData_final.commission_tiers.forEach((tier: any) => {
+          let tierHtml = tiersTemplate
+          tierHtml = tierHtml.replace(/{{label}}/g, tier.label)
+          tierHtml = tierHtml.replace(/{{min_amount}}/g, String(tier.min_amount))
+          tierHtml = tierHtml.replace(/{{max_amount}}/g, tier.max_amount ? String(tier.max_amount) : '∞')
+          tierHtml = tierHtml.replace(/{{percentage}}/g, String(tier.percentage))
+          tierHtml = tierHtml.replace(/{{bonus}}/g, String(tier.bonus))
+          tiersHtml += tierHtml
+        })
+        
+        htmlContent = htmlContent.replace(/{{#if commission_tiers}}[\s\S]*?{{\/if}}/s, tiersHtml)
+      } else {
+        const elseTemplate = commissionMatch[2]
+        htmlContent = htmlContent.replace(/{{#if commission_tiers}}[\s\S]*?{{\/if}}/s, elseTemplate)
+      }
     }
 
     // Criar HTML completo
