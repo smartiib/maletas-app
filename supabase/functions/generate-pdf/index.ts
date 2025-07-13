@@ -8,15 +8,40 @@ interface PdfRequest {
 }
 
 serve(async (req) => {
+  console.log('=== PDF Generation Function Started ===')
+  console.log('Request method:', req.method)
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()))
+
   // Handle CORS
   if (req.method === 'OPTIONS') {
+    console.log('Handling CORS preflight request')
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { maleta_id, template_type = 'romaneio' }: PdfRequest = await req.json()
+    console.log('Parsing request body...')
+    const requestBody = await req.text()
+    console.log('Raw request body:', requestBody)
+    
+    let parsedBody
+    try {
+      parsedBody = JSON.parse(requestBody)
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError)
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+    
+    const { maleta_id, template_type = 'romaneio' }: PdfRequest = parsedBody
+    console.log('Extracted params:', { maleta_id, template_type })
 
     if (!maleta_id) {
+      console.error('Missing maleta_id parameter')
       return new Response(
         JSON.stringify({ error: 'maleta_id é obrigatório' }),
         { 
@@ -28,8 +53,13 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    
+    console.log('Environment check:')
+    console.log('SUPABASE_URL exists:', !!supabaseUrl)
+    console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!supabaseKey)
 
     // Buscar dados da maleta
+    console.log('Fetching maleta data for ID:', maleta_id)
     const maletaResponse = await fetch(`${supabaseUrl}/rest/v1/maletas?id=eq.${maleta_id}&select=*,maleta_items(*),representatives(*)`, {
       headers: {
         'Authorization': `Bearer ${supabaseKey}`,
@@ -39,14 +69,19 @@ serve(async (req) => {
     })
     
     console.log('Maleta response status:', maletaResponse.status)
+    console.log('Maleta response headers:', Object.fromEntries(maletaResponse.headers.entries()))
 
     if (!maletaResponse.ok) {
-      throw new Error('Erro ao buscar dados da maleta')
+      const errorText = await maletaResponse.text()
+      console.error('Maleta fetch error:', errorText)
+      throw new Error(`Erro ao buscar dados da maleta: ${errorText}`)
     }
 
     const maletaData = await maletaResponse.json()
+    console.log('Maleta data:', JSON.stringify(maletaData, null, 2))
     
     if (!maletaData || maletaData.length === 0) {
+      console.error('No maleta found with ID:', maleta_id)
       return new Response(
         JSON.stringify({ error: 'Maleta não encontrada' }),
         { 
@@ -57,8 +92,10 @@ serve(async (req) => {
     }
 
     const maleta = maletaData[0]
+    console.log('Selected maleta:', JSON.stringify(maleta, null, 2))
 
     // Buscar template de PDF
+    console.log('Fetching PDF template for type:', template_type)
     const templateResponse = await fetch(`${supabaseUrl}/rest/v1/pdf_templates?type=eq.${template_type}&is_active=eq.true&is_default=eq.true&select=*`, {
       headers: {
         'Authorization': `Bearer ${supabaseKey}`,
@@ -70,12 +107,16 @@ serve(async (req) => {
     console.log('Template response status:', templateResponse.status)
 
     if (!templateResponse.ok) {
-      throw new Error('Erro ao buscar template de PDF')
+      const errorText = await templateResponse.text()
+      console.error('Template fetch error:', errorText)
+      throw new Error(`Erro ao buscar template de PDF: ${errorText}`)
     }
 
     const templateData = await templateResponse.json()
+    console.log('Template data:', JSON.stringify(templateData, null, 2))
     
     if (!templateData || templateData.length === 0) {
+      console.error('No template found for type:', template_type)
       return new Response(
         JSON.stringify({ error: 'Template de PDF não encontrado' }),
         { 
@@ -181,46 +222,79 @@ serve(async (req) => {
 
     // Gerar PDF usando Puppeteer
     console.log('Iniciando geração de PDF com Puppeteer...')
+    console.log('HTML length:', fullHtml.length)
     
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    })
+    let browser
+    try {
+      browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
+          '--disable-gpu'
+        ]
+      })
+      console.log('Browser launched successfully')
+      
+      const page = await browser.newPage()
+      console.log('New page created')
+      
+      // Configurar a página para A4
+      await page.setContent(fullHtml, { waitUntil: 'networkidle0' })
+      console.log('Content set successfully')
+      
+      // Gerar PDF
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20mm',
+          right: '15mm',
+          bottom: '20mm',
+          left: '15mm'
+        }
+      })
+      console.log('PDF generated successfully, size:', pdfBuffer.length)
+      
+      await browser.close()
+      console.log('Browser closed')
     
-    const page = await browser.newPage()
-    
-    // Configurar a página para A4
-    await page.setContent(fullHtml, { waitUntil: 'networkidle0' })
-    
-    // Gerar PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20mm',
-        right: '15mm',
-        bottom: '20mm',
-        left: '15mm'
+      console.log('PDF gerado com sucesso!')
+      
+      // Retornar PDF como resposta
+      return new Response(pdfBuffer, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Maleta-${maleta.number}-Romaneio.pdf"`
+        }
+      })
+    } catch (puppeteerError) {
+      console.error('Puppeteer error:', puppeteerError)
+      if (browser) {
+        await browser.close()
       }
-    })
-    
-    await browser.close()
-    
-    console.log('PDF gerado com sucesso!')
-    
-    // Retornar PDF como resposta
-    return new Response(pdfBuffer, {
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="Maleta-${maleta.number}-Romaneio.pdf"`
-      }
-    })
+      throw new Error(`Erro no Puppeteer: ${puppeteerError.message}`)
+    }
 
   } catch (error) {
-    console.error('Erro ao gerar PDF:', error)
+    console.error('=== PDF Generation Error ===')
+    console.error('Error name:', error.name)
+    console.error('Error message:', error.message)
+    console.error('Error stack:', error.stack)
+    console.error('Full error object:', error)
+    
     return new Response(
-      JSON.stringify({ error: 'Erro interno do servidor' }),
+      JSON.stringify({ 
+        error: 'Erro interno do servidor',
+        details: error.message,
+        name: error.name
+      }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
