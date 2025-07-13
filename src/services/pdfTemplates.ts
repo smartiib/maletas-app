@@ -52,24 +52,37 @@ export class PdfTemplateService {
   }
 
   static async generatePdf(maleta_id: string, template_type: string = 'romaneio') {
-    const response = await supabase.functions.invoke('generate-pdf', {
-      body: { 
-        maleta_id,
-        template_type
+    console.log('PdfTemplateService.generatePdf called with:', { maleta_id, template_type });
+    
+    try {
+      const response = await supabase.functions.invoke('generate-pdf', {
+        body: { 
+          maleta_id,
+          template_type
+        }
+      });
+
+      console.log('Supabase function response:', {
+        error: response.error,
+        data: response.data ? 'Data received' : 'No data',
+        dataType: response.data ? typeof response.data : 'undefined'
+      });
+
+      if (response.error) {
+        console.error('Erro detalhado da edge function:', response.error);
+        throw new Error(`Erro ao gerar PDF: ${response.error.message || 'Erro desconhecido'}`);
       }
-    });
 
-    if (response.error) {
-      console.error('Erro na edge function:', response.error);
-      throw new Error(`Erro ao gerar PDF: ${response.error.message}`);
+      if (!response.data) {
+        throw new Error('Nenhum dado retornado pela função de geração de PDF');
+      }
+
+      // A response.data agora contém o PDF como ArrayBuffer
+      return response.data;
+    } catch (error) {
+      console.error('Erro completo no PdfTemplateService:', error);
+      throw error;
     }
-
-    if (!response.data) {
-      throw new Error('Nenhum dado retornado pela função de geração de PDF');
-    }
-
-    // A response.data agora contém o PDF como ArrayBuffer
-    return response.data;
   }
 
   static async createTemplate(template: Omit<PdfTemplate, 'id' | 'created_at' | 'updated_at'>) {
