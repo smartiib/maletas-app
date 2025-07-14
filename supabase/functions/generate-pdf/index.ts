@@ -163,14 +163,14 @@ serve(async (req) => {
       doc.setDrawColor(0, 0, 0)
       doc.setLineWidth(0.1)
       doc.rect(20, yPos, 15, 8) // ID
-      doc.rect(35, yPos, 25, 8) // Código
-      doc.rect(60, yPos, 80, 8) // Descrição
+      doc.rect(35, yPos, 25, 8) // Codigo
+      doc.rect(60, yPos, 80, 8) // Descricao
       doc.rect(140, yPos, 25, 8) // Quantidade
       doc.rect(165, yPos, 25, 8) // Valor
       
       doc.text('ID', 25, yPos + 5)
-      doc.text('Código', 40, yPos + 5)
-      doc.text('Descrição', 65, yPos + 5)
+      doc.text('Codigo', 40, yPos + 5)
+      doc.text('Descricao', 65, yPos + 5)
       doc.text('Quantidade', 145, yPos + 5)
       doc.text('Valor', 170, yPos + 5)
       yPos += 8
@@ -184,8 +184,8 @@ serve(async (req) => {
         
         // Row borders
         doc.rect(20, yPos, 15, 8) // ID
-        doc.rect(35, yPos, 25, 8) // Código
-        doc.rect(60, yPos, 80, 8) // Descrição
+        doc.rect(35, yPos, 25, 8) // Codigo
+        doc.rect(60, yPos, 80, 8) // Descricao
         doc.rect(140, yPos, 25, 8) // Quantidade
         doc.rect(165, yPos, 25, 8) // Valor
         
@@ -220,46 +220,49 @@ serve(async (req) => {
       yPos += 5
       doc.text(templateData_final.representative_name, 20, yPos)
       
-      // Commission section - Left column
+      // Footer section - All in single column with smaller font (30% smaller)
       yPos += 20
-      doc.setFontSize(9)
-      doc.text('Comissao de vendas', 20, yPos)
-      yPos += 6
-      doc.text('Ate R$ 500,00 - Varejo (0%)', 20, yPos)
-      yPos += 4
-      doc.text('De R$ 200,00 a R$ 1.500,00 - 20% = R$ 50,00', 20, yPos)
-      yPos += 4
-      doc.text('De R$ 1.500,01 a R$ 3.000,00 - 30% = R$ 150,00', 20, yPos)
-      yPos += 4
-      doc.text('Acima de R$ 3.000,00 - 40% = R$ 200,00', 20, yPos)
-      yPos += 6
-      doc.text('Bonus especial', 20, yPos)
-      yPos += 4
-      doc.text('A revendedora que alcancar o primeiro lugar no mes podera escolher', 20, yPos)
-      yPos += 4
-      doc.text('qualquer peca da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
-      yPos += 4
-      doc.text('para ter o beneficio.', 20, yPos)
+      doc.setFontSize(6) // Reduced from 9 to 6 (about 30% smaller)
+      const lineSpacing = 3 // Compact line spacing
       
-      // Right column indicators - Reset yPos to align with left column
-      let rightYPos = 244 // Start at same level as commission section
-      doc.text('Indicacao de revendedoras', 120, rightYPos)
-      rightYPos += 4
-      doc.text('Quem indica uma nova revendedora e ficar responsavel por ela ganhara 10%', 120, rightYPos)
-      rightYPos += 4
-      doc.text('sobre tudo o que ela vender. Essa e uma unica oportunidade para aumentar', 120, rightYPos)
-      rightYPos += 4
-      doc.text('seus ganhos!', 120, rightYPos)
-      rightYPos += 6
-      doc.text('Metas', 120, rightYPos)
-      rightYPos += 4
-      doc.text('Acima = Pagamento integral', 120, rightYPos)
-      rightYPos += 4
-      doc.text('1 dia de atraso - -1%', 120, rightYPos)
-      rightYPos += 4
-      doc.text('2 dias de atraso - -2%', 120, rightYPos)
-      rightYPos += 4
-      doc.text('3 dias de atraso - -3% ... e assim por diante.', 120, rightYPos)
+      doc.text('Comissao de vendas', 20, yPos)
+      yPos += lineSpacing
+      doc.text('Ate R$ 500,00 - Varejo (0%)', 20, yPos)
+      yPos += lineSpacing
+      doc.text('De R$ 200,00 a R$ 1.500,00 - 20% = R$ 50,00', 20, yPos)
+      yPos += lineSpacing
+      doc.text('De R$ 1.500,01 a R$ 3.000,00 - 30% = R$ 150,00', 20, yPos)
+      yPos += lineSpacing
+      doc.text('Acima de R$ 3.000,00 - 40% = R$ 200,00', 20, yPos)
+      yPos += lineSpacing + 1
+      
+      doc.text('Bonus especial', 20, yPos)
+      yPos += lineSpacing
+      doc.text('A revendedora que alcancar o primeiro lugar no mes podera escolher', 20, yPos)
+      yPos += lineSpacing
+      doc.text('qualquer peca da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
+      yPos += lineSpacing
+      doc.text('para ter o beneficio.', 20, yPos)
+      yPos += lineSpacing + 1
+      
+      doc.text('Indicacao de revendedoras', 20, yPos)
+      yPos += lineSpacing
+      doc.text('Quem indica uma nova revendedora e ficar responsavel por ela ganhara 10%', 20, yPos)
+      yPos += lineSpacing
+      doc.text('sobre tudo o que ela vender. Essa e uma unica oportunidade para aumentar', 20, yPos)
+      yPos += lineSpacing
+      doc.text('seus ganhos!', 20, yPos)
+      yPos += lineSpacing + 1
+      
+      doc.text('Metas', 20, yPos)
+      yPos += lineSpacing
+      doc.text('Acima = Pagamento integral', 20, yPos)
+      yPos += lineSpacing
+      doc.text('1 dia de atraso - -1%', 20, yPos)
+      yPos += lineSpacing
+      doc.text('2 dias de atraso - -2%', 20, yPos)
+      yPos += lineSpacing
+      doc.text('3 dias de atraso - -3% ... e assim por diante.', 20, yPos)
       
       console.log('PDF document created successfully')
       
