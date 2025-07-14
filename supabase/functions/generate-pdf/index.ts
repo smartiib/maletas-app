@@ -107,7 +107,6 @@ serve(async (req) => {
   price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
   total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
 })),
-
       total_value: parseFloat(maleta.total_value || '0').toFixed(2).replace('.', ','),
       total_items: (maleta.maleta_items || []).reduce((sum: number, item: any) => sum + parseInt(item.quantity || '0'), 0),
       current_date: new Date().toLocaleDateString('pt-BR')
