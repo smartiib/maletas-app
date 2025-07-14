@@ -9,6 +9,13 @@ interface PdfRequest {
   maleta_id: string;
   template_type?: string;
 }
+function decodeUTF8(str: string): string {
+  try {
+    return decodeURIComponent(escape(str))
+  } catch {
+    return str
+  }
+}
 
 serve(async (req) => {
   console.log('=== PDF Generation Function Started ===')
@@ -94,11 +101,13 @@ serve(async (req) => {
       departure_date: maleta.departure_date ? new Date(maleta.departure_date).toLocaleDateString('pt-BR') : 'N/A',
       return_date: maleta.return_date ? new Date(maleta.return_date).toLocaleDateString('pt-BR') : 'N/A',
       items: (maleta.maleta_items || []).map((item: any, index: number) => ({
-        ...item,
-        index: index + 1,
-        price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
-        total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
-      })),
+  ...item,
+  index: index + 1,
+  name: decodeUTF8(item.name || ''),
+  price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
+  total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
+})),
+
       total_value: parseFloat(maleta.total_value || '0').toFixed(2).replace('.', ','),
       total_items: (maleta.maleta_items || []).reduce((sum: number, item: any) => sum + parseInt(item.quantity || '0'), 0),
       current_date: new Date().toLocaleDateString('pt-BR')
