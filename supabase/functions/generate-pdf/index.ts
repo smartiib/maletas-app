@@ -11,11 +11,13 @@ interface PdfRequest {
 }
 function decodeUTF8(str: string): string {
   try {
-    return decodeURIComponent(escape(str))
+    const encoded = new TextEncoder().encode(str)
+    return new TextDecoder('utf-8').decode(encoded)
   } catch {
     return str
   }
 }
+
 
 serve(async (req) => {
   console.log('=== PDF Generation Function Started ===')
