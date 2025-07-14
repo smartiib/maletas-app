@@ -9,35 +9,29 @@ interface PdfRequest {
   template_type?: string;
 }
 
-// Função corrigida para lidar com codificação UTF-8 específica
-function decodeUTF8(str: string): string {
+// Função seletiva para corrigir apenas strings com problemas de codificação
+function fixUTF8OnlyIfNeeded(str: string): string {
   try {
     if (typeof str !== 'string') return String(str);
     
-    // Verifica se a string contém caracteres mal codificados
+    // Só aplica correção se a string contém caracteres mal codificados
     if (str.includes('ï¿½')) {
       // Mapeia os caracteres problemáticos conhecidos para suas versões corretas
       const charMap: { [key: string]: string } = {
-        'ï¿½ï¿½o': 'ão',
-        'ï¿½ï¿½': 'ã',
-        'Pï¿½': 'Pé',
-        'Zircï¿½': 'Zircô',
         'Inspiraï¿½ï¿½o': 'Inspiração',
         'Coraï¿½ï¿½o': 'Coração',
-        'rolas': 'rolas', // Para "Pérolas"
-        'nias': 'nias'    // Para "Zircônias"
+        'Pï¿½rolas': 'Pérolas',
+        'Zircï¿½nias': 'Zircônias',
+        'ï¿½ï¿½o': 'ão',
+        'ï¿½ï¿½': 'ã'
       };
       
       let result = str;
       
-      // Aplica as correções específicas primeiro
+      // Aplica as correções específicas
       for (const [wrong, correct] of Object.entries(charMap)) {
         result = result.replace(new RegExp(wrong, 'g'), correct);
       }
-      
-      // Correções específicas adicionais
-      result = result.replace(/Pï¿½rolas/g, 'Pérolas');
-      result = result.replace(/Zircï¿½nias/g, 'Zircônias');
       
       // Remove qualquer ï¿½ restante
       result = result.replace(/ï¿½/g, '');
@@ -45,29 +39,10 @@ function decodeUTF8(str: string): string {
       return result;
     }
     
+    // Se não tem problemas de codificação, retorna a string original
     return str;
   } catch {
     return str;
-  }
-}
-
-// Função adicional para garantir que o texto está em UTF-8 válido
-function ensureUTF8(text: string): string {
-  if (!text) return '';
-  
-  try {
-    // Primeiro aplica a correção específica
-    let corrected = decodeUTF8(text);
-    
-    // Normaliza o texto para garantir codificação consistente
-    corrected = corrected.normalize('NFC');
-    
-    // Remove caracteres de controle inválidos
-    corrected = corrected.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
-    
-    return corrected;
-  } catch {
-    return text;
   }
 }
 
@@ -148,17 +123,19 @@ serve(async (req) => {
 
     console.log('Step 6: Preparing template data...')
     const templateData_final = {
-      maleta_number: ensureUTF8(maleta.number || 'N/A'),
-      representative_name: ensureUTF8(maleta.representatives?.name || 'N/A'),
-      representative_email: ensureUTF8(maleta.representatives?.email || 'N/A'),
-      representative_phone: ensureUTF8(maleta.representatives?.phone || 'N/A'),
+      // Não aplica correção em dados que já estão corretos
+      maleta_number: maleta.number || 'N/A',
+      representative_name: maleta.representatives?.name || 'N/A',
+      representative_email: maleta.representatives?.email || 'N/A',
+      representative_phone: maleta.representatives?.phone || 'N/A',
       departure_date: maleta.departure_date ? new Date(maleta.departure_date).toLocaleDateString('pt-BR') : 'N/A',
       return_date: maleta.return_date ? new Date(maleta.return_date).toLocaleDateString('pt-BR') : 'N/A',
       items: (maleta.maleta_items || []).map((item: any, index: number) => ({
         ...item,
         index: index + 1,
-        name: ensureUTF8(item.name || ''),
-        sku: ensureUTF8(item.sku || ''),
+        // Aplica correção apenas nos nomes dos produtos que podem ter problemas
+        name: fixUTF8OnlyIfNeeded(item.name || ''),
+        sku: item.sku || '', // SKU geralmente não tem problemas de codificação
         price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
         total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
       })),
