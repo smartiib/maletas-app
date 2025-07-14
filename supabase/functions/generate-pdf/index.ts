@@ -114,11 +114,12 @@ serve(async (req) => {
       const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
-        format: 'a4'
+        format: 'a4',
+        putOnlyUsedFonts: true
       })
       
       // Set font to support Portuguese characters
-      doc.setFont('helvetica')
+      doc.setFont('helvetica', 'normal')
       
       // Header - Romaneio title
       doc.setFontSize(18)
@@ -132,21 +133,21 @@ serve(async (req) => {
       yPos += 6
       doc.text(`E-mail: ${templateData_final.representative_email}`, 20, yPos)
       yPos += 6
-      doc.text('WhatsApp: Não informado', 20, yPos)
+      doc.text('WhatsApp: Nao informado', 20, yPos)
       yPos += 6
-      doc.text(`Data Início: ${templateData_final.departure_date}`, 20, yPos)
+      doc.text(`Data Inicio: ${templateData_final.departure_date}`, 20, yPos)
       yPos += 6
-      doc.text(`Data Devolução: ${templateData_final.return_date}`, 20, yPos)
+      doc.text(`Data Devolucao: ${templateData_final.return_date}`, 20, yPos)
       
       // Right column - Company info
       yPos = 45
-      doc.text('Riê Joias', 120, yPos)
+      doc.text('Rie Joias', 120, yPos)
       yPos += 6
       doc.text('(11) 99116-0623 - contato@userie.com.br', 120, yPos)
       yPos += 6
       doc.text('Rua Pedro Calmon, 61 - Bela Vista', 120, yPos)
       yPos += 6
-      doc.text('Santo André - SP - CEP: 09040-140', 120, yPos)
+      doc.text('Santo Andre - SP - CEP: 09040-140', 120, yPos)
       yPos += 6
       doc.text('54.740.743/0001-27', 120, yPos)
       yPos += 6
@@ -219,46 +220,46 @@ serve(async (req) => {
       yPos += 5
       doc.text(templateData_final.representative_name, 20, yPos)
       
-      // Commission section
+      // Commission section - Left column
       yPos += 20
       doc.setFontSize(9)
-      doc.text('Comissão de vendas', 20, yPos)
+      doc.text('Comissao de vendas', 20, yPos)
       yPos += 6
-      doc.text('Até R$ 500,00 → Varejo (0%)', 20, yPos)
+      doc.text('Ate R$ 500,00 - Varejo (0%)', 20, yPos)
       yPos += 4
-      doc.text('De R$ 200,00 a R$ 1.500,00 → 20% = R$ 50,00', 20, yPos)
+      doc.text('De R$ 200,00 a R$ 1.500,00 - 20% = R$ 50,00', 20, yPos)
       yPos += 4
-      doc.text('De R$ 1.500,01 a R$ 3.000,00 → 30% = R$ 150,00', 20, yPos)
+      doc.text('De R$ 1.500,01 a R$ 3.000,00 - 30% = R$ 150,00', 20, yPos)
       yPos += 4
-      doc.text('Acima de R$ 3.000,00 → 40% = R$ 200,00', 20, yPos)
+      doc.text('Acima de R$ 3.000,00 - 40% = R$ 200,00', 20, yPos)
       yPos += 6
-      doc.text('Bônus especial', 20, yPos)
+      doc.text('Bonus especial', 20, yPos)
       yPos += 4
-      doc.text('A revendedora que alcançar o primeiro lugar no mês poderá escolher', 20, yPos)
+      doc.text('A revendedora que alcancar o primeiro lugar no mes podera escolher', 20, yPos)
       yPos += 4
-      doc.text('qualquer peça da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
+      doc.text('qualquer peca da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
       yPos += 4
-      doc.text('para ter o benefício.', 20, yPos)
+      doc.text('para ter o beneficio.', 20, yPos)
       
-      // Right side indicators
-      yPos = yPos - 30
-      doc.text('Indicação de revendedoras', 120, yPos)
-      yPos += 4
-      doc.text('Quem indica uma nova revendedora e ficar responsável por ela ganhará 10%', 120, yPos)
-      yPos += 4
-      doc.text('sobre tudo o que ela vender. Essa é uma única oportunidade para aumentar', 120, yPos)
-      yPos += 4
-      doc.text('seus ganhos!', 120, yPos)
-      yPos += 6
-      doc.text('Metas', 120, yPos)
-      yPos += 4
-      doc.text('Acima = Pagamento integral', 120, yPos)
-      yPos += 4
-      doc.text('1 dia de atraso → -1%', 120, yPos)
-      yPos += 4
-      doc.text('2 dias de atraso → -2%', 120, yPos)
-      yPos += 4
-      doc.text('3 dias de atraso → -3% ... e assim por diante.', 120, yPos)
+      // Right column indicators - Reset yPos to align with left column
+      let rightYPos = 244 // Start at same level as commission section
+      doc.text('Indicacao de revendedoras', 120, rightYPos)
+      rightYPos += 4
+      doc.text('Quem indica uma nova revendedora e ficar responsavel por ela ganhara 10%', 120, rightYPos)
+      rightYPos += 4
+      doc.text('sobre tudo o que ela vender. Essa e uma unica oportunidade para aumentar', 120, rightYPos)
+      rightYPos += 4
+      doc.text('seus ganhos!', 120, rightYPos)
+      rightYPos += 6
+      doc.text('Metas', 120, rightYPos)
+      rightYPos += 4
+      doc.text('Acima = Pagamento integral', 120, rightYPos)
+      rightYPos += 4
+      doc.text('1 dia de atraso - -1%', 120, rightYPos)
+      rightYPos += 4
+      doc.text('2 dias de atraso - -2%', 120, rightYPos)
+      rightYPos += 4
+      doc.text('3 dias de atraso - -3% ... e assim por diante.', 120, rightYPos)
       
       console.log('PDF document created successfully')
       
