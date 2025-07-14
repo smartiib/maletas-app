@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from '../_shared/cors.ts'
 
@@ -9,15 +8,68 @@ interface PdfRequest {
   maleta_id: string;
   template_type?: string;
 }
+
+// Função corrigida para lidar com codificação UTF-8 específica
 function decodeUTF8(str: string): string {
   try {
-    const encoded = new TextEncoder().encode(str)
-    return new TextDecoder('utf-8').decode(encoded)
+    if (typeof str !== 'string') return String(str);
+    
+    // Verifica se a string contém caracteres mal codificados
+    if (str.includes('ï¿½')) {
+      // Mapeia os caracteres problemáticos conhecidos para suas versões corretas
+      const charMap: { [key: string]: string } = {
+        'ï¿½ï¿½o': 'ão',
+        'ï¿½ï¿½': 'ã',
+        'Pï¿½': 'Pé',
+        'Zircï¿½': 'Zircô',
+        'Inspiraï¿½ï¿½o': 'Inspiração',
+        'Coraï¿½ï¿½o': 'Coração',
+        'rolas': 'rolas', // Para "Pérolas"
+        'nias': 'nias'    // Para "Zircônias"
+      };
+      
+      let result = str;
+      
+      // Aplica as correções específicas primeiro
+      for (const [wrong, correct] of Object.entries(charMap)) {
+        result = result.replace(new RegExp(wrong, 'g'), correct);
+      }
+      
+      // Correções específicas adicionais
+      result = result.replace(/Pï¿½rolas/g, 'Pérolas');
+      result = result.replace(/Zircï¿½nias/g, 'Zircônias');
+      
+      // Remove qualquer ï¿½ restante
+      result = result.replace(/ï¿½/g, '');
+      
+      return result;
+    }
+    
+    return str;
   } catch {
-    return str
+    return str;
   }
 }
 
+// Função adicional para garantir que o texto está em UTF-8 válido
+function ensureUTF8(text: string): string {
+  if (!text) return '';
+  
+  try {
+    // Primeiro aplica a correção específica
+    let corrected = decodeUTF8(text);
+    
+    // Normaliza o texto para garantir codificação consistente
+    corrected = corrected.normalize('NFC');
+    
+    // Remove caracteres de controle inválidos
+    corrected = corrected.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+    
+    return corrected;
+  } catch {
+    return text;
+  }
+}
 
 serve(async (req) => {
   console.log('=== PDF Generation Function Started ===')
@@ -96,25 +148,27 @@ serve(async (req) => {
 
     console.log('Step 6: Preparing template data...')
     const templateData_final = {
-      maleta_number: maleta.number || 'N/A',
-      representative_name: maleta.representatives?.name || 'N/A',
-      representative_email: maleta.representatives?.email || 'N/A',
-      representative_phone: maleta.representatives?.phone || 'N/A',
+      maleta_number: ensureUTF8(maleta.number || 'N/A'),
+      representative_name: ensureUTF8(maleta.representatives?.name || 'N/A'),
+      representative_email: ensureUTF8(maleta.representatives?.email || 'N/A'),
+      representative_phone: ensureUTF8(maleta.representatives?.phone || 'N/A'),
       departure_date: maleta.departure_date ? new Date(maleta.departure_date).toLocaleDateString('pt-BR') : 'N/A',
       return_date: maleta.return_date ? new Date(maleta.return_date).toLocaleDateString('pt-BR') : 'N/A',
       items: (maleta.maleta_items || []).map((item: any, index: number) => ({
-  ...item,
-  index: index + 1,
-  name: decodeUTF8(item.name || ''),
-  price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
-  total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
-})),
+        ...item,
+        index: index + 1,
+        name: ensureUTF8(item.name || ''),
+        sku: ensureUTF8(item.sku || ''),
+        price: parseFloat(item.price || '0').toFixed(2).replace('.', ','),
+        total: (parseFloat(item.price || '0') * parseInt(item.quantity || '0')).toFixed(2).replace('.', ',')
+      })),
       total_value: parseFloat(maleta.total_value || '0').toFixed(2).replace('.', ','),
       total_items: (maleta.maleta_items || []).reduce((sum: number, item: any) => sum + parseInt(item.quantity || '0'), 0),
       current_date: new Date().toLocaleDateString('pt-BR')
     }
 
     console.log('Template data prepared - items count:', templateData_final.items.length)
+    console.log('Sample item name after processing:', templateData_final.items[0]?.name)
 
     console.log('Step 8: Generating PDF...')
     
@@ -143,11 +197,11 @@ serve(async (req) => {
       yPos += 6
       doc.text(`E-mail: ${templateData_final.representative_email}`, 20, yPos)
       yPos += 6
-      doc.text('WhatsApp: Nao informado', 20, yPos)
+      doc.text('WhatsApp: Não informado', 20, yPos)
       yPos += 6
-      doc.text(`Data Inicio: ${templateData_final.departure_date}`, 20, yPos)
+      doc.text(`Data Início: ${templateData_final.departure_date}`, 20, yPos)
       yPos += 6
-      doc.text(`Data Devolucao: ${templateData_final.return_date}`, 20, yPos)
+      doc.text(`Data Devolução: ${templateData_final.return_date}`, 20, yPos)
       
       // Right column - Company info
       yPos = 45
@@ -157,7 +211,7 @@ serve(async (req) => {
       yPos += 6
       doc.text('Rua Pedro Calmon, 61 - Bela Vista', 120, yPos)
       yPos += 6
-      doc.text('Santo Andre - SP - CEP: 09040-140', 120, yPos)
+      doc.text('Santo André - SP - CEP: 09040-140', 120, yPos)
       yPos += 6
       doc.text('54.740.743/0001-27', 120, yPos)
       yPos += 6
@@ -179,8 +233,8 @@ serve(async (req) => {
       doc.rect(165, yPos, 25, 8) // Valor
       
       doc.text('ID', 25, yPos + 5)
-      doc.text('Codigo', 40, yPos + 5)
-      doc.text('Descricao', 65, yPos + 5)
+      doc.text('Código', 40, yPos + 5)
+      doc.text('Descrição', 65, yPos + 5)
       doc.text('Quantidade', 145, yPos + 5)
       doc.text('Valor', 170, yPos + 5)
       yPos += 8
@@ -202,7 +256,7 @@ serve(async (req) => {
         doc.text(String(index + 1), 25, yPos + 5)
         doc.text(item.sku || '', 37, yPos + 5)
         
-        // Handle long product names
+        // Handle long product names com codificação correta
         const productName = item.name || ''
         if (productName.length > 35) {
           doc.text(productName.substring(0, 32) + '...', 62, yPos + 5)
@@ -235,9 +289,9 @@ serve(async (req) => {
       doc.setFontSize(6) // Reduced from 9 to 6 (about 30% smaller)
       const lineSpacing = 3 // Compact line spacing
       
-      doc.text('Comissao de vendas', 20, yPos)
+      doc.text('Comissão de vendas', 20, yPos)
       yPos += lineSpacing
-      doc.text('Ate R$ 500,00 - Varejo (0%)', 20, yPos)
+      doc.text('Até R$ 500,00 - Varejo (0%)', 20, yPos)
       yPos += lineSpacing
       doc.text('De R$ 200,00 a R$ 1.500,00 - 20% = R$ 50,00', 20, yPos)
       yPos += lineSpacing
@@ -246,20 +300,20 @@ serve(async (req) => {
       doc.text('Acima de R$ 3.000,00 - 40% = R$ 200,00', 20, yPos)
       yPos += lineSpacing + 1
       
-      doc.text('Bonus especial', 20, yPos)
+      doc.text('Bônus especial', 20, yPos)
       yPos += lineSpacing
-      doc.text('A revendedora que alcancar o primeiro lugar no mes podera escolher', 20, yPos)
+      doc.text('A revendedora que alcançar o primeiro lugar no mês poderá escolher', 20, yPos)
       yPos += lineSpacing
-      doc.text('qualquer peca da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
+      doc.text('qualquer peça da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
       yPos += lineSpacing
-      doc.text('para ter o beneficio.', 20, yPos)
+      doc.text('para ter o benefício.', 20, yPos)
       yPos += lineSpacing + 1
       
-      doc.text('Indicacao de revendedoras', 20, yPos)
+      doc.text('Indicação de revendedoras', 20, yPos)
       yPos += lineSpacing
-      doc.text('Quem indica uma nova revendedora e ficar responsavel por ela ganhara 10%', 20, yPos)
+      doc.text('Quem indica uma nova revendedora e ficar responsável por ela ganhará 10%', 20, yPos)
       yPos += lineSpacing
-      doc.text('sobre tudo o que ela vender. Essa e uma unica oportunidade para aumentar', 20, yPos)
+      doc.text('sobre tudo o que ela vender. Essa é uma única oportunidade para aumentar', 20, yPos)
       yPos += lineSpacing
       doc.text('seus ganhos!', 20, yPos)
       yPos += lineSpacing + 1
@@ -312,3 +366,4 @@ serve(async (req) => {
     )
   }
 })
+
