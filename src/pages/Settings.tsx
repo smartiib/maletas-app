@@ -60,10 +60,19 @@ const Settings = () => {
   const commissionQuery = useQuery({
     queryKey: ['commission-settings'],
     queryFn: async () => {
+      // Pegar o usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error('Usuário não autenticado');
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('user_configurations')
         .select('*')
         .eq('config_type', 'commission_settings')
+        .eq('user_id', user.id)
         .single();
       
       if (error && error.code !== 'PGRST116') {
@@ -96,11 +105,17 @@ const Settings = () => {
   // Mutation para salvar configurações de comissão
   const saveCommissionSettings = useMutation({
     mutationFn: async (settings: any) => {
-      const userId = '00000000-0000-0000-0000-000000000001'; // ID fixo para demo
+      // Pegar o usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
       const { data, error } = await supabase
         .from('user_configurations')
         .upsert({
-          user_id: userId,
+          user_id: user.id,
           config_type: 'commission_settings',
           config_data: settings,
           is_active: true,
