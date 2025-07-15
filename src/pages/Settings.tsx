@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig } from '@/services/woocommerce';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 // Constantes básicas para modo demo
 const PERMISSIONS = [
   { key: 'dashboard', label: 'Dashboard', description: 'Acessar dashboard principal' },
@@ -53,6 +54,106 @@ const Settings = () => {
       return data || [];
     },
     refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
+
+  // Hook para buscar configurações de comissão
+  const commissionQuery = useQuery({
+    queryKey: ['commission-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_configurations')
+        .select('*')
+        .eq('config_type', 'commission_settings')
+        .single();
+      
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching commission settings:', error);
+        return null;
+      }
+      
+      return data;
+    },
+  });
+
+  // Hook para buscar níveis de comissão
+  const commissionTiersQuery = useQuery({
+    queryKey: ['commission-tiers'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('commission_tiers')
+        .select('*')
+        .order('min_amount', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching commission tiers:', error);
+        return [];
+      }
+      
+      return data || [];
+    },
+  });
+
+  // Mutation para salvar configurações de comissão
+  const saveCommissionSettings = useMutation({
+    mutationFn: async (settings: any) => {
+      const userId = '00000000-0000-0000-0000-000000000001'; // ID fixo para demo
+      const { data, error } = await supabase
+        .from('user_configurations')
+        .upsert({
+          user_id: userId,
+          config_type: 'commission_settings',
+          config_data: settings,
+          is_active: true,
+        }, {
+          onConflict: 'user_id,config_type'
+        });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Configurações de Comissão",
+        description: "Configurações salvas com sucesso!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar configurações: " + error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation para salvar níveis de comissão
+  const saveCommissionTiers = useMutation({
+    mutationFn: async (tiers: any[]) => {
+      // Primeiro, deletar todos os níveis existentes
+      await supabase.from('commission_tiers').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      // Inserir novos níveis
+      const { data, error } = await supabase
+        .from('commission_tiers')
+        .insert(tiers);
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      commissionTiersQuery.refetch();
+      toast({
+        title: "Níveis de Comissão",
+        description: "Níveis de comissão atualizados com sucesso!",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar níveis de comissão: " + error.message,
+        variant: "destructive",
+      });
+    },
   });
   
   // Para desenvolvimento sem autenticação
@@ -103,6 +204,22 @@ const Settings = () => {
 
   const [rolePermissions, setRolePermissions] = useState(ROLE_PERMISSIONS);
 
+  // Estados para configurações de comissão
+  const [commissionSettings, setCommissionSettings] = useState({
+    penaltyRate: 1.0,
+    monthlyBonusThreshold: 1000,
+    referralCommissionRate: 10
+  });
+
+  const [commissionTiers, setCommissionTiers] = useState([
+    { label: 'Varejo', min_amount: 0, max_amount: 200, percentage: 0, bonus: 0 },
+    { label: 'Nível 1', min_amount: 200, max_amount: 1500, percentage: 20, bonus: 50 },
+    { label: 'Nível 2', min_amount: 1500, max_amount: 3000, percentage: 30, bonus: 100 },
+    { label: 'Nível 3', min_amount: 3000, max_amount: null, percentage: 40, bonus: 200 }
+  ]);
+
+  const { toast } = useToast();
+
   // Carregar configurações existentes
   useEffect(() => {
     if (config) {
@@ -130,6 +247,25 @@ const Settings = () => {
       setEmailSettings(JSON.parse(savedEmailSettings));
     }
   }, [config]);
+
+  // Carregar configurações de comissão da base de dados
+  useEffect(() => {
+    if (commissionQuery.data) {
+      const configData = commissionQuery.data.config_data as any;
+      setCommissionSettings({
+        penaltyRate: configData.penaltyRate || 1.0,
+        monthlyBonusThreshold: configData.monthlyBonusThreshold || 1000,
+        referralCommissionRate: configData.referralCommissionRate || 10
+      });
+    }
+  }, [commissionQuery.data]);
+
+  // Carregar níveis de comissão da base de dados
+  useEffect(() => {
+    if (commissionTiersQuery.data && commissionTiersQuery.data.length > 0) {
+      setCommissionTiers(commissionTiersQuery.data);
+    }
+  }, [commissionTiersQuery.data]);
 
   const handleStoreSettingsSave = () => {
     localStorage.setItem('store_settings', JSON.stringify(storeSettings));
@@ -205,6 +341,57 @@ const Settings = () => {
     setTimeout(() => {
       logger.success('Teste de Email', 'Configuração SMTP válida');
     }, 1000);
+  };
+
+  // Handlers para configurações de comissão
+  const handleCommissionSettingsSave = () => {
+    saveCommissionSettings.mutate(commissionSettings);
+  };
+
+  const handleCommissionTiersSave = () => {
+    const tierData = commissionTiers.map(tier => ({
+      label: tier.label,
+      min_amount: tier.min_amount,
+      max_amount: tier.max_amount,
+      percentage: tier.percentage,
+      bonus: tier.bonus,
+      is_active: true
+    }));
+    saveCommissionTiers.mutate(tierData);
+  };
+
+  const handleCommissionSettingsAndTiersSave = () => {
+    handleCommissionSettingsSave();
+    handleCommissionTiersSave();
+  };
+
+  const handleRestoreCommissionDefaults = () => {
+    const defaultSettings = {
+      penaltyRate: 1.0,
+      monthlyBonusThreshold: 1000,
+      referralCommissionRate: 10
+    };
+    
+    const defaultTiers = [
+      { label: 'Varejo', min_amount: 0, max_amount: 200, percentage: 0, bonus: 0 },
+      { label: 'Nível 1', min_amount: 200, max_amount: 1500, percentage: 20, bonus: 50 },
+      { label: 'Nível 2', min_amount: 1500, max_amount: 3000, percentage: 30, bonus: 100 },
+      { label: 'Nível 3', min_amount: 3000, max_amount: null, percentage: 40, bonus: 200 }
+    ];
+    
+    setCommissionSettings(defaultSettings);
+    setCommissionTiers(defaultTiers);
+    
+    toast({
+      title: "Configurações Restauradas",
+      description: "Configurações de comissão restauradas para valores padrão",
+    });
+  };
+
+  const handleTierChange = (index: number, field: keyof typeof commissionTiers[0], value: any) => {
+    const newTiers = [...commissionTiers];
+    newTiers[index] = { ...newTiers[index], [field]: value };
+    setCommissionTiers(newTiers);
   };
 
   if (!hasPermission()) {
@@ -837,6 +1024,11 @@ const Settings = () => {
                 step="0.1"
                 min="0"
                 max="10"
+                value={commissionSettings.penaltyRate}
+                onChange={(e) => setCommissionSettings({
+                  ...commissionSettings,
+                  penaltyRate: parseFloat(e.target.value) || 0
+                })}
               />
               <p className="text-xs text-slate-500 mt-1">
                 Percentual descontado da comissão por dia de atraso na devolução
@@ -853,6 +1045,11 @@ const Settings = () => {
                 placeholder="1000.00"
                 step="0.01"
                 min="0"
+                value={commissionSettings.monthlyBonusThreshold}
+                onChange={(e) => setCommissionSettings({
+                  ...commissionSettings,
+                  monthlyBonusThreshold: parseFloat(e.target.value) || 0
+                })}
               />
               <p className="text-xs text-slate-500 mt-1">
                 Valor mínimo de vendas mensais para ser elegível ao bônus
@@ -870,6 +1067,11 @@ const Settings = () => {
                 step="0.1"
                 min="0"
                 max="50"
+                value={commissionSettings.referralCommissionRate}
+                onChange={(e) => setCommissionSettings({
+                  ...commissionSettings,
+                  referralCommissionRate: parseFloat(e.target.value) || 0
+                })}
               />
               <p className="text-xs text-slate-500 mt-1">
                 Percentual da comissão sobre vendas de representantes indicados
@@ -881,32 +1083,52 @@ const Settings = () => {
           <div>
             <Label className="text-sm font-medium mb-3 block">Níveis de Comissão</Label>
             <div className="space-y-4">
-              {[
-                { label: 'Varejo', min: 0, max: 200, percentage: 0, bonus: 0 },
-                { label: 'Nível 1', min: 200, max: 1500, percentage: 20, bonus: 50 },
-                { label: 'Nível 2', min: 1500, max: 3000, percentage: 30, bonus: 100 },
-                { label: 'Nível 3', min: 3000, max: null, percentage: 40, bonus: 200 }
-              ].map((tier, index) => (
+              {commissionTiers.map((tier, index) => (
                 <div key={index} className="grid grid-cols-5 gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <div>
                     <Label className="text-xs text-slate-500">Nível</Label>
-                    <Input value={tier.label} readOnly className="text-sm" />
+                    <Input 
+                      value={tier.label} 
+                      onChange={(e) => handleTierChange(index, 'label', e.target.value)}
+                      className="text-sm" 
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-slate-500">Min (R$)</Label>
-                    <Input type="number" defaultValue={tier.min} className="text-sm" />
+                    <Input 
+                      type="number" 
+                      value={tier.min_amount} 
+                      onChange={(e) => handleTierChange(index, 'min_amount', parseFloat(e.target.value) || 0)}
+                      className="text-sm" 
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-slate-500">Max (R$)</Label>
-                    <Input type="number" defaultValue={tier.max || ''} className="text-sm" placeholder="Ilimitado" />
+                    <Input 
+                      type="number" 
+                      value={tier.max_amount || ''} 
+                      onChange={(e) => handleTierChange(index, 'max_amount', e.target.value ? parseFloat(e.target.value) : null)}
+                      className="text-sm" 
+                      placeholder="Ilimitado" 
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-slate-500">Comissão (%)</Label>
-                    <Input type="number" defaultValue={tier.percentage} className="text-sm" />
+                    <Input 
+                      type="number" 
+                      value={tier.percentage} 
+                      onChange={(e) => handleTierChange(index, 'percentage', parseFloat(e.target.value) || 0)}
+                      className="text-sm" 
+                    />
                   </div>
                   <div>
                     <Label className="text-xs text-slate-500">Bônus (R$)</Label>
-                    <Input type="number" defaultValue={tier.bonus} className="text-sm" />
+                    <Input 
+                      type="number" 
+                      value={tier.bonus} 
+                      onChange={(e) => handleTierChange(index, 'bonus', parseFloat(e.target.value) || 0)}
+                      className="text-sm" 
+                    />
                   </div>
                 </div>
               ))}
@@ -914,10 +1136,17 @@ const Settings = () => {
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button className="bg-gradient-primary">
-              Salvar Configurações
+            <Button 
+              className="bg-gradient-primary"
+              onClick={handleCommissionSettingsAndTiersSave}
+              disabled={saveCommissionSettings.isPending || saveCommissionTiers.isPending}
+            >
+              {(saveCommissionSettings.isPending || saveCommissionTiers.isPending) ? 'Salvando...' : 'Salvar Configurações'}
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={handleRestoreCommissionDefaults}
+            >
               Restaurar Padrão
             </Button>
           </div>
