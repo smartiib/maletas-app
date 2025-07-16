@@ -195,16 +195,32 @@ serve(async (req) => {
         // Handle long product names with proper UTF-8 encoding
         let productName = item.name || ''
         console.log('Original product name:', productName)
+        console.log('Product name char codes:', [...productName].map(c => c.charCodeAt(0)))
         
-        // Fix UTF-8 encoding issues - more comprehensive approach
+        // Try to fix UTF-8 encoding issues using TextDecoder approach
+        try {
+          // First try to encode as latin1 then decode as utf8
+          const bytes = new Uint8Array([...productName].map(c => c.charCodeAt(0) & 0xFF))
+          const decoder = new TextDecoder('utf-8', { fatal: false })
+          const decoded = decoder.decode(bytes)
+          console.log('Decoded attempt:', decoded)
+          
+          if (decoded && decoded !== productName && !decoded.includes('�')) {
+            productName = decoded
+          }
+        } catch (e) {
+          console.log('TextDecoder failed:', e)
+        }
+        
+        // Fallback to manual replacements for common corrupted patterns
         productName = productName
-          // Fix double-encoded UTF-8 sequences
+          // Fix the specific pattern from the user's example
           .replace(/ï¿½ï¿½o/g, 'ção')
-          .replace(/ï¿½ï¿½a/g, 'ção')
+          .replace(/ï¿½ï¿½a/g, 'ção') 
           .replace(/ï¿½ï¿½e/g, 'ção')
           .replace(/ï¿½ï¿½/g, 'ã')
           .replace(/ï¿½/g, 'ã')
-          // Fix other common corrupted sequences
+          // Double-encoded UTF-8 sequences
           .replace(/Ã¡/g, 'á')
           .replace(/Ã©/g, 'é')
           .replace(/Ã­/g, 'í')
@@ -216,16 +232,15 @@ serve(async (req) => {
           .replace(/Ã´/g, 'ô')
           .replace(/Ã§/g, 'ç')
           .replace(/Ã±/g, 'ñ')
-          .replace(/ÃƒÂ¡/g, 'á')
-          .replace(/ÃƒÂ©/g, 'é')
-          .replace(/ÃƒÂ­/g, 'í')
-          .replace(/ÃƒÂ³/g, 'ó')
-          .replace(/ÃƒÂº/g, 'ú')
-          .replace(/ÃƒÂ /g, 'à')
-          .replace(/ÃƒÂ¢/g, 'â')
-          .replace(/ÃƒÂª/g, 'ê')
-          .replace(/ÃƒÂ´/g, 'ô')
-          .replace(/ÃƒÂ§/g, 'ç')
+          .replace(/Ã£/g, 'ã')
+          .replace(/Ãµ/g, 'õ')
+          .replace(/Ã¼/g, 'ü')
+          .replace(/Ã­/g, 'í')
+          .replace(/Ã¨/g, 'è')
+          .replace(/Ã¬/g, 'ì')
+          .replace(/Ã²/g, 'ò')
+          .replace(/Ã¹/g, 'ù')
+          // Capital letters
           .replace(/Ã\x81/g, 'Á')
           .replace(/Ã\x89/g, 'É')
           .replace(/Ã\x8D/g, 'Í')
