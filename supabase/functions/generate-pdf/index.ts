@@ -194,9 +194,17 @@ serve(async (req) => {
         
         // Handle long product names with proper UTF-8 encoding
         let productName = item.name || ''
-        // Fix UTF-8 encoding issues by replacing common corrupted characters
+        console.log('Original product name:', productName)
+        
+        // Fix UTF-8 encoding issues - more comprehensive approach
         productName = productName
+          // Fix double-encoded UTF-8 sequences
+          .replace(/ï¿½ï¿½o/g, 'ção')
+          .replace(/ï¿½ï¿½a/g, 'ção')
+          .replace(/ï¿½ï¿½e/g, 'ção')
+          .replace(/ï¿½ï¿½/g, 'ã')
           .replace(/ï¿½/g, 'ã')
+          // Fix other common corrupted sequences
           .replace(/Ã¡/g, 'á')
           .replace(/Ã©/g, 'é')
           .replace(/Ã­/g, 'í')
@@ -208,8 +216,28 @@ serve(async (req) => {
           .replace(/Ã´/g, 'ô')
           .replace(/Ã§/g, 'ç')
           .replace(/Ã±/g, 'ñ')
-          .replace(/Ã/g, 'Ã')
-          .replace(/Ã‡/g, 'Ç')
+          .replace(/ÃƒÂ¡/g, 'á')
+          .replace(/ÃƒÂ©/g, 'é')
+          .replace(/ÃƒÂ­/g, 'í')
+          .replace(/ÃƒÂ³/g, 'ó')
+          .replace(/ÃƒÂº/g, 'ú')
+          .replace(/ÃƒÂ /g, 'à')
+          .replace(/ÃƒÂ¢/g, 'â')
+          .replace(/ÃƒÂª/g, 'ê')
+          .replace(/ÃƒÂ´/g, 'ô')
+          .replace(/ÃƒÂ§/g, 'ç')
+          .replace(/Ã\x81/g, 'Á')
+          .replace(/Ã\x89/g, 'É')
+          .replace(/Ã\x8D/g, 'Í')
+          .replace(/Ã\x93/g, 'Ó')
+          .replace(/Ã\x9A/g, 'Ú')
+          .replace(/Ã\x80/g, 'À')
+          .replace(/Ã\x82/g, 'Â')
+          .replace(/Ã\x8A/g, 'Ê')
+          .replace(/Ã\x94/g, 'Ô')
+          .replace(/Ã\x87/g, 'Ç')
+          
+        console.log('Fixed product name:', productName)
         
         if (productName.length > 35) {
           doc.text(productName.substring(0, 32) + '...', 62, yPos + 5)
