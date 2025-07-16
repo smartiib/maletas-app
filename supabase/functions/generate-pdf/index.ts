@@ -108,18 +108,20 @@ serve(async (req) => {
 
     console.log('Step 8: Generating PDF...')
     
-    // Generate PDF using jsPDF
-    try {
-      console.log('Creating PDF document...')
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4',
-        putOnlyUsedFonts: true
-      })
-      
-      // Set font to support Portuguese characters
-      doc.setFont('helvetica', 'normal')
+      // Generate PDF using jsPDF
+      try {
+        console.log('Creating PDF document...')
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4',
+          putOnlyUsedFonts: true
+        })
+        
+        // Set font to support Portuguese characters and configure encoding
+        doc.setFont('helvetica', 'normal')
+        doc.setCharSpace(0)
+        doc.setFontSize(10)
       
       // Header - Romaneio title
       doc.setFontSize(18)
@@ -192,67 +194,36 @@ serve(async (req) => {
         doc.text(String(index + 1), 25, yPos + 5)
         doc.text(item.sku || '', 37, yPos + 5)
         
-        // Handle long product names with proper UTF-8 encoding
+        // Handle product names - normalize for PDF compatibility
         let productName = item.name || ''
         console.log('Original product name:', productName)
         console.log('Product name char codes:', [...productName].map(c => c.charCodeAt(0)))
         
-        // Try to fix UTF-8 encoding issues using TextDecoder approach
-        try {
-          // First try to encode as latin1 then decode as utf8
-          const bytes = new Uint8Array([...productName].map(c => c.charCodeAt(0) & 0xFF))
-          const decoder = new TextDecoder('utf-8', { fatal: false })
-          const decoded = decoder.decode(bytes)
-          console.log('Decoded attempt:', decoded)
-          
-          if (decoded && decoded !== productName && !decoded.includes('�')) {
-            productName = decoded
-          }
-        } catch (e) {
-          console.log('TextDecoder failed:', e)
+        // Normalize characters for jsPDF compatibility
+        function normalizeForPDF(str: string): string {
+          return str
+            .normalize('NFD') // Decompose combined characters
+            .replace(/[\u0300-\u036f]/g, '') // Remove combining characters
+            .replace(/[àáâãäå]/g, 'a')
+            .replace(/[ÀÁÂÃÄÅ]/g, 'A')
+            .replace(/[èéêë]/g, 'e')
+            .replace(/[ÈÉÊË]/g, 'E')
+            .replace(/[ìíîï]/g, 'i')
+            .replace(/[ÌÍÎÏ]/g, 'I')
+            .replace(/[òóôõö]/g, 'o')
+            .replace(/[ÒÓÔÕÖ]/g, 'O')
+            .replace(/[ùúûü]/g, 'u')
+            .replace(/[ÙÚÛÜ]/g, 'U')
+            .replace(/[ç]/g, 'c')
+            .replace(/[Ç]/g, 'C')
+            .replace(/[ñ]/g, 'n')
+            .replace(/[Ñ]/g, 'N')
+            .replace(/[ý]/g, 'y')
+            .replace(/[Ý]/g, 'Y')
         }
         
-        // Fallback to manual replacements for common corrupted patterns
-        productName = productName
-          // Fix the specific pattern from the user's example
-          .replace(/ï¿½ï¿½o/g, 'ção')
-          .replace(/ï¿½ï¿½a/g, 'ção') 
-          .replace(/ï¿½ï¿½e/g, 'ção')
-          .replace(/ï¿½ï¿½/g, 'ã')
-          .replace(/ï¿½/g, 'ã')
-          // Double-encoded UTF-8 sequences
-          .replace(/Ã¡/g, 'á')
-          .replace(/Ã©/g, 'é')
-          .replace(/Ã­/g, 'í')
-          .replace(/Ã³/g, 'ó')
-          .replace(/Ãº/g, 'ú')
-          .replace(/Ã /g, 'à')
-          .replace(/Ã¢/g, 'â')
-          .replace(/Ãª/g, 'ê')
-          .replace(/Ã´/g, 'ô')
-          .replace(/Ã§/g, 'ç')
-          .replace(/Ã±/g, 'ñ')
-          .replace(/Ã£/g, 'ã')
-          .replace(/Ãµ/g, 'õ')
-          .replace(/Ã¼/g, 'ü')
-          .replace(/Ã­/g, 'í')
-          .replace(/Ã¨/g, 'è')
-          .replace(/Ã¬/g, 'ì')
-          .replace(/Ã²/g, 'ò')
-          .replace(/Ã¹/g, 'ù')
-          // Capital letters
-          .replace(/Ã\x81/g, 'Á')
-          .replace(/Ã\x89/g, 'É')
-          .replace(/Ã\x8D/g, 'Í')
-          .replace(/Ã\x93/g, 'Ó')
-          .replace(/Ã\x9A/g, 'Ú')
-          .replace(/Ã\x80/g, 'À')
-          .replace(/Ã\x82/g, 'Â')
-          .replace(/Ã\x8A/g, 'Ê')
-          .replace(/Ã\x94/g, 'Ô')
-          .replace(/Ã\x87/g, 'Ç')
-          
-        console.log('Fixed product name:', productName)
+        productName = normalizeForPDF(productName)
+        console.log('Normalized product name:', productName)
         
         if (productName.length > 35) {
           doc.text(productName.substring(0, 32) + '...', 62, yPos + 5)
