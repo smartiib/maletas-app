@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { corsHeaders } from '../_shared/cors.ts'
 
-// Import jsPDF from CDN for PDF generation
+// Import jsPDF from CDN for PDF generation with UTF-8 support
 import jsPDF from 'https://cdn.skypack.dev/jspdf@2.5.1'
 
 interface PdfRequest {
@@ -122,6 +122,48 @@ serve(async (req) => {
         doc.setFont('helvetica', 'normal')
         doc.setCharSpace(0)
         doc.setFontSize(10)
+        
+        // Function to properly encode text for jsPDF
+        function encodeTextForPDF(text: string): string {
+          // First, decode any double-encoded UTF-8 sequences
+          let cleanText = text
+          
+          // Common double-encoded patterns
+          const fixes = [
+            ['Ã§', 'ç'],
+            ['Ã£', 'ã'],
+            ['Ã¡', 'á'],
+            ['Ã©', 'é'],
+            ['Ã­', 'í'],
+            ['Ã³', 'ó'],
+            ['Ãº', 'ú'],
+            ['Ã¢', 'â'],
+            ['Ãª', 'ê'],
+            ['Ã´', 'ô'],
+            ['Ã ', 'à'],
+            ['Ã¨', 'è'],
+            ['Ã¬', 'ì'],
+            ['Ã²', 'ò'],
+            ['Ã¹', 'ù'],
+            ['Ã§Ã£o', 'ção'],
+            ['Ã§Ã£', 'ção'],
+            ['Ã§Ã¡', 'ção'],
+            ['Ã§Ã¨', 'ção'],
+            ['Ã§Ã¯', 'ção'],
+            ['Ã§Ã¢', 'ção'],
+            ['Ã§Ã±', 'ção'],
+            ['Ã§Ã´', 'ção'],
+            ['Ã§Ã¨', 'ção'],
+            ['Ã§Ã¦', 'ção'],
+          ]
+          
+          fixes.forEach(([wrong, correct]) => {
+            cleanText = cleanText.replace(new RegExp(wrong, 'g'), correct)
+          })
+          
+          // Ensure the text is properly encoded for jsPDF
+          return cleanText
+        }
       
       // Header - Romaneio title
       doc.setFontSize(18)
@@ -131,15 +173,15 @@ serve(async (req) => {
       // Left column - Consultant info
       doc.setFontSize(10)
       let yPos = 45
-      doc.text(`Consultor(a): ${templateData_final.representative_name}`, 20, yPos)
+      doc.text(`Consultor(a): ${encodeTextForPDF(templateData_final.representative_name)}`, 20, yPos)
       yPos += 6
-      doc.text(`E-mail: ${templateData_final.representative_email}`, 20, yPos)
+      doc.text(`E-mail: ${encodeTextForPDF(templateData_final.representative_email)}`, 20, yPos)
       yPos += 6
-      doc.text('WhatsApp: Nao informado', 20, yPos)
+      doc.text('WhatsApp: Não informado', 20, yPos)
       yPos += 6
-      doc.text(`Data Inicio: ${templateData_final.departure_date}`, 20, yPos)
+      doc.text(`Data Início: ${templateData_final.departure_date}`, 20, yPos)
       yPos += 6
-      doc.text(`Data Devolucao: ${templateData_final.return_date}`, 20, yPos)
+      doc.text(`Data Devolução: ${templateData_final.return_date}`, 20, yPos)
       
       // Right column - Company info
       yPos = 45
@@ -149,7 +191,7 @@ serve(async (req) => {
       yPos += 6
       doc.text('Rua Pedro Calmon, 61 - Bela Vista', 120, yPos)
       yPos += 6
-      doc.text('Santo Andre - SP - CEP: 09040-140', 120, yPos)
+      doc.text('Santo André - SP - CEP: 09040-140', 120, yPos)
       yPos += 6
       doc.text('54.740.743/0001-27', 120, yPos)
       yPos += 6
@@ -171,8 +213,8 @@ serve(async (req) => {
       doc.rect(165, yPos, 25, 8) // Valor
       
       doc.text('ID', 25, yPos + 5)
-      doc.text('Codigo', 40, yPos + 5)
-      doc.text('Descricao', 65, yPos + 5)
+      doc.text('Código', 40, yPos + 5)
+      doc.text('Descrição', 65, yPos + 5)
       doc.text('Quantidade', 145, yPos + 5)
       doc.text('Valor', 170, yPos + 5)
       yPos += 8
@@ -194,36 +236,14 @@ serve(async (req) => {
         doc.text(String(index + 1), 25, yPos + 5)
         doc.text(item.sku || '', 37, yPos + 5)
         
-        // Handle product names - normalize for PDF compatibility
+        // Handle product names - fix encoding issues while preserving accents
         let productName = item.name || ''
         console.log('Original product name:', productName)
         console.log('Product name char codes:', [...productName].map(c => c.charCodeAt(0)))
         
-        // Normalize characters for jsPDF compatibility
-        function normalizeForPDF(str: string): string {
-          return str
-            .normalize('NFD') // Decompose combined characters
-            .replace(/[\u0300-\u036f]/g, '') // Remove combining characters
-            .replace(/[àáâãäå]/g, 'a')
-            .replace(/[ÀÁÂÃÄÅ]/g, 'A')
-            .replace(/[èéêë]/g, 'e')
-            .replace(/[ÈÉÊË]/g, 'E')
-            .replace(/[ìíîï]/g, 'i')
-            .replace(/[ÌÍÎÏ]/g, 'I')
-            .replace(/[òóôõö]/g, 'o')
-            .replace(/[ÒÓÔÕÖ]/g, 'O')
-            .replace(/[ùúûü]/g, 'u')
-            .replace(/[ÙÚÛÜ]/g, 'U')
-            .replace(/[ç]/g, 'c')
-            .replace(/[Ç]/g, 'C')
-            .replace(/[ñ]/g, 'n')
-            .replace(/[Ñ]/g, 'N')
-            .replace(/[ý]/g, 'y')
-            .replace(/[Ý]/g, 'Y')
-        }
-        
-        productName = normalizeForPDF(productName)
-        console.log('Normalized product name:', productName)
+        // Fix encoding issues and preserve accents
+        productName = encodeTextForPDF(productName)
+        console.log('Fixed product name:', productName)
         
         if (productName.length > 35) {
           doc.text(productName.substring(0, 32) + '...', 62, yPos + 5)
@@ -249,16 +269,16 @@ serve(async (req) => {
       yPos += 20
       doc.line(20, yPos, 80, yPos)
       yPos += 5
-      doc.text(templateData_final.representative_name, 20, yPos)
+      doc.text(encodeTextForPDF(templateData_final.representative_name), 20, yPos)
       
       // Footer section - All in single column with smaller font (30% smaller)
       yPos += 20
       doc.setFontSize(6) // Reduced from 9 to 6 (about 30% smaller)
       const lineSpacing = 3 // Compact line spacing
       
-      doc.text('Comissao de vendas', 20, yPos)
+      doc.text('Comissão de vendas', 20, yPos)
       yPos += lineSpacing
-      doc.text('Ate R$ 500,00 - Varejo (0%)', 20, yPos)
+      doc.text('Até R$ 500,00 - Varejo (0%)', 20, yPos)
       yPos += lineSpacing
       doc.text('De R$ 200,00 a R$ 1.500,00 - 20% = R$ 50,00', 20, yPos)
       yPos += lineSpacing
@@ -267,20 +287,20 @@ serve(async (req) => {
       doc.text('Acima de R$ 3.000,00 - 40% = R$ 200,00', 20, yPos)
       yPos += lineSpacing + 1
       
-      doc.text('Bonus especial', 20, yPos)
+      doc.text('Bônus especial', 20, yPos)
       yPos += lineSpacing
-      doc.text('A revendedora que alcancar o primeiro lugar no mes podera escolher', 20, yPos)
+      doc.text('A revendedora que alcançar o primeiro lugar no mês poderá escolher', 20, yPos)
       yPos += lineSpacing
-      doc.text('qualquer peca da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
+      doc.text('qualquer peça da loja. A pessoa precisa vender mais que R$ 1.000,00', 20, yPos)
       yPos += lineSpacing
-      doc.text('para ter o beneficio.', 20, yPos)
+      doc.text('para ter o benefício.', 20, yPos)
       yPos += lineSpacing + 1
       
-      doc.text('Indicacao de revendedoras', 20, yPos)
+      doc.text('Indicação de revendedoras', 20, yPos)
       yPos += lineSpacing
-      doc.text('Quem indica uma nova revendedora e ficar responsavel por ela ganhara 10%', 20, yPos)
+      doc.text('Quem indica uma nova revendedora e ficar responsável por ela ganhará 10%', 20, yPos)
       yPos += lineSpacing
-      doc.text('sobre tudo o que ela vender. Essa e uma unica oportunidade para aumentar', 20, yPos)
+      doc.text('sobre tudo o que ela vender. Essa é uma única oportunidade para aumentar', 20, yPos)
       yPos += lineSpacing
       doc.text('seus ganhos!', 20, yPos)
       yPos += lineSpacing + 1
