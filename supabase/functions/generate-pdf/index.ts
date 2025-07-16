@@ -192,8 +192,25 @@ serve(async (req) => {
         doc.text(String(index + 1), 25, yPos + 5)
         doc.text(item.sku || '', 37, yPos + 5)
         
-        // Handle long product names
-        const productName = item.name || ''
+        // Handle long product names with proper UTF-8 encoding
+        let productName = item.name || ''
+        // Fix UTF-8 encoding issues by replacing common corrupted characters
+        productName = productName
+          .replace(/ï¿½/g, 'ã')
+          .replace(/Ã¡/g, 'á')
+          .replace(/Ã©/g, 'é')
+          .replace(/Ã­/g, 'í')
+          .replace(/Ã³/g, 'ó')
+          .replace(/Ãº/g, 'ú')
+          .replace(/Ã /g, 'à')
+          .replace(/Ã¢/g, 'â')
+          .replace(/Ãª/g, 'ê')
+          .replace(/Ã´/g, 'ô')
+          .replace(/Ã§/g, 'ç')
+          .replace(/Ã±/g, 'ñ')
+          .replace(/Ã/g, 'Ã')
+          .replace(/Ã‡/g, 'Ç')
+        
         if (productName.length > 35) {
           doc.text(productName.substring(0, 32) + '...', 62, yPos + 5)
         } else {
