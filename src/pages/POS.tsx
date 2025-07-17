@@ -79,25 +79,58 @@ const POS = () => {
 
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
-  const filteredProducts = products.filter(product => {
-    // Filtro de busca local dinâmica (tempo real) - busca por nome, SKU do produto e SKUs das variações
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = searchTerm.length === 0 || 
-                         product.name.toLowerCase().includes(searchLower) ||
-                         product.sku?.toLowerCase().includes(searchLower) ||
-                         // Busca exata por SKU também (para casos como ARO0500)
-                         product.sku?.toLowerCase() === searchLower ||
-                         product.variations?.some(variation => 
-                           variation.sku?.toLowerCase().includes(searchLower) ||
-                           variation.sku?.toLowerCase() === searchLower
-                         );
-    
-    // Filtro de categoria
-    const matchesCategory = selectedCategory === 'Todos' || 
-                           product.categories?.some(cat => cat.name === selectedCategory);
-    
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = products
+    .filter(product => {
+      // Filtro de busca local dinâmica (tempo real) - busca por nome, SKU do produto e SKUs das variações
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = searchTerm.length === 0 || 
+                           product.name.toLowerCase().includes(searchLower) ||
+                           product.sku?.toLowerCase().includes(searchLower) ||
+                           // Busca exata por SKU também (para casos como ARO0500)
+                           product.sku?.toLowerCase() === searchLower ||
+                           product.variations?.some(variation => 
+                             variation.sku?.toLowerCase().includes(searchLower) ||
+                             variation.sku?.toLowerCase() === searchLower
+                           );
+      
+      // Filtro de categoria
+      const matchesCategory = selectedCategory === 'Todos' || 
+                             product.categories?.some(cat => cat.name === selectedCategory);
+      
+      return matchesSearch && matchesCategory;
+    })
+    .sort((a, b) => {
+      // Se há busca, ordenar por relevância
+      if (searchTerm.length > 0) {
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Priorizar matches exatos no nome
+        const aExactName = a.name.toLowerCase() === searchLower;
+        const bExactName = b.name.toLowerCase() === searchLower;
+        if (aExactName && !bExactName) return -1;
+        if (!aExactName && bExactName) return 1;
+        
+        // Priorizar matches exatos no SKU
+        const aExactSku = a.sku?.toLowerCase() === searchLower;
+        const bExactSku = b.sku?.toLowerCase() === searchLower;
+        if (aExactSku && !bExactSku) return -1;
+        if (!aExactSku && bExactSku) return 1;
+        
+        // Priorizar matches que começam com o termo
+        const aStartsName = a.name.toLowerCase().startsWith(searchLower);
+        const bStartsName = b.name.toLowerCase().startsWith(searchLower);
+        if (aStartsName && !bStartsName) return -1;
+        if (!aStartsName && bStartsName) return 1;
+        
+        const aStartsSku = a.sku?.toLowerCase().startsWith(searchLower);
+        const bStartsSku = b.sku?.toLowerCase().startsWith(searchLower);
+        if (aStartsSku && !bStartsSku) return -1;
+        if (!aStartsSku && bStartsSku) return 1;
+      }
+      
+      // Ordenação alfabética por nome como fallback
+      return a.name.localeCompare(b.name);
+    });
 
   const addToCart = (product: Product, variationId?: number, variationAttributes?: Array<{ name: string; value: string }>) => {
     setCart(currentCart => {
