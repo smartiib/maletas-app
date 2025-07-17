@@ -37,8 +37,7 @@ interface PaymentMethod {
 }
 
 const POS = () => {
-  const [searchTerm, setSearchTerm] = useState(''); // Input de busca local
-  const [apiSearchTerm, setApiSearchTerm] = useState(''); // Busca para API
+  const [searchTerm, setSearchTerm] = useState(''); // Input de busca local dinâmica
   const [selectedCategory, setSelectedCategory] = useState('Todos');
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -56,8 +55,8 @@ const POS = () => {
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
 
-  // Carregar todos os produtos - usa apiSearchTerm para buscar na API apenas quando necessário
-  const { data: products = [], isLoading, error } = useAllProducts(apiSearchTerm);
+  // Carregar todos os produtos uma única vez (sem busca na API)
+  const { data: products = [], isLoading, error } = useAllProducts('');
   const { data: customers = [] } = useAllCustomers();
   const { data: categoriesData = [] } = useCategories();
   const createOrder = useCreateOrder();
@@ -70,25 +69,7 @@ const POS = () => {
     }
   }, []);
 
-  // Debounce para busca - busca na API mais rapidamente para SKUs
-  useEffect(() => {
-    // Para SKUs (formato com letras seguidas de números), buscar mais rapidamente
-    const isSKUFormat = /^[A-Z]+\d*$/i.test(searchTerm);
-    
-    const timer = setTimeout(() => {
-      if (isSKUFormat && searchTerm.length >= 3) {
-        // SKUs buscam imediatamente com 3+ caracteres (mesmo parciais)
-        setApiSearchTerm(searchTerm);
-      } else if (searchTerm.length >= 3) {
-        // Busca normal com delay menor
-        setApiSearchTerm(searchTerm);
-      } else if (searchTerm.length === 0) {
-        setApiSearchTerm('');
-      }
-    }, isSKUFormat ? 200 : 300); // Delay menor para SKUs
-
-    return () => clearTimeout(timer);
-  }, [searchTerm]);
+  // Busca dinâmica local - sem debounce, filtra em tempo real
 
   // Ordenar categorias por quantidade de produtos (mais produtos primeiro)
   const categoriesWithCounts = categoriesData.map(cat => ({
@@ -99,7 +80,7 @@ const POS = () => {
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
   const filteredProducts = products.filter(product => {
-    // Filtro de busca local (instantâneo) - busca por nome, SKU do produto e SKUs das variações
+    // Filtro de busca local dinâmica (tempo real) - busca por nome, SKU do produto e SKUs das variações
     const searchLower = searchTerm.toLowerCase();
     const matchesSearch = searchTerm.length === 0 || 
                          product.name.toLowerCase().includes(searchLower) ||
