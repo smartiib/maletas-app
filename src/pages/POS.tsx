@@ -79,6 +79,9 @@ const POS = () => {
 
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
+  // Debug para verificar se o filtro está sendo recalculado
+  console.log('Recalculando filtro:', { searchTerm, selectedCategory, productsLength: products.length });
+  
   const filteredProducts = products
     .filter(product => {
       // Filtro de busca local dinâmica (tempo real) - busca por nome, SKU do produto e SKUs das variações
@@ -131,6 +134,8 @@ const POS = () => {
       // Ordenação alfabética por nome como fallback
       return a.name.localeCompare(b.name);
     });
+  
+  console.log('Produtos filtrados:', filteredProducts.length);
 
   const addToCart = (product: Product, variationId?: number, variationAttributes?: Array<{ name: string; value: string }>) => {
     setCart(currentCart => {
