@@ -77,7 +77,7 @@ const POS = () => {
     productCount: products.filter(p => p.categories?.some(c => c.id === cat.id)).length
   })).sort((a, b) => b.productCount - a.productCount);
 
-  const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
+  const categories = ['Todos', ...Array.from(new Set(categoriesWithCounts.map(cat => cat.name)))];
 
   // Debug para verificar se o filtro está sendo recalculado
   console.log('Recalculando filtro:', { searchTerm, selectedCategory, productsLength: products.length });
