@@ -10,6 +10,7 @@ interface HeaderProps {
   onToggleSidebar: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
+  hideSidebarToggle?: boolean;
 }
 
 const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
