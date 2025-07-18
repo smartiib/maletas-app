@@ -11,8 +11,11 @@ import { Label } from '@/components/ui/label';
 import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 import MaletaDialog from '@/components/maletas/MaletaDialog';
 import CategorySlider from '@/components/pos/CategorySlider';
+import CartSidebar from '@/components/pos/CartSidebar';
+import FloatingCartButton from '@/components/pos/FloatingCartButton';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -44,6 +47,7 @@ const POS = () => {
   const [showMaletaDialog, setShowMaletaDialog] = useState(false);
   const [savedCarts, setSavedCarts] = useState<SavedCart[]>([]);
   const [showSavedCarts, setShowSavedCarts] = useState(false);
+  const [showCartSidebar, setShowCartSidebar] = useState(false);
 
   // Checkout modal states
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
@@ -54,6 +58,9 @@ const POS = () => {
   ]);
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
+
+  // Mobile detection
+  const isMobile = useIsMobile();
 
   // Carregar todos os produtos uma única vez (sem busca na API)
   const { data: products = [], isLoading, error } = useAllProducts('');
@@ -448,7 +455,7 @@ const POS = () => {
         </div>
       </div>
 
-      <div className="flex h-[calc(100vh-8rem)]">
+      <div className={`flex h-[calc(100vh-8rem)] ${isMobile ? 'flex-col' : ''}`}>
         {/* Área de Produtos */}
         <div className="flex-1 p-4 overflow-y-auto">
           {/* Busca e Filtros */}
@@ -502,7 +509,7 @@ const POS = () => {
           )}
 
           {/* Grid de Produtos */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={`grid gap-4 ${isMobile ? 'grid-cols-2 pb-32' : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
             {filteredProducts.map(product => (
               <ProductCard
                 key={product.id}
@@ -513,142 +520,170 @@ const POS = () => {
           </div>
         </div>
 
-        {/* Carrinho */}
-        <div className="w-96 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col">
-          {/* Header do Carrinho */}
-          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Carrinho</h2>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={saveCart}
-                  disabled={cart.length === 0}
-                >
-                  <Save className="w-4 h-4" />
-                </Button>
-                <ShoppingCart className="w-5 h-5 text-slate-400" />
+        {/* Carrinho Desktop */}
+        {!isMobile && (
+          <div className="w-96 bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 flex flex-col">
+            {/* Header do Carrinho */}
+            <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Carrinho</h2>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={saveCart}
+                    disabled={cart.length === 0}
+                  >
+                    <Save className="w-4 h-4" />
+                  </Button>
+                  <ShoppingCart className="w-5 h-5 text-slate-400" />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Itens do Carrinho */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {cart.length === 0 ? (
-              <div className="text-center text-slate-500 mt-8">
-                <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                <p>Carrinho vazio</p>
-                <p className="text-sm">Toque nos produtos para adicionar</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {cart.map((item, index) => (
-                  <div key={`${item.id}-${item.variation_id || 0}-${index}`} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
-                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center overflow-hidden">
-                          {item.images && item.images.length > 0 ? (
-                            <img 
-                              src={item.images[0].src} 
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Package className="w-5 h-5 text-slate-400" />
-                          )}
+            {/* Itens do Carrinho */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {cart.length === 0 ? (
+                <div className="text-center text-slate-500 mt-8">
+                  <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p>Carrinho vazio</p>
+                  <p className="text-sm">Toque nos produtos para adicionar</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {cart.map((item, index) => (
+                    <div key={`${item.id}-${item.variation_id || 0}-${index}`} className="bg-slate-50 dark:bg-slate-700 rounded-lg p-3">
+                       <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <div className="w-10 h-10 bg-slate-200 dark:bg-slate-600 rounded flex items-center justify-center overflow-hidden">
+                            {item.images && item.images.length > 0 ? (
+                              <img 
+                                src={item.images[0].src} 
+                                alt={item.name}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Package className="w-5 h-5 text-slate-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm">{item.name}</h4>
+                            {item.sku && (
+                              <p className="text-xs text-slate-500">SKU: {item.sku}</p>
+                            )}
+                            {item.variation_attributes && (
+                              <p className="text-xs text-slate-600">
+                                {item.variation_attributes.map(attr => `${attr.name}: ${attr.value || 'N/A'}`).join(', ')}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">{item.name}</h4>
-                          {item.sku && (
-                            <p className="text-xs text-slate-500">SKU: {item.sku}</p>
-                          )}
-                          {item.variation_attributes && (
-                            <p className="text-xs text-slate-600">
-                              {item.variation_attributes.map(attr => `${attr.name}: ${attr.value || 'N/A'}`).join(', ')}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFromCart(item.id, item.variation_id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.variation_id)}
+                          onClick={() => removeFromCart(item.id, item.variation_id)}
                         >
-                          <Minus className="w-3 h-3" />
-                        </Button>
-                        <span className="font-medium min-w-[2rem] text-center">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.variation_id)}
-                        >
-                          <Plus className="w-3 h-3" />
+                          <X className="w-4 h-4" />
                         </Button>
                       </div>
                       
-                      <p className="font-bold">
-                        R$ {getItemTotal(item).toFixed(2)}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.variation_id)}
+                          >
+                            <Minus className="w-3 h-3" />
+                          </Button>
+                          <span className="font-medium min-w-[2rem] text-center">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.variation_id)}
+                          >
+                            <Plus className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        
+                        <p className="font-bold">
+                          R$ {getItemTotal(item).toFixed(2)}
+                        </p>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Footer do Carrinho */}
+            {cart.length > 0 && (
+              <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
+                {/* Total */}
+                <div className="text-lg font-bold border-t pt-2">
+                  <div className="flex justify-between">
+                    <span>Total:</span>
+                    <span>R$ {getSubtotal().toFixed(2)}</span>
                   </div>
-                ))}
+                </div>
+                
+                <div className="space-y-2">
+                  <Button 
+                    className="w-full bg-gradient-success hover:opacity-90 h-12 text-lg"
+                    onClick={() => setShowCheckout(true)}
+                  >
+                    Finalizar Pedido
+                  </Button>
+                  
+                  <Button 
+                    className="w-full bg-gradient-primary hover:opacity-90 h-12 text-lg"
+                    onClick={() => setShowMaletaDialog(true)}
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    Criar Maleta
+                  </Button>
+                </div>
+                
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={clearCart}
+                >
+                  Limpar Carrinho
+                </Button>
               </div>
             )}
           </div>
-
-          {/* Footer do Carrinho */}
-          {cart.length > 0 && (
-            <div className="p-4 border-t border-slate-200 dark:border-slate-700 space-y-4">
-              {/* Total */}
-              <div className="text-lg font-bold border-t pt-2">
-                <div className="flex justify-between">
-                  <span>Total:</span>
-                  <span>R$ {getSubtotal().toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Button 
-                  className="w-full bg-gradient-success hover:opacity-90 h-12 text-lg"
-                  onClick={() => setShowCheckout(true)}
-                >
-                  Finalizar Pedido
-                </Button>
-                
-                <Button 
-                  className="w-full bg-gradient-primary hover:opacity-90 h-12 text-lg"
-                  onClick={() => setShowMaletaDialog(true)}
-                >
-                  <Package className="w-4 h-4 mr-2" />
-                  Criar Maleta
-                </Button>
-              </div>
-              
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={clearCart}
-              >
-                Limpar Carrinho
-              </Button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
+
+      {/* Carrinho Sidebar Mobile */}
+      <CartSidebar
+        isOpen={showCartSidebar}
+        onClose={() => setShowCartSidebar(false)}
+        cart={cart}
+        updateQuantity={updateQuantity}
+        removeFromCart={removeFromCart}
+        updateItemDiscount={updateItemDiscount}
+        getItemTotal={getItemTotal}
+        getSubtotal={getSubtotal}
+        getTotalItems={getTotalItems}
+        onCheckout={() => {
+          setShowCartSidebar(false);
+          setShowCheckout(true);
+        }}
+        clearCart={clearCart}
+        saveCart={saveCart}
+      />
+
+      {/* Botão Flutuante do Carrinho */}
+      <FloatingCartButton
+        itemCount={getTotalItems()}
+        total={getSubtotal()}
+        onClick={() => setShowCartSidebar(true)}
+      />
 
       {/* Modal de Checkout Completo */}
       {showCheckout && (
