@@ -42,6 +42,21 @@ interface PaymentMethod {
 const POS = () => {
   const [searchTerm, setSearchTerm] = useState(''); // Input de busca local dinâmica
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+
+  // Função para limpar filtros
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedCategory('Todos');
+  };
+
+  // Função para limpar apenas a busca quando categoria mudou
+  const handleCategoryChange = (category: string) => {
+    setSelectedCategory(category);
+    // Se mudou categoria, limpar a busca para mostrar todos os produtos da categoria
+    if (category !== selectedCategory) {
+      setSearchTerm('');
+    }
+  };
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [showMaletaDialog, setShowMaletaDialog] = useState(false);
@@ -473,8 +488,20 @@ const POS = () => {
             <CategorySlider
               categories={categories}
               selectedCategory={selectedCategory}
-              onCategoryChange={setSelectedCategory}
+              onCategoryChange={handleCategoryChange}
             />
+            
+            {/* Botão para limpar filtros */}
+            {(searchTerm || selectedCategory !== 'Todos') && (
+              <Button
+                variant="outline"
+                onClick={clearFilters}
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Limpar Filtros
+              </Button>
+            )}
           </div>
 
           {/* Carrinhos Salvos */}
