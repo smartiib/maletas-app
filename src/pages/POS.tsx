@@ -718,7 +718,7 @@ const POS = () => {
 
       {/* Modal de Checkout Completo */}
       {showCheckout && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[70]">
           <div className="bg-white dark:bg-slate-800 p-6 rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold mb-6">Finalizar Pedido</h3>
             
@@ -881,12 +881,25 @@ const POS = () => {
 
                 {/* Formas de Pagamento */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-sm font-medium">Formas de Pagamento</Label>
-                    <Button size="sm" onClick={addPaymentMethod}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
+                   <div className="flex items-center justify-between mb-2">
+                     <Label className="text-sm font-medium">Formas de Pagamento</Label>
+                     <div className="flex gap-2">
+                       <Button 
+                         size="sm" 
+                         variant="outline"
+                         onClick={() => {
+                           const totalValue = getTotalPrice();
+                           setPaymentMethods([{ id: '1', name: 'PIX', amount: totalValue }]);
+                         }}
+                       >
+                         <DollarSign className="w-4 h-4 mr-1" />
+                         Pagar Total
+                       </Button>
+                       <Button size="sm" onClick={addPaymentMethod}>
+                         <Plus className="w-4 h-4" />
+                       </Button>
+                     </div>
+                   </div>
                   
                   <div className="space-y-2">
                     {paymentMethods.map((payment, index) => (
