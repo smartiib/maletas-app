@@ -66,7 +66,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
 
       {/* Sidebar */}
       <div className={`
-        fixed top-0 right-0 h-full w-80 bg-white dark:bg-slate-800 shadow-lg transform transition-transform duration-300 ease-in-out z-50 md:hidden
+        fixed top-0 right-0 h-full w-80 bg-white dark:bg-slate-800 shadow-lg transform transition-transform duration-300 ease-in-out z-[60] md:hidden
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
         {/* Header */}
@@ -188,7 +188,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
 
           {/* Footer */}
           {cart.length > 0 && (
-            <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-white dark:bg-slate-800">
+            <div className="border-t border-slate-200 dark:border-slate-700 p-4 pb-20 space-y-3 bg-white dark:bg-slate-800">
               {/* Total */}
               <div className="space-y-2">
                 <div className="flex justify-between text-lg font-bold">
