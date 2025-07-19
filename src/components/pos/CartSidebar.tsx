@@ -30,6 +30,17 @@ interface CartSidebarProps {
   onCreateMaleta: () => void;
   clearCart: () => void;
   saveCart: () => void;
+  onShowSavedCarts?: () => void;
+  savedCartsCount?: number;
+  showSavedCarts?: boolean;
+  savedCarts?: Array<{
+    id: string;
+    name: string;
+    items: CartItem[];
+    savedAt: Date;
+  }>;
+  onLoadCart?: (savedCart: any) => void;
+  onDeleteSavedCart?: (cartId: string) => void;
 }
 
 const CartSidebar: React.FC<CartSidebarProps> = ({
@@ -45,7 +56,13 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
   onCheckout,
   onCreateMaleta,
   clearCart,
-  saveCart
+  saveCart,
+  onShowSavedCarts,
+  savedCartsCount = 0,
+  showSavedCarts = false,
+  savedCarts = [],
+  onLoadCart,
+  onDeleteSavedCart
 }) => {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -83,8 +100,64 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
           </Button>
         </div>
 
+        {/* Carrinho Salvos Button */}
+        {onShowSavedCarts && (
+          <div className="p-4 border-b border-slate-200 dark:border-slate-700">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShowSavedCarts}
+              className="w-full"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Carrinho Salvos ({savedCartsCount})
+            </Button>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex flex-col h-full">
+          {/* Carrinhos Salvos */}
+          {showSavedCarts && (
+            <div className="border-b border-slate-200 dark:border-slate-700 p-4">
+              <h3 className="font-semibold mb-3 text-foreground">Carrinhos Salvos</h3>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {savedCarts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum carrinho salvo</p>
+                ) : (
+                  savedCarts.map(savedCart => (
+                    <div key={savedCart.id} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-700 rounded border">
+                      <div className="min-w-0 flex-1">
+                        <span className="font-medium text-sm text-foreground block truncate">{savedCart.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {savedCart.items.length} itens
+                        </span>
+                      </div>
+                      <div className="flex gap-1 ml-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => onLoadCart?.(savedCart)}
+                          className="text-xs px-2 py-1 h-auto"
+                        >
+                          Carregar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => onDeleteSavedCart?.(savedCart.id)}
+                          className="text-xs px-1 py-1 h-auto text-destructive hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Cart Items */}
           <div className="flex-1 overflow-y-auto p-4">
             {cart.length === 0 ? (
@@ -94,14 +167,14 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                 <p className="text-sm text-slate-400">Adicione produtos para começar</p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {cart.map((item) => (
-                  <div key={`${item.id}-${item.variation_id || 0}`} className="bg-slate-50 dark:bg-slate-700 p-3 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm line-clamp-2">{item.name}</h4>
+                  <div key={`${item.id}-${item.variation_id || 0}`} className="bg-slate-50 dark:bg-slate-700 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-sm text-foreground break-words">{item.name}</h4>
                         {item.variation_attributes && (
-                          <div className="text-xs text-slate-500 mt-1">
+                          <div className="text-xs text-muted-foreground mt-1">
                             {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
                           </div>
                         )}
@@ -110,35 +183,35 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFromCart(item.id, item.variation_id)}
-                        className="text-red-500 hover:text-red-700 p-1"
+                        className="text-destructive hover:text-destructive/80 p-1 ml-2 shrink-0"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity - 1, item.variation_id)}
-                          className="w-8 h-8 p-0"
+                          className="w-8 h-8 p-0 border-muted-foreground/20"
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <span className="w-8 text-center font-medium text-foreground">{item.quantity}</span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity + 1, item.variation_id)}
-                          className="w-8 h-8 p-0"
+                          className="w-8 h-8 p-0 border-muted-foreground/20"
                         >
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium">{formatPrice(getItemTotal(item))}</div>
-                        <div className="text-xs text-slate-500">
+                        <div className="font-medium text-foreground">{formatPrice(getItemTotal(item))}</div>
+                        <div className="text-xs text-muted-foreground">
                           {formatPrice(parseFloat(item.price))} each
                         </div>
                       </div>

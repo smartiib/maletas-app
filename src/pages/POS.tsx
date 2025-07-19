@@ -707,6 +707,12 @@ const POS = () => {
         }}
         clearCart={clearCart}
         saveCart={saveCart}
+        onShowSavedCarts={() => setShowSavedCarts(!showSavedCarts)}
+        savedCartsCount={savedCarts.length}
+        showSavedCarts={showSavedCarts}
+        savedCarts={savedCarts}
+        onLoadCart={loadCart}
+        onDeleteSavedCart={deleteSavedCart}
       />
 
       {/* Botão Flutuante do Carrinho */}
