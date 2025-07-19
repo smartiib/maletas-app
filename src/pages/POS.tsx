@@ -701,6 +701,10 @@ const POS = () => {
           setShowCartSidebar(false);
           setShowCheckout(true);
         }}
+        onCreateMaleta={() => {
+          setShowCartSidebar(false);
+          setShowMaletaDialog(true);
+        }}
         clearCart={clearCart}
         saveCart={saveCart}
       />

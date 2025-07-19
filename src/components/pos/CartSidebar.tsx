@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Plus, Minus, Trash2, ShoppingCart, Percent, DollarSign, Save } from 'lucide-react';
+import { X, Plus, Minus, Trash2, ShoppingCart, Percent, DollarSign, Save, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ interface CartSidebarProps {
   getSubtotal: () => number;
   getTotalItems: () => number;
   onCheckout: () => void;
+  onCreateMaleta: () => void;
   clearCart: () => void;
   saveCart: () => void;
 }
@@ -42,6 +43,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
   getSubtotal,
   getTotalItems,
   onCheckout,
+  onCreateMaleta,
   clearCart,
   saveCart
 }) => {
@@ -68,15 +70,15 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
         ${isOpen ? 'translate-x-0' : 'translate-x-full'}
       `}>
         {/* Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center space-x-2">
             <ShoppingCart className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-semibold">Carrinho</h2>
-            <Badge variant="secondary">
+            <h2 className="text-lg font-semibold text-foreground">Carrinho</h2>
+            <Badge variant="secondary" className="min-w-[24px]">
               {getTotalItems()}
             </Badge>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button variant="ghost" size="sm" onClick={onClose} className="shrink-0">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -186,8 +188,36 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
 
           {/* Footer */}
           {cart.length > 0 && (
-            <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3">
-              {/* Actions */}
+            <div className="border-t border-slate-200 dark:border-slate-700 p-4 space-y-3 bg-white dark:bg-slate-800">
+              {/* Total */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-lg font-bold">
+                  <span>Total:</span>
+                  <span className="text-primary">{formatPrice(getSubtotal())}</span>
+                </div>
+              </div>
+
+              {/* Main Actions */}
+              <div className="space-y-2">
+                <Button 
+                  onClick={onCheckout}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  size="lg"
+                >
+                  Finalizar Pedido
+                </Button>
+                
+                <Button 
+                  onClick={onCreateMaleta}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  size="lg"
+                >
+                  <Package className="w-4 h-4 mr-2" />
+                  Criar Maleta
+                </Button>
+              </div>
+
+              {/* Secondary Actions */}
               <div className="flex space-x-2">
                 <Button
                   variant="outline"
@@ -206,21 +236,6 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
                   Limpar
-                </Button>
-              </div>
-
-              {/* Total */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-lg font-bold">
-                  <span>Total:</span>
-                  <span className="text-primary">{formatPrice(getSubtotal())}</span>
-                </div>
-                <Button 
-                  onClick={onCheckout}
-                  className="w-full"
-                  size="lg"
-                >
-                  Finalizar Pedido
                 </Button>
               </div>
             </div>
