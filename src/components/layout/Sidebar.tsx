@@ -13,7 +13,8 @@ import {
   Menu,
   Briefcase,
   Warehouse,
-  File
+  File,
+  Building2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -66,6 +67,12 @@ const navigationItems = [
     href: '/maletas', 
     icon: Briefcase,
     permission: 'maletas'
+  },
+  { 
+    title: 'Fornecedores', 
+    href: '/fornecedores', 
+    icon: Building2,
+    permission: 'suppliers'
   },
   { 
     title: 'Relatórios', 
