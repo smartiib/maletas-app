@@ -107,10 +107,10 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
               variant="outline"
               size="sm"
               onClick={onShowSavedCarts}
-              className="w-full"
+              className="w-full text-sm"
             >
               <Save className="w-4 h-4 mr-2" />
-              Carrinho Salvos ({savedCartsCount})
+              Carrinhos Salvos ({savedCartsCount})
             </Button>
           </div>
         )}
@@ -167,14 +167,14 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                 <p className="text-sm text-slate-400">Adicione produtos para começar</p>
               </div>
             ) : (
-              <div className="space-y-3">
+                <div className="space-y-3">
                 {cart.map((item) => (
-                  <div key={`${item.id}-${item.variation_id || 0}`} className="bg-slate-50 dark:bg-slate-700 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <div className="flex items-start justify-between mb-3">
+                  <div key={`${item.id}-${item.variation_id || 0}`} className="bg-card border rounded-lg p-3 space-y-3">
+                    <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm text-foreground break-words">{item.name}</h4>
+                        <h4 className="font-medium text-sm leading-tight text-foreground">{item.name}</h4>
                         {item.variation_attributes && (
-                          <div className="text-xs text-muted-foreground mt-1">
+                          <div className="text-xs text-muted-foreground mt-1 leading-relaxed">
                             {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
                           </div>
                         )}
@@ -183,44 +183,44 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeFromCart(item.id, item.variation_id)}
-                        className="text-destructive hover:text-destructive/80 p-1 ml-2 shrink-0"
+                        className="text-destructive hover:text-destructive/80 p-1 shrink-0"
                       >
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
 
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity - 1, item.variation_id)}
-                          className="w-8 h-8 p-0 border-muted-foreground/20"
+                          className="w-8 h-8 p-0"
                         >
                           <Minus className="w-3 h-3" />
                         </Button>
-                        <span className="w-8 text-center font-medium text-foreground">{item.quantity}</span>
+                        <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => updateQuantity(item.id, item.quantity + 1, item.variation_id)}
-                          className="w-8 h-8 p-0 border-muted-foreground/20"
+                          className="w-8 h-8 p-0"
                         >
                           <Plus className="w-3 h-3" />
                         </Button>
                       </div>
                       <div className="text-right">
-                        <div className="font-medium text-foreground">{formatPrice(getItemTotal(item))}</div>
+                        <div className="font-medium text-sm">{formatPrice(getItemTotal(item))}</div>
                         <div className="text-xs text-muted-foreground">
-                          {formatPrice(parseFloat(item.price))} each
+                          {formatPrice(parseFloat(item.price))} cada
                         </div>
                       </div>
                     </div>
 
                     {/* Item Discount */}
-                    <div className="mt-2 p-2 bg-white dark:bg-slate-600 rounded border-l-2 border-orange-400">
-                      <Label className="text-xs">Desconto Individual</Label>
-                      <div className="flex items-center space-x-1 mt-1">
+                    <div className="p-2 bg-muted/50 rounded border-l-2 border-orange-500">
+                      <Label className="text-xs font-medium">Desconto Individual</Label>
+                      <div className="flex items-center gap-2 mt-2">
                         <Select
                           value={item.item_discount?.type || 'percentage'}
                           onValueChange={(value: 'percentage' | 'fixed') => 
@@ -247,7 +247,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({
                               value: parseFloat(e.target.value) || 0
                             }, item.variation_id)
                           }
-                          className="h-8 text-xs"
+                          className="h-8 text-xs flex-1"
                           placeholder="0"
                           min="0"
                         />
