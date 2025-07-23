@@ -94,14 +94,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Fornecedor</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o fornecedor" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="">Nenhum fornecedor</SelectItem>
                     {suppliers.map((supplier) => (
                       <SelectItem key={supplier.id} value={supplier.id}>
                         {supplier.name}
