@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Edit, Trash2, Building2, MoreHorizontal, Link } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Building2, MoreHorizontal, Link, Package, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,8 @@ import ViewModeToggle from '@/components/ui/view-mode-toggle';
 import SupplierDialog from '@/components/suppliers/SupplierDialog';
 import SupplierCard from '@/components/suppliers/SupplierCard';
 import ProductSuppliersDialog from '@/components/suppliers/ProductSuppliersDialog';
-import { useSuppliers, useDeleteSupplier } from '@/hooks/useSuppliers';
+import { useSuppliers, useDeleteSupplier, useSupplierProducts } from '@/hooks/useSuppliers';
+import { useAllProducts } from '@/hooks/useWooCommerce';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -30,9 +31,13 @@ const Suppliers = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<any>(undefined);
   const [productSuppliersOpen, setProductSuppliersOpen] = useState(false);
   const [selectedSupplierForProducts, setSelectedSupplierForProducts] = useState<any>(null);
+  const [showSupplierProducts, setShowSupplierProducts] = useState(false);
+  const [supplierForProductsView, setSupplierForProductsView] = useState<any>(null);
 
   const { toast } = useToast();
   const { data: allSuppliers = [], isLoading } = useSuppliers();
+  const { data: allProducts = [] } = useAllProducts();
+  const { data: supplierProducts = [] } = useSupplierProducts(supplierForProductsView?.id);
   const deleteSupplier = useDeleteSupplier();
   const { viewMode, toggleViewMode } = useViewMode('suppliers');
 
@@ -87,6 +92,21 @@ const Suppliers = () => {
     setSelectedSupplierForProducts(supplier);
     setProductSuppliersOpen(true);
   };
+
+  const handleViewProducts = (supplier: any) => {
+    setSupplierForProductsView(supplier);
+    setShowSupplierProducts(true);
+  };
+
+  // Get products linked to the selected supplier
+  const linkedProducts = useMemo(() => {
+    if (!supplierForProductsView || !supplierProducts.length || !allProducts.length) return [];
+    
+    return supplierProducts.map(sp => {
+      const product = allProducts.find(p => p.id === sp.product_id);
+      return product ? { ...product, supplierData: sp } : null;
+    }).filter(Boolean);
+  }, [supplierProducts, allProducts, supplierForProductsView]);
 
   if (isLoading) {
     return (
@@ -181,6 +201,7 @@ const Suppliers = () => {
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onManageProducts={handleManageProducts}
+                  onViewProducts={handleViewProducts}
                 />
               ))}
             </div>
@@ -220,6 +241,10 @@ const Suppliers = () => {
                             <Edit className="mr-2 h-4 w-4" />
                             Editar
                           </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleViewProducts(supplier)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver Produtos
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleManageProducts(supplier)}>
                             <Link className="mr-2 h-4 w-4" />
                             Gerenciar Produtos
@@ -253,6 +278,99 @@ const Suppliers = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Produtos do Fornecedor */}
+      {showSupplierProducts && supplierForProductsView && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Produtos de {supplierForProductsView.name} ({linkedProducts.length})
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowSupplierProducts(false)}
+              >
+                Fechar
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {linkedProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Nenhum produto vinculado</h3>
+                <p className="text-muted-foreground mb-4">
+                  Este fornecedor ainda não tem produtos vinculados.
+                </p>
+                <Button onClick={() => handleManageProducts(supplierForProductsView)}>
+                  Vincular Produtos
+                </Button>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Preço</TableHead>
+                    <TableHead>SKU Fornecedor</TableHead>
+                    <TableHead>Custo</TableHead>
+                    <TableHead>Lead Time</TableHead>
+                    <TableHead>Principal</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {linkedProducts.map((product: any) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                            {product.images && product.images.length > 0 ? (
+                              <img 
+                                src={product.images[0].src} 
+                                alt={product.images[0].alt}
+                                className="w-10 h-10 object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Package className="w-5 h-5 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{product.name}</div>
+                            <div className="text-sm text-muted-foreground">ID: {product.id}</div>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{product.sku || '-'}</TableCell>
+                      <TableCell className="font-semibold">
+                        R$ {parseFloat(product.price || '0').toFixed(2)}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {product.supplierData?.supplier_sku || '-'}
+                      </TableCell>
+                      <TableCell className="font-semibold text-green-600">
+                        {product.supplierData?.cost_price ? 
+                          `R$ ${parseFloat(product.supplierData.cost_price).toFixed(2)}` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {product.supplierData?.lead_time_days ? 
+                          `${product.supplierData.lead_time_days} dias` : '-'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={product.supplierData?.is_primary ? 'default' : 'secondary'}>
+                          {product.supplierData?.is_primary ? 'Sim' : 'Não'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <SupplierDialog
         open={dialogOpen}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Trash2, Building2, Mail, Phone, Link, MoreHorizontal } from 'lucide-react';
+import { Edit, Trash2, Building2, Mail, Phone, Link, MoreHorizontal, Eye } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,9 +15,10 @@ interface SupplierCardProps {
   onEdit: (supplier: any) => void;
   onDelete: (id: string) => void;
   onManageProducts: (supplier: any) => void;
+  onViewProducts: (supplier: any) => void;
 }
 
-const SupplierCard = ({ supplier, onEdit, onDelete, onManageProducts }: SupplierCardProps) => {
+const SupplierCard = ({ supplier, onEdit, onDelete, onManageProducts, onViewProducts }: SupplierCardProps) => {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -46,10 +47,14 @@ const SupplierCard = ({ supplier, onEdit, onDelete, onManageProducts }: Supplier
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => onEdit(supplier)}>
                   <Edit className="mr-2 h-4 w-4" />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onViewProducts(supplier)}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Ver Produtos
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onManageProducts(supplier)}>
                   <Link className="mr-2 h-4 w-4" />
@@ -111,11 +116,11 @@ const SupplierCard = ({ supplier, onEdit, onDelete, onManageProducts }: Supplier
           <Button
             variant="outline"
             size="sm"
-            onClick={() => onManageProducts(supplier)}
+            onClick={() => onViewProducts(supplier)}
             className="flex-1"
           >
-            <Link className="w-4 h-4 mr-2" />
-            Produtos
+            <Eye className="w-4 h-4 mr-2" />
+            Ver Produtos
           </Button>
         </div>
       </CardFooter>

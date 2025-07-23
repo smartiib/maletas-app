@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Product } from '@/services/woocommerce';
+import { useSuppliers } from '@/hooks/useSuppliers';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -21,6 +22,7 @@ const productSchema = z.object({
   description: z.string().optional(),
   short_description: z.string().optional(),
   stock_status: z.enum(['instock', 'outofstock', 'onbackorder']),
+  supplier_id: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;
@@ -32,6 +34,8 @@ interface ProductFormProps {
 }
 
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading }) => {
+  const { data: suppliers = [] } = useSuppliers();
+  
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -44,6 +48,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
       description: product?.description || '',
       short_description: product?.short_description || '',
       stock_status: product?.stock_status || 'instock',
+      supplier_id: (product as any)?.supplier_id || '',
     },
   });
 
@@ -54,7 +59,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
             name="name"
@@ -78,6 +83,32 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                 <FormControl>
                   <Input {...field} placeholder="SKU do produto" />
                 </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="supplier_id"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Fornecedor</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o fornecedor" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum fornecedor</SelectItem>
+                    {suppliers.map((supplier) => (
+                      <SelectItem key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

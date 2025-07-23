@@ -23,10 +23,12 @@ import ProductDetails from '@/components/products/ProductDetails';
 import ProductCard from '@/components/products/ProductCard';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
+import { useSuppliers } from '@/hooks/useSuppliers';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
@@ -36,6 +38,7 @@ const Products = () => {
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: allProducts = [] } = useAllProducts();
+  const { data: suppliers = [] } = useSuppliers();
   const deleteProduct = useDeleteProduct();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
@@ -45,9 +48,10 @@ const Products = () => {
       const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = !selectedStatus || product.status === selectedStatus;
-      return matchesSearch && matchesStatus;
+      const matchesSupplier = !selectedSupplier || (product as any).supplier_id === selectedSupplier;
+      return matchesSearch && matchesStatus && matchesSupplier;
     });
-  }, [allProducts, searchTerm, selectedStatus]);
+  }, [allProducts, searchTerm, selectedStatus, selectedSupplier]);
 
   const pagination = usePagination(filteredProducts.length, 20);
   
@@ -236,6 +240,19 @@ const Products = () => {
                   ))}
                 </select>
                 
+                <select
+                  value={selectedSupplier}
+                  onChange={(e) => setSelectedSupplier(e.target.value)}
+                  className="px-3 py-2 border border-input rounded-md bg-background"
+                >
+                  <option value="">Todos os Fornecedores</option>
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </option>
+                  ))}
+                </select>
+                
                 <Button variant="outline" onClick={() => window.location.reload()}>
                   <Filter className="w-4 h-4" />
                 </Button>
@@ -275,6 +292,7 @@ const Products = () => {
                   <TableHead>Preço</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Fornecedor</TableHead>
                   <TableHead>Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -356,6 +374,15 @@ const Products = () => {
                           <Badge className={getStatusColor(product.status)}>
                             {getStatusLabel(product.status)}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {(product as any).supplier_id ? (
+                            <span className="text-sm">
+                              {suppliers.find(s => s.id === (product as any).supplier_id)?.name || 'Fornecedor não encontrado'}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">-</span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
