@@ -48,7 +48,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
       description: product?.description || '',
       short_description: product?.short_description || '',
       stock_status: product?.stock_status || 'instock',
-      supplier_id: (product as any)?.supplier_id || '',
+      supplier_id: (() => {
+        const supplierMeta = (product as any)?.meta_data?.find((meta: any) => meta.key === 'supplier_id');
+        return supplierMeta?.value || '';
+      })(),
     },
   });
 

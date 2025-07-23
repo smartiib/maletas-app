@@ -48,7 +48,12 @@ const Products = () => {
       const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = !selectedStatus || product.status === selectedStatus;
-      const matchesSupplier = !selectedSupplier || (product as any).supplier_id === selectedSupplier;
+      
+      // Buscar supplier_id no meta_data
+      const supplierMeta = (product as any).meta_data?.find((meta: any) => meta.key === 'supplier_id');
+      const productSupplierId = supplierMeta?.value;
+      const matchesSupplier = !selectedSupplier || productSupplierId === selectedSupplier;
+      
       return matchesSearch && matchesStatus && matchesSupplier;
     });
   }, [allProducts, searchTerm, selectedStatus, selectedSupplier]);
@@ -303,7 +308,7 @@ const Products = () => {
                   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
                   
                   return (
-                    <React.Fragment key={product.id}>
+                    <>
                       <TableRow className="hover:bg-slate-50 dark:hover:bg-slate-800">
                         <TableCell>
                           {hasVariations && (
@@ -376,13 +381,20 @@ const Products = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {(product as any).supplier_id ? (
-                            <span className="text-sm">
-                              {suppliers.find(s => s.id === (product as any).supplier_id)?.name || 'Fornecedor não encontrado'}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
-                          )}
+                          {(() => {
+                            const supplierMeta = (product as any).meta_data?.find((meta: any) => meta.key === 'supplier_id');
+                            const supplierId = supplierMeta?.value;
+                            
+                            if (supplierId) {
+                              const supplier = suppliers.find(s => s.id === supplierId);
+                              return (
+                                <span className="text-sm">
+                                  {supplier?.name || 'Fornecedor não encontrado'}
+                                </span>
+                              );
+                            }
+                            return <span className="text-muted-foreground text-sm">-</span>;
+                          })()}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
@@ -414,7 +426,7 @@ const Products = () => {
                       
                       {/* Variações */}
                       {isExpanded && hasVariations && (
-                        <React.Fragment>
+                        <>
                           {product.variations.map((variation: any) => (
                             <TableRow key={`${product.id}-${variation.id}`} className="bg-muted/50">
                               <TableCell></TableCell>
@@ -445,15 +457,18 @@ const Products = () => {
                               </TableCell>
                               <TableCell>
                                 <Badge className="bg-primary-100 text-primary-800">Ativa</Badge>
-                              </TableCell>
-                              <TableCell>
-                                <span className="text-sm text-muted-foreground">-</span>
-                              </TableCell>
+                               </TableCell>
+                               <TableCell>
+                                 <span className="text-sm text-muted-foreground">-</span>
+                               </TableCell>
+                               <TableCell>
+                                 {/* Variações não têm ações próprias */}
+                               </TableCell>
                             </TableRow>
                           ))}
-                        </React.Fragment>
+                        </>
                       )}
-                    </React.Fragment>
+                    </>
                   );
                 })}
               </TableBody>

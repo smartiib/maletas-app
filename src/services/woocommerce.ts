@@ -540,16 +540,36 @@ class WooCommerceAPI {
   }
 
   async createProduct(product: Partial<Product>): Promise<Product> {
+    const { supplier_id, ...productData } = product as any;
+    
+    const productPayload = {
+      ...productData,
+      meta_data: [
+        ...(productData.meta_data || []),
+        ...(supplier_id ? [{ key: 'supplier_id', value: supplier_id }] : [])
+      ]
+    };
+    
     return this.makeRequest('products', {
       method: 'POST',
-      body: JSON.stringify(product),
+      body: JSON.stringify(productPayload),
     });
   }
 
   async updateProduct(id: number, product: Partial<Product>): Promise<Product> {
+    const { supplier_id, ...productData } = product as any;
+    
+    const productPayload = {
+      ...productData,
+      meta_data: [
+        ...(productData.meta_data || []),
+        ...(supplier_id ? [{ key: 'supplier_id', value: supplier_id }] : [])
+      ]
+    };
+    
     return this.makeRequest(`products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(product),
+      body: JSON.stringify(productPayload),
     });
   }
 
