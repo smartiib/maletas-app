@@ -106,11 +106,17 @@ const Suppliers = () => {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          <PageHelp content={{
-            title: "Fornecedores",
-            description: "Gerencie fornecedores e vincule produtos",
-            sections: []
-          }} />
+          <PageHelp 
+            title="Fornecedores"
+            description="Gerencie fornecedores e vincule produtos"
+            helpContent={{
+              overview: "Gerencie fornecedores e vincule produtos para controle de estoque.",
+              features: [
+                { title: "Cadastro de Fornecedores", description: "Cadastre e edite informações dos fornecedores" },
+                { title: "Vinculação de Produtos", description: "Associe produtos aos fornecedores para controle" }
+              ]
+            }}
+          />
           <Button onClick={handleCreate} className="gap-2">
             <Plus className="h-4 w-4" />
             Novo Fornecedor
@@ -237,11 +243,11 @@ const Suppliers = () => {
           {totalPages > 1 && (
             <div className="mt-6">
               <PaginationControls
+                info={pagination.info}
+                actions={pagination.actions}
+                itemsPerPage={20}
+                totalItems={totalItems}
                 currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={pagination.actions.goToPage}
-                onNextPage={pagination.actions.goToNextPage}
-                onPreviousPage={pagination.actions.goToPreviousPage}
               />
             </div>
           )}
