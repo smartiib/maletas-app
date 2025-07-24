@@ -14,7 +14,8 @@ import {
   Briefcase,
   Warehouse,
   File,
-  Building2
+  Building2,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -72,7 +73,15 @@ const navigationItems = [
     title: 'Fornecedores', 
     href: '/fornecedores', 
     icon: Building2,
-    permission: 'suppliers'
+    permission: 'suppliers',
+    isNew: true
+  },
+  { 
+    title: 'Financeiro', 
+    href: '/financeiro', 
+    icon: DollarSign,
+    permission: 'financial',
+    isNew: true
   },
   { 
     title: 'Relatórios', 
@@ -158,7 +167,14 @@ const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
               )} />
               
               {!collapsed && (
-                <span className="font-medium">{item.title}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{item.title}</span>
+                  {item.isNew && (
+                    <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 rounded-full">
+                      novo
+                    </span>
+                  )}
+                </div>
               )}
 
               {/* Tooltip para sidebar colapsada */}

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, Eye, Edit, Plus, Truck, Package, User, Calendar, AlertCircle } from 'lucide-react';
+import { Search, Filter, Eye, Edit, Plus, Truck, Package, User, Calendar, AlertCircle, CreditCard } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { Order } from '@/services/woocommerce';
 import OrderDialog from '@/components/orders/OrderDialog';
 import OrderDetails from '@/components/orders/OrderDetails';
+import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
+import { usePaymentPlans } from '@/hooks/useFinancial';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -23,9 +25,12 @@ const Orders = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | undefined>();
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [orderForDetails, setOrderForDetails] = useState<Order | null>(null);
+  const [paymentPlanOpen, setPaymentPlanOpen] = useState(false);
+  const [orderForPaymentPlan, setOrderForPaymentPlan] = useState<Order | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
   const { data: allOrders = [] } = useAllOrders(selectedStatus);
+  const { data: paymentPlans = [] } = usePaymentPlans();
   
   // Filtrar e paginar os pedidos
   const filteredOrders = allOrders.filter(order => {
@@ -83,6 +88,22 @@ const Orders = () => {
   const handleViewOrder = (order: Order) => {
     setOrderForDetails(order);
     setDetailsOpen(true);
+  };
+
+  const handleCreatePaymentPlan = (order: Order) => {
+    setOrderForPaymentPlan(order);
+    setPaymentPlanOpen(true);
+  };
+
+  // Verificar se o pedido tem plano de pagamento
+  const hasPaymentPlan = (orderId: number) => {
+    return paymentPlans.some(plan => plan.order_id === orderId);
+  };
+
+  // Obter status do plano de pagamento
+  const getPaymentPlanStatus = (orderId: number) => {
+    const plan = paymentPlans.find(plan => plan.order_id === orderId);
+    return plan?.status;
   };
 
   const getTotalOrders = () => allOrders.length;
@@ -289,22 +310,39 @@ const Orders = () => {
                       {order.currency} {(parseFloat(order.total || '0') || 0).toFixed(2)}
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(order.status)}>
-                        {getStatusLabel(order.status)}
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Badge className={getStatusColor(order.status)}>
+                          {getStatusLabel(order.status)}
+                        </Badge>
+                        {hasPaymentPlan(order.id) && (
+                          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                            {getPaymentPlanStatus(order.id) === 'active' ? 'Aberto/Financeiro' : 'Finalizado'}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>{order.payment_method_title}</TableCell>
                     <TableCell className="text-sm text-slate-500">
                       {new Date(order.date_created).toLocaleDateString('pt-BR')}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <Button variant="ghost" size="sm" onClick={() => handleViewOrder(order)}>
                           <Eye className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleEditOrder(order)}>
                           <Edit className="w-4 h-4" />
                         </Button>
+                        {!hasPaymentPlan(order.id) && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleCreatePaymentPlan(order)}
+                            title="Criar Parcelamento"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -355,6 +393,16 @@ const Orders = () => {
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
         order={orderForDetails}
+      />
+
+      <PaymentPlanDialog
+        open={paymentPlanOpen}
+        onOpenChange={setPaymentPlanOpen}
+        order={orderForPaymentPlan}
+        onPaymentPlanCreated={() => {
+          // Recarregar dados quando plano for criado
+          window.location.reload();
+        }}
       />
     </div>
   );

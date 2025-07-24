@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import Maletas from "./pages/Maletas";
 import PdfTemplates from "./pages/PdfTemplates";
 import Suppliers from "./pages/Suppliers";
+import Financeiro from "./pages/Financeiro";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => {
               <Route path="/pos" element={<POS />} />
               <Route path="/maletas" element={<Maletas />} />
               <Route path="/fornecedores" element={<Suppliers />} />
+              <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/relatorios" element={<Reports />} />
               <Route path="/templates-pdf" element={<PdfTemplates />} />
               <Route path="/logs" element={<Logs />} />
