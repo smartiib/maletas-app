@@ -57,9 +57,9 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ open, onOpenChange, t
       type: transaction?.type || 'entrada',
       amount: transaction?.amount || 0,
       description: transaction?.description || '',
-      category: transaction?.category || '',
+      category: transaction?.category || undefined,
       date: transaction?.date ? transaction.date.split('T')[0] : new Date().toISOString().split('T')[0],
-      payment_method: transaction?.payment_method || '',
+      payment_method: transaction?.payment_method || undefined,
       notes: transaction?.notes || '',
     },
   });
