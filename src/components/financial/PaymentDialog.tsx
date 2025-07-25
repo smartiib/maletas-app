@@ -43,7 +43,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ open, onOpenChange, insta
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       payment_date: new Date().toISOString().split('T')[0],
-      payment_method: '',
+      payment_method: undefined,
       late_fee: 0,
       discount: 0,
       notes: '',
@@ -60,7 +60,7 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({ open, onOpenChange, insta
         payment_date: installment.payment_date 
           ? new Date(installment.payment_date).toISOString().split('T')[0] 
           : today,
-        payment_method: installment.payment_method || '',
+        payment_method: installment.payment_method || undefined,
         late_fee: installment.late_fee || (isOverdue ? 0 : 0),
         discount: installment.discount || 0,
         notes: installment.notes || '',
