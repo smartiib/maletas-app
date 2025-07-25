@@ -540,9 +540,9 @@ const POS = () => {
 
           {/* Grid de Produtos */}
           <div className={`grid gap-4 ${isMobile ? 'grid-cols-2 pb-32' : 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-            {filteredProducts.map(product => (
+            {filteredProducts.map((product, index) => (
               <ProductCard
-                key={product.id}
+                key={`product-${product.id}-${index}`}
                 product={product}
                 onAddToCart={addToCart}
               />
@@ -893,20 +893,28 @@ const POS = () => {
                    <div className="flex items-center justify-between mb-2">
                      <Label className="text-sm font-medium">Formas de Pagamento</Label>
                      <div className="flex gap-2">
-                       <Button 
-                         size="sm" 
-                         variant="outline"
-                         onClick={() => {
-                           const totalValue = getTotalPrice();
-                           setPaymentMethods([{ id: '1', name: 'PIX', amount: totalValue }]);
-                         }}
-                       >
-                         <DollarSign className="w-4 h-4 mr-1" />
-                         Pagar Total
-                       </Button>
-                       <Button size="sm" onClick={addPaymentMethod}>
-                         <Plus className="w-4 h-4" />
-                       </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            const totalValue = getTotalPrice();
+                            setPaymentMethods([{ id: '1', name: 'PIX', amount: totalValue }]);
+                          }}
+                        >
+                          <DollarSign className="w-4 h-4 mr-1" />
+                          Pagar Total
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => setShowPaymentPlan(true)}
+                        >
+                          <CreditCard className="w-4 h-4 mr-1" />
+                          Parcelamento
+                        </Button>
+                        <Button size="sm" onClick={addPaymentMethod}>
+                          <Plus className="w-4 h-4" />
+                        </Button>
                      </div>
                    </div>
                   
@@ -917,14 +925,16 @@ const POS = () => {
                           <SelectTrigger className="flex-1">
                             <SelectValue />
                           </SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="PIX">PIX</SelectItem>
-                             <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                             <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                             <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                             <SelectItem value="Transferência">Transferência</SelectItem>
-                             <SelectItem value="Boleto">Boleto</SelectItem>
-                           </SelectContent>
+                            <SelectContent>
+                              <SelectItem value="PIX">PIX</SelectItem>
+                              <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                              <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                              <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                              <SelectItem value="Transferência">Transferência</SelectItem>
+                              <SelectItem value="Boleto">Boleto</SelectItem>
+                              <SelectItem value="Cheque">Cheque</SelectItem>
+                              <SelectItem value="Crediário">Crediário</SelectItem>
+                            </SelectContent>
                         </Select>
                         <Input
                           type="number"
@@ -971,20 +981,6 @@ const POS = () => {
                   />
                 </div>
 
-                {/* Link para Financeiro */}
-                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
-                    💡 <strong>Dica:</strong> Para gerenciar parcelamentos e transações financeiras, acesse:
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-100"
-                    onClick={() => window.open('/financeiro', '_blank')}
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Acessar Sistema Financeiro
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -996,14 +992,6 @@ const POS = () => {
                 onClick={() => setShowCheckout(false)}
               >
                 Cancelar
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowPaymentPlan(true)}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Parcelamento
               </Button>
               <Button
                 variant="outline"
