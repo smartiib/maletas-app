@@ -26,8 +26,8 @@ const Financeiro = () => {
   const filteredTransactions = transactions.filter(transaction => {
     const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          transaction.category?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = !selectedType || transaction.type === selectedType;
-    const matchesCategory = !selectedCategory || transaction.category === selectedCategory;
+    const matchesType = !selectedType || selectedType === 'all' || transaction.type === selectedType;
+    const matchesCategory = !selectedCategory || selectedCategory === 'all' || transaction.category === selectedCategory;
     
     return matchesSearch && matchesType && matchesCategory;
   });
@@ -121,7 +121,7 @@ const Financeiro = () => {
                       <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
+                      <SelectItem value="all">Todos</SelectItem>
                       <SelectItem value="entrada">Entrada</SelectItem>
                       <SelectItem value="saida">Saída</SelectItem>
                     </SelectContent>
@@ -132,9 +132,9 @@ const Financeiro = () => {
                       <SelectValue placeholder="Categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Todas</SelectItem>
+                      <SelectItem value="all">Todas</SelectItem>
                       {categories.map(category => (
-                        <SelectItem key={category} value={category || ''}>
+                        <SelectItem key={category} value={category || 'no-category'}>
                           {category}
                         </SelectItem>
                       ))}
