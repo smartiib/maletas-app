@@ -85,7 +85,12 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
   };
 
   const handleSubmit = async (data: PaymentPlanFormData) => {
-    if (!order) return;
+    if (!order) {
+      // Para uso no POS sem pedido específico
+      alert('Funcionalidade de parcelamento será implementada após criação do pedido');
+      onOpenChange(false);
+      return;
+    }
 
     try {
       // Criar o plano de pagamento
@@ -118,7 +123,34 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
     }
   };
 
-  if (!order) return null;
+  if (!order) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Parcelamento no POS
+            </DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-6">
+            <p className="text-muted-foreground mb-4">
+              O parcelamento estará disponível após a integração com o sistema de pedidos.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Por enquanto, você pode criar transações financeiras e planos de pagamento 
+              diretamente na seção <strong>Financeiro</strong>.
+            </p>
+          </div>
+          <div className="flex justify-center">
+            <Button onClick={() => onOpenChange(false)}>
+              Entendi
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

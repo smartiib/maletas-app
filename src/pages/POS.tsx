@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign, Printer, User, UserPlus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, Package, Save, Percent, DollarSign, Printer, User, UserPlus, ChevronLeft, ChevronRight, CreditCard } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import MaletaDialog from '@/components/maletas/MaletaDialog';
 import CategorySlider from '@/components/pos/CategorySlider';
 import CartSidebar from '@/components/pos/CartSidebar';
 import FloatingCartButton from '@/components/pos/FloatingCartButton';
+import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -71,6 +72,7 @@ const POS = () => {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     { id: '1', name: 'PIX', amount: 0 }
   ]);
+  const [showPaymentPlan, setShowPaymentPlan] = useState(false);
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
 
@@ -248,7 +250,7 @@ const POS = () => {
   const addPaymentMethod = () => {
     const newPayment: PaymentMethod = {
       id: Date.now().toString(),
-      name: 'PIX',
+      name: 'Dinheiro',
       amount: 0
     };
     setPaymentMethods([...paymentMethods, newPayment]);
@@ -393,6 +395,7 @@ const POS = () => {
       setGlobalDiscount({ type: 'percentage', value: 0 });
       setNotes('');
       setPaymentMethods([{ id: '1', name: 'PIX', amount: 0 }]);
+      setShowPaymentPlan(false);
       setSelectedCustomer(null);
       setIsGuestSale(false);
       setGuestData({ name: '', email: '', phone: '' });
@@ -914,13 +917,14 @@ const POS = () => {
                           <SelectTrigger className="flex-1">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PIX">PIX</SelectItem>
-                            <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                            <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                            <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                            <SelectItem value="Boleto">Boleto</SelectItem>
-                          </SelectContent>
+                           <SelectContent>
+                             <SelectItem value="PIX">PIX</SelectItem>
+                             <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                             <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                             <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                             <SelectItem value="Transferência">Transferência</SelectItem>
+                             <SelectItem value="Boleto">Boleto</SelectItem>
+                           </SelectContent>
                         </Select>
                         <Input
                           type="number"
@@ -966,6 +970,21 @@ const POS = () => {
                     className="h-20 mt-2"
                   />
                 </div>
+
+                {/* Link para Financeiro */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-2">
+                    💡 <strong>Dica:</strong> Para gerenciar parcelamentos e transações financeiras, acesse:
+                  </p>
+                  <Button
+                    variant="outline"
+                    className="w-full border-blue-200 text-blue-700 hover:bg-blue-100"
+                    onClick={() => window.open('/financeiro', '_blank')}
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    Acessar Sistema Financeiro
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -977,6 +996,14 @@ const POS = () => {
                 onClick={() => setShowCheckout(false)}
               >
                 Cancelar
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowPaymentPlan(true)}
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Parcelamento
               </Button>
               <Button
                 variant="outline"
@@ -1010,6 +1037,13 @@ const POS = () => {
           quantity: item.quantity,
         }))}
         onClearCart={clearCart}
+      />
+
+      {/* Dialog de Parcelamento */}
+      <PaymentPlanDialog
+        open={showPaymentPlan}
+        onOpenChange={setShowPaymentPlan}
+        order={null}
       />
     </div>
   );

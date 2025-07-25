@@ -83,6 +83,7 @@ export const useCreateTransaction = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-dashboard'] });
       logger.success('Transação Criada', 'Transação financeira foi criada com sucesso');
     },
     onError: () => {
@@ -219,6 +220,7 @@ export const usePayInstallment = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-installments'] });
       queryClient.invalidateQueries({ queryKey: ['payment-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['financial-dashboard'] });
       logger.success('Parcela Paga', 'Parcela foi marcada como paga');
     },
     onError: () => {
