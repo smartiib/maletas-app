@@ -843,34 +843,37 @@ const POS = () => {
                       Cliente Cadastrado
                     </Button>
                     
-                     {!isGuestSale && (
-                       <div>
-                         {isLoadingCustomers ? (
-                           <div className="text-sm text-muted-foreground p-2">Carregando clientes...</div>
-                         ) : customersError ? (
-                           <div className="text-sm text-red-500 p-2">Erro ao carregar clientes</div>
-                         ) : customers.length === 0 ? (
-                           <div className="text-sm text-muted-foreground p-2">Nenhum cliente encontrado</div>
-                         ) : (
-                           <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
-                             const customer = customers.find(c => c.id.toString() === value);
-                             setSelectedCustomer(customer);
-                           }}>
-                             <SelectTrigger>
-                               <User className="w-4 h-4 mr-2" />
-                               <SelectValue placeholder="Selecionar cliente" />
-                             </SelectTrigger>
-                             <SelectContent>
-                               {customers.map(customer => (
-                                 <SelectItem key={customer.id} value={customer.id.toString()}>
-                                   {customer.first_name} {customer.last_name} - {customer.email}
-                                 </SelectItem>
-                               ))}
-                             </SelectContent>
-                           </Select>
-                         )}
-                       </div>
-                     )}
+                      {!isGuestSale && (
+                        <div>
+                          {isLoadingCustomers ? (
+                            <div className="text-sm text-muted-foreground p-2">Carregando clientes...</div>
+                          ) : customersError ? (
+                            <div className="text-sm text-red-500 p-2">Erro ao carregar clientes</div>
+                          ) : customers.length === 0 ? (
+                            <div className="text-sm text-muted-foreground p-2">Nenhum cliente encontrado</div>
+                          ) : (
+                            <Select 
+                              value={selectedCustomer?.id?.toString() || ''} 
+                              onValueChange={(value) => {
+                                const customer = customers.find(c => c.id.toString() === value);
+                                setSelectedCustomer(customer || null);
+                              }}
+                            >
+                              <SelectTrigger>
+                                <User className="w-4 h-4 mr-2" />
+                                <SelectValue placeholder="Selecionar cliente" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[200px] overflow-y-auto">
+                                {customers.map(customer => (
+                                  <SelectItem key={customer.id} value={customer.id.toString()}>
+                                    {customer.first_name} {customer.last_name} - {customer.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        </div>
+                      )}
 
                     <Button
                       variant={isGuestSale ? "default" : "outline"}
@@ -933,50 +936,50 @@ const POS = () => {
                      </div>
                    </div>
                   
-                   <div className="space-y-2">
-                     {(() => {
-                       console.log('Rendering payment methods:', paymentMethods);
-                       return paymentMethods.length === 0 ? (
-                         <div className="text-sm text-muted-foreground p-2">Nenhum método de pagamento adicionado</div>
-                       ) : (
-                         paymentMethods.map((payment, index) => (
-                         <div key={payment.id} className="flex gap-2">
-                        <Select value={payment.name} onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}>
-                          <SelectTrigger className="flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="PIX">PIX</SelectItem>
-                              <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                              <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                              <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                              <SelectItem value="Transferência">Transferência</SelectItem>
-                              <SelectItem value="Boleto">Boleto</SelectItem>
-                              <SelectItem value="Cheque">Cheque</SelectItem>
-                              <SelectItem value="Crediário">Crediário</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Input
-                          type="number"
-                          placeholder="Valor"
-                          value={payment.amount}
-                          onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
-                          className="w-32"
-                        />
-                        {paymentMethods.length > 1 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => removePaymentMethod(payment.id)}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                         )}
-                       </div>
-                       ))
-                     );
-                   })()}
-                   </div>
+                    <div className="space-y-2">
+                      {paymentMethods.length === 0 ? (
+                        <div className="text-sm text-muted-foreground p-2">Nenhum método de pagamento adicionado</div>
+                      ) : (
+                        paymentMethods.map((payment) => (
+                          <div key={payment.id} className="flex gap-2">
+                            <Select 
+                              value={payment.name} 
+                              onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}
+                            >
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Selecionar método" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="PIX">PIX</SelectItem>
+                                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                                <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                                <SelectItem value="Transferência">Transferência</SelectItem>
+                                <SelectItem value="Boleto">Boleto</SelectItem>
+                                <SelectItem value="Cheque">Cheque</SelectItem>
+                                <SelectItem value="Crediário">Crediário</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              type="number"
+                              placeholder="Valor"
+                              value={payment.amount || ''}
+                              onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
+                              className="w-32"
+                            />
+                            {paymentMethods.length > 1 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => removePaymentMethod(payment.id)}
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
 
                   <div className="text-sm mt-2">
                     <div className="flex justify-between">
