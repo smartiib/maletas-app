@@ -81,8 +81,13 @@ const POS = () => {
 
   // Carregar todos os produtos uma única vez (sem busca na API)
   const { data: products = [], isLoading, error } = useAllProducts('');
-  const { data: customers = [] } = useAllCustomers();
+  const { data: customers = [], isLoading: isLoadingCustomers, error: customersError } = useAllCustomers();
   const { data: categoriesData = [] } = useCategories();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('POS Debug - Customers:', { customers, isLoadingCustomers, customersError });
+  }, [customers, isLoadingCustomers, customersError]);
   const createOrder = useCreateOrder();
 
   // Carregar carrinhos salvos do localStorage
@@ -838,24 +843,34 @@ const POS = () => {
                       Cliente Cadastrado
                     </Button>
                     
-                    {!isGuestSale && (
-                      <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
-                        const customer = customers.find(c => c.id.toString() === value);
-                        setSelectedCustomer(customer);
-                      }}>
-                        <SelectTrigger>
-                          <User className="w-4 h-4 mr-2" />
-                          <SelectValue placeholder="Selecionar cliente" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {customers.map(customer => (
-                            <SelectItem key={customer.id} value={customer.id.toString()}>
-                              {customer.first_name} {customer.last_name} - {customer.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                     {!isGuestSale && (
+                       <div>
+                         {isLoadingCustomers ? (
+                           <div className="text-sm text-muted-foreground p-2">Carregando clientes...</div>
+                         ) : customersError ? (
+                           <div className="text-sm text-red-500 p-2">Erro ao carregar clientes</div>
+                         ) : customers.length === 0 ? (
+                           <div className="text-sm text-muted-foreground p-2">Nenhum cliente encontrado</div>
+                         ) : (
+                           <Select value={selectedCustomer?.id || ''} onValueChange={(value) => {
+                             const customer = customers.find(c => c.id.toString() === value);
+                             setSelectedCustomer(customer);
+                           }}>
+                             <SelectTrigger>
+                               <User className="w-4 h-4 mr-2" />
+                               <SelectValue placeholder="Selecionar cliente" />
+                             </SelectTrigger>
+                             <SelectContent>
+                               {customers.map(customer => (
+                                 <SelectItem key={customer.id} value={customer.id.toString()}>
+                                   {customer.first_name} {customer.last_name} - {customer.email}
+                                 </SelectItem>
+                               ))}
+                             </SelectContent>
+                           </Select>
+                         )}
+                       </div>
+                     )}
 
                     <Button
                       variant={isGuestSale ? "default" : "outline"}
@@ -918,9 +933,14 @@ const POS = () => {
                      </div>
                    </div>
                   
-                  <div className="space-y-2">
-                    {paymentMethods.map((payment, index) => (
-                      <div key={payment.id} className="flex gap-2">
+                   <div className="space-y-2">
+                     {(() => {
+                       console.log('Rendering payment methods:', paymentMethods);
+                       return paymentMethods.length === 0 ? (
+                         <div className="text-sm text-muted-foreground p-2">Nenhum método de pagamento adicionado</div>
+                       ) : (
+                         paymentMethods.map((payment, index) => (
+                         <div key={payment.id} className="flex gap-2">
                         <Select value={payment.name} onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}>
                           <SelectTrigger className="flex-1">
                             <SelectValue />
@@ -951,10 +971,12 @@ const POS = () => {
                           >
                             <X className="w-4 h-4" />
                           </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                         )}
+                       </div>
+                       ))
+                     );
+                   })()}
+                   </div>
 
                   <div className="text-sm mt-2">
                     <div className="flex justify-between">
@@ -1032,6 +1054,23 @@ const POS = () => {
         open={showPaymentPlan}
         onOpenChange={setShowPaymentPlan}
         order={null}
+        onPaymentPlanCreated={(plan: any) => {
+          setPaymentMethods([{
+            id: '1',
+            name: `Parcelado em ${plan.installments_count}x`,
+            amount: plan.total_amount
+          }]);
+          setShowPaymentPlan(false);
+          toast({
+            title: "Parcelamento configurado",
+            description: `Pedido será parcelado em ${plan.installments_count}x de R$ ${(plan.total_amount / plan.installments_count).toFixed(2)}`
+          });
+        }}
+        posData={{
+          total: getTotalPrice(),
+          customerName: isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim(),
+          customerEmail: isGuestSale ? guestData.email : selectedCustomer?.email || ''
+        }}
       />
     </div>
   );

@@ -26,7 +26,7 @@ type PaymentPlanFormData = z.infer<typeof paymentPlanSchema>;
 interface PaymentPlanDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  order: {
+  order?: {
     id: number;
     number: string;
     total: string;
@@ -36,14 +36,20 @@ interface PaymentPlanDialogProps {
       email: string;
     };
   } | null;
-  onPaymentPlanCreated?: (planId: string) => void;
+  onPaymentPlanCreated?: (planData: any) => void;
+  posData?: {
+    total: number;
+    customerName: string;
+    customerEmail: string;
+  };
 }
 
 const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({ 
   open, 
   onOpenChange, 
   order,
-  onPaymentPlanCreated 
+  onPaymentPlanCreated,
+  posData
 }) => {
   const createPaymentPlan = useCreatePaymentPlan();
   const createInstallments = useCreateInstallments();
@@ -60,7 +66,7 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
   });
 
   const watchedValues = form.watch();
-  const totalAmount = order ? parseFloat(order.total) : 0;
+  const totalAmount = order ? parseFloat(order.total) : (posData?.total || 0);
   const totalWithInterest = totalAmount * (1 + watchedValues.interest_rate / 100);
   const installmentAmount = totalWithInterest / watchedValues.installments_count;
 
@@ -85,27 +91,32 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
   };
 
   const handleSubmit = async (data: PaymentPlanFormData) => {
-    if (!order) {
-      // Para uso no POS sem pedido específico
-      alert('Funcionalidade de parcelamento será implementada após criação do pedido');
-      onOpenChange(false);
-      return;
-    }
-
     try {
-      // Criar o plano de pagamento
-      const paymentPlan = await createPaymentPlan.mutateAsync({
-        order_id: order.id,
-        order_number: order.number,
-        customer_name: `${order.billing.first_name} ${order.billing.last_name}`,
-        customer_email: order.billing.email,
+      const planData = {
+        order_id: order?.id || 0,
+        order_number: order?.number || 'POS',
+        customer_name: order ? 
+          `${order.billing.first_name} ${order.billing.last_name}` : 
+          posData?.customerName || 'Cliente',
+        customer_email: order?.billing.email || posData?.customerEmail || '',
         total_amount: totalWithInterest,
         installments_count: data.installments_count,
         payment_type: data.payment_type,
         interest_rate: data.interest_rate,
-        status: 'active',
+        status: 'active' as const,
         notes: data.notes,
-      });
+      };
+
+      if (posData && !order) {
+        // Para POS, apenas retornar os dados do plano sem salvar no banco
+        onPaymentPlanCreated?.(planData);
+        onOpenChange(false);
+        form.reset();
+        return;
+      }
+
+      // Para pedidos existentes, criar no banco
+      const paymentPlan = await createPaymentPlan.mutateAsync(planData);
 
       // Criar as parcelas
       const installments = calculateInstallments().map(installment => ({
@@ -123,7 +134,7 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
     }
   };
 
-  if (!order) {
+  if (!order && !posData) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-md">
@@ -158,7 +169,7 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Configurar Parcelamento - Pedido #{order.number}
+            Configurar Parcelamento {order ? `- Pedido #${order.number}` : ''}
           </DialogTitle>
         </DialogHeader>
 
@@ -168,7 +179,12 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-muted-foreground">Cliente:</span>
-                <div className="font-medium">{order.billing.first_name} {order.billing.last_name}</div>
+                <div className="font-medium">
+                  {order ? 
+                    `${order.billing.first_name} ${order.billing.last_name}` : 
+                    posData?.customerName || 'Cliente'
+                  }
+                </div>
               </div>
               <div>
                 <span className="text-muted-foreground">Valor Total:</span>
