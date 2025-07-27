@@ -863,13 +863,18 @@ const POS = () => {
                                 <User className="w-4 h-4 mr-2" />
                                 <SelectValue placeholder="Selecionar cliente" />
                               </SelectTrigger>
-                              <SelectContent className="max-h-[200px] overflow-y-auto">
-                                {customers.map(customer => (
-                                  <SelectItem key={customer.id} value={customer.id.toString()}>
-                                    {customer.first_name} {customer.last_name} - {customer.email}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
+                               <SelectContent className="max-h-[200px] overflow-y-auto z-50 bg-background border shadow-lg">
+                                 {customers.slice(0, 100).map(customer => (
+                                   <SelectItem key={customer.id} value={customer.id.toString()}>
+                                     {customer.first_name} {customer.last_name} - {customer.email}
+                                   </SelectItem>
+                                 ))}
+                                 {customers.length > 100 && (
+                                   <div className="px-2 py-1 text-xs text-muted-foreground text-center">
+                                     Mostrando primeiros 100 clientes
+                                   </div>
+                                 )}
+                               </SelectContent>
                             </Select>
                           )}
                         </div>
@@ -949,16 +954,16 @@ const POS = () => {
                               <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="Selecionar método" />
                               </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="PIX">PIX</SelectItem>
-                                <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                                <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                                <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                                <SelectItem value="Transferência">Transferência</SelectItem>
-                                <SelectItem value="Boleto">Boleto</SelectItem>
-                                <SelectItem value="Cheque">Cheque</SelectItem>
-                                <SelectItem value="Crediário">Crediário</SelectItem>
-                              </SelectContent>
+                               <SelectContent className="z-50 bg-background border shadow-lg">
+                                 <SelectItem value="PIX">PIX</SelectItem>
+                                 <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                 <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                                 <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                                 <SelectItem value="Transferência">Transferência</SelectItem>
+                                 <SelectItem value="Boleto">Boleto</SelectItem>
+                                 <SelectItem value="Cheque">Cheque</SelectItem>
+                                 <SelectItem value="Crediário">Crediário</SelectItem>
+                               </SelectContent>
                             </Select>
                             <Input
                               type="number"
