@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
+import { useCreatePaymentPlan, useCreateInstallments } from '@/hooks/useFinancial';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -73,6 +74,7 @@ const POS = () => {
     { id: '1', name: 'PIX', amount: 0 }
   ]);
   const [showPaymentPlan, setShowPaymentPlan] = useState(false);
+  const [activePaymentPlan, setActivePaymentPlan] = useState<any>(null);
   const [globalDiscount, setGlobalDiscount] = useState({ type: 'percentage' as 'percentage' | 'fixed', value: 0 });
   const [notes, setNotes] = useState('');
 
@@ -89,6 +91,8 @@ const POS = () => {
     console.log('POS Debug - Customers:', { customers, isLoadingCustomers, customersError });
   }, [customers, isLoadingCustomers, customersError]);
   const createOrder = useCreateOrder();
+  const createPaymentPlan = useCreatePaymentPlan();
+  const createInstallments = useCreateInstallments();
 
   // Carregar carrinhos salvos do localStorage
   useEffect(() => {
@@ -338,6 +342,16 @@ const POS = () => {
     const totalPayments = getTotalPayments();
     const orderTotal = getTotalPrice();
     
+    // Validação específica para parcelamento com juros
+    if (activePaymentPlan && activePaymentPlan.total_amount > orderTotal) {
+      toast({
+        title: "Erro no Parcelamento",
+        description: `O valor do parcelamento (R$ ${activePaymentPlan.total_amount.toFixed(2)}) é maior que o valor do carrinho (R$ ${orderTotal.toFixed(2)}). Não é possível finalizar o pedido.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (Math.abs(totalPayments - orderTotal) > 0.01) {
       toast({
         title: "Erro",
@@ -423,6 +437,11 @@ const POS = () => {
     setCart([]);
     setGlobalDiscount({ type: 'percentage', value: 0 });
     setNotes('');
+    setActivePaymentPlan(null);
+    setPaymentMethods([{ id: '1', name: 'PIX', amount: 0 }]);
+    setSelectedCustomer(null);
+    setIsGuestSale(false);
+    setGuestData({ name: '', email: '', phone: '' });
   };
 
   if (isLoading) {
@@ -1062,17 +1081,64 @@ const POS = () => {
         open={showPaymentPlan}
         onOpenChange={setShowPaymentPlan}
         order={null}
-        onPaymentPlanCreated={(plan: any) => {
-          setPaymentMethods([{
-            id: '1',
-            name: `Parcelado em ${plan.installments_count}x`,
-            amount: plan.total_amount
-          }]);
-          setShowPaymentPlan(false);
-          toast({
-            title: "Parcelamento configurado",
-            description: `Pedido será parcelado em ${plan.installments_count}x de R$ ${(plan.total_amount / plan.installments_count).toFixed(2)}`
-          });
+        onPaymentPlanCreated={async (plan: any) => {
+          try {
+            // Criar o plano no financeiro
+            const paymentPlan = await createPaymentPlan.mutateAsync({
+              order_id: 0,
+              order_number: 'POS',
+              customer_name: isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim(),
+              customer_email: isGuestSale ? guestData.email : selectedCustomer?.email || '',
+              total_amount: plan.total_amount,
+              installments_count: plan.installments_count,
+              payment_type: plan.payment_type,
+              interest_rate: plan.interest_rate,
+              status: 'active',
+              notes: plan.notes
+            });
+
+            // Criar as parcelas
+            const installments = [];
+            const firstDate = new Date(plan.first_due_date);
+            
+            for (let i = 0; i < plan.installments_count; i++) {
+              const dueDate = new Date(firstDate);
+              dueDate.setDate(firstDate.getDate() + (i * 30));
+              
+              installments.push({
+                payment_plan_id: paymentPlan.id,
+                installment_number: i + 1,
+                amount: plan.total_amount / plan.installments_count,
+                due_date: dueDate.toISOString().split('T')[0],
+                status: 'pending',
+                late_fee: 0,
+                discount: 0,
+              });
+            }
+
+            await createInstallments.mutateAsync(installments);
+
+            // Atualizar os métodos de pagamento
+            setActivePaymentPlan(paymentPlan);
+            setPaymentMethods([{
+              id: '1',
+              name: `Parcelado em ${plan.installments_count}x`,
+              amount: plan.total_amount
+            }]);
+            setShowPaymentPlan(false);
+            
+            toast({
+              title: "Parcelamento criado",
+              description: `Plano criado no financeiro: ${plan.installments_count}x de R$ ${(plan.total_amount / plan.installments_count).toFixed(2)}`
+            });
+          } catch (error) {
+            console.error('Erro ao criar parcelamento:', error);
+            toast({
+              title: "Erro",
+              description: "Erro ao criar parcelamento no financeiro",
+              variant: "destructive"
+            });
+          }
         }}
         posData={{
           total: getTotalPrice(),

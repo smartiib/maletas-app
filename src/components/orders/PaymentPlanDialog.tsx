@@ -108,8 +108,12 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
       };
 
       if (posData && !order) {
-        // Para POS, apenas retornar os dados do plano sem salvar no banco
-        onPaymentPlanCreated?.(planData);
+        // Para POS, retornar os dados do plano incluindo datas das parcelas
+        const planDataWithInstallments = {
+          ...planData,
+          ...data, // inclui first_due_date e outros campos do form
+        };
+        onPaymentPlanCreated?.(planDataWithInstallments);
         onOpenChange(false);
         form.reset();
         return;
@@ -165,7 +169,7 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[100]">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto z-[100] bg-background">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
