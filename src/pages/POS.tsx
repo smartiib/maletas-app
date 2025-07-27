@@ -973,7 +973,7 @@ const POS = () => {
                               <SelectTrigger className="flex-1">
                                 <SelectValue placeholder="Selecionar método" />
                               </SelectTrigger>
-                               <SelectContent className="z-50 bg-background border shadow-lg">
+                              <SelectContent className="z-[80] bg-background border shadow-lg max-h-[200px] overflow-y-auto">
                                  <SelectItem value="PIX">PIX</SelectItem>
                                  <SelectItem value="Dinheiro">Dinheiro</SelectItem>
                                  <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
@@ -1005,18 +1005,24 @@ const POS = () => {
                       )}
                     </div>
 
-                  <div className="text-sm mt-2">
-                    <div className="flex justify-between">
-                      <span>Total a Pagar:</span>
-                      <span>R$ {getTotalPrice().toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Total Pagamentos:</span>
-                      <span className={getTotalPayments() === getTotalPrice() ? 'text-green-600' : 'text-red-600'}>
-                        R$ {getTotalPayments().toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
+                   <div className="text-sm mt-2">
+                     <div className="flex justify-between">
+                       <span>Total a Pagar:</span>
+                       <span>R$ {(activePaymentPlan ? activePaymentPlan.total_amount : getTotalPrice()).toFixed(2)}</span>
+                     </div>
+                     <div className="flex justify-between">
+                       <span>Total Pagamentos:</span>
+                       <span className={getTotalPayments() === (activePaymentPlan ? activePaymentPlan.total_amount : getTotalPrice()) ? 'text-green-600' : 'text-red-600'}>
+                         R$ {getTotalPayments().toFixed(2)}
+                       </span>
+                     </div>
+                     {activePaymentPlan && activePaymentPlan.total_amount > getTotalPrice() && (
+                       <div className="flex justify-between text-orange-600 text-xs mt-1">
+                         <span>Valor Original:</span>
+                         <span>R$ {getTotalPrice().toFixed(2)}</span>
+                       </div>
+                     )}
+                   </div>
                 </div>
 
                 {/* Observações */}
@@ -1053,9 +1059,11 @@ const POS = () => {
               <Button
                 className="flex-1 bg-gradient-success"
                 onClick={finalizePurchase}
-                disabled={createOrder.isPending}
+                disabled={createOrder.isPending || getTotalPayments() !== (activePaymentPlan ? activePaymentPlan.total_amount : getTotalPrice())}
               >
-                {createOrder.isPending ? 'Processando...' : 'Confirmar Pedido'}
+                {createOrder.isPending ? 'Processando...' : 
+                 getTotalPayments() !== (activePaymentPlan ? activePaymentPlan.total_amount : getTotalPrice()) ? 
+                 'Valores não conferem' : 'Confirmar Pedido'}
               </Button>
             </div>
           </div>
