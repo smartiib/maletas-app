@@ -18,6 +18,7 @@ import CategorySlider from '@/components/pos/CategorySlider';
 import CartSidebar from '@/components/pos/CartSidebar';
 import FloatingCartButton from '@/components/pos/FloatingCartButton';
 import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
+import { addDays, format } from 'date-fns';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -407,7 +408,60 @@ const POS = () => {
         total: getTotalPrice().toFixed(2)
       };
 
-      await createOrder.mutateAsync(orderData);
+      const order = await createOrder.mutateAsync(orderData);
+      
+      // Se há parcelamento ativo, criar no sistema financeiro
+      if (activePaymentPlan) {
+        try {
+          const planData = {
+            order_id: order.id,
+            order_number: order.number?.toString() || `POS-${Date.now()}`,
+            customer_name: isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim(),
+            customer_email: isGuestSale ? guestData.email : selectedCustomer?.email || '',
+            total_amount: activePaymentPlan.total_amount,
+            installments_count: activePaymentPlan.installments_count,
+            payment_type: 'installment' as const,
+            interest_rate: activePaymentPlan.interest_rate || 0,
+            status: 'active' as const,
+            notes: activePaymentPlan.notes || `Parcelamento POS - ${activePaymentPlan.installments_count}x`,
+          };
+
+          // Criar o plano de pagamento
+          const paymentPlan = await createPaymentPlan.mutateAsync(planData);
+
+          // Calcular e criar as parcelas
+          const firstDate = new Date(activePaymentPlan.first_due_date || new Date());
+          const installmentAmount = activePaymentPlan.total_amount / activePaymentPlan.installments_count;
+          
+          const installments = [];
+          for (let i = 0; i < activePaymentPlan.installments_count; i++) {
+            const dueDate = addDays(firstDate, i * 30); // 30 dias entre parcelas
+            installments.push({
+              payment_plan_id: paymentPlan.id,
+              installment_number: i + 1,
+              amount: installmentAmount,
+              due_date: format(dueDate, 'yyyy-MM-dd'),
+              status: 'pending' as const,
+              late_fee: 0,
+              discount: 0,
+            });
+          }
+
+          await createInstallments.mutateAsync(installments);
+          
+          toast({
+            title: "Parcelamento Criado",
+            description: `Parcelamento de ${activePaymentPlan.installments_count}x criado no financeiro`,
+          });
+        } catch (error) {
+          console.error('Erro ao criar parcelamento no financeiro:', error);
+          toast({
+            title: "Aviso",
+            description: "Pedido criado, mas erro ao registrar parcelamento no financeiro",
+            variant: "destructive"
+          });
+        }
+      }
       
       // Limpar dados após finalização
       setCart([]);
@@ -415,6 +469,7 @@ const POS = () => {
       setNotes('');
       setPaymentMethods([{ id: '1', name: 'PIX', amount: 0 }]);
       setShowPaymentPlan(false);
+      setActivePaymentPlan(null);
       setSelectedCustomer(null);
       setIsGuestSale(false);
       setGuestData({ name: '', email: '', phone: '' });

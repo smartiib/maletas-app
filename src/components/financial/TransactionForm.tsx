@@ -26,6 +26,7 @@ interface TransactionFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction?: Partial<FinancialTransaction>;
+  initialType?: 'entrada' | 'saida' | null;
 }
 
 const categories = [
@@ -48,13 +49,13 @@ const paymentMethods = [
   { value: 'boleto', label: 'Boleto' },
 ];
 
-const TransactionForm: React.FC<TransactionFormProps> = ({ open, onOpenChange, transaction }) => {
+const TransactionForm: React.FC<TransactionFormProps> = ({ open, onOpenChange, transaction, initialType }) => {
   const createTransaction = useCreateTransaction();
 
   const form = useForm<TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
-      type: transaction?.type || 'entrada',
+      type: transaction?.type || initialType || 'entrada',
       amount: transaction?.amount || 0,
       description: transaction?.description || '',
       category: transaction?.category || undefined,
@@ -63,6 +64,13 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ open, onOpenChange, t
       notes: transaction?.notes || '',
     },
   });
+
+  // Atualizar o tipo quando initialType mudar
+  React.useEffect(() => {
+    if (initialType && !transaction) {
+      form.setValue('type', initialType);
+    }
+  }, [initialType, transaction, form]);
 
   const handleSubmit = async (data: TransactionFormData) => {
     try {

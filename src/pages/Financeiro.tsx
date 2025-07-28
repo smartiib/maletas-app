@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, DollarSign, TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { Plus, DollarSign, TrendingUp, TrendingDown, Calendar, ChevronDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,15 +7,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import FinancialDashboard from '@/components/financial/FinancialDashboard';
 import TransactionForm from '@/components/financial/TransactionForm';
 import InstallmentManager from '@/components/financial/InstallmentManager';
+import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
 import { useFinancialTransactions } from '@/hooks/useFinancial';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
 const Financeiro = () => {
   const [transactionDialogOpen, setTransactionDialogOpen] = useState(false);
+  const [paymentPlanDialogOpen, setPaymentPlanDialogOpen] = useState(false);
+  const [selectedTransactionType, setSelectedTransactionType] = useState<'entrada' | 'saida' | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedType, setSelectedType] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -43,6 +47,15 @@ const Financeiro = () => {
   };
 
   const categories = Array.from(new Set(transactions.map(t => t.category).filter(Boolean)));
+
+  const handleTransactionTypeSelect = (type: 'entrada' | 'saida') => {
+    setSelectedTransactionType(type);
+    setTransactionDialogOpen(true);
+  };
+
+  const handlePaymentPlanCreated = () => {
+    setPaymentPlanDialogOpen(false);
+  };
 
   return (
     <div className="space-y-6">
@@ -83,13 +96,29 @@ const Financeiro = () => {
             Controle financeiro completo do seu negócio
           </p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:opacity-90" 
-          onClick={() => setTransactionDialogOpen(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nova Transação
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="bg-gradient-primary hover:opacity-90">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Transação
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => handleTransactionTypeSelect('entrada')}>
+              <TrendingUp className="w-4 h-4 mr-2 text-green-600" />
+              Entrada
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleTransactionTypeSelect('saida')}>
+              <TrendingDown className="w-4 h-4 mr-2 text-red-600" />
+              Saída
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPaymentPlanDialogOpen(true)}>
+              <Calendar className="w-4 h-4 mr-2 text-blue-600" />
+              Parcelamento
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Dashboard */}
@@ -237,7 +266,20 @@ const Financeiro = () => {
       {/* Transaction Dialog */}
       <TransactionForm
         open={transactionDialogOpen}
-        onOpenChange={setTransactionDialogOpen}
+        onOpenChange={(open) => {
+          setTransactionDialogOpen(open);
+          if (!open) {
+            setSelectedTransactionType(null);
+          }
+        }}
+        initialType={selectedTransactionType}
+      />
+
+      {/* Payment Plan Dialog */}
+      <PaymentPlanDialog
+        open={paymentPlanDialogOpen}
+        onOpenChange={setPaymentPlanDialogOpen}
+        onPaymentPlanCreated={handlePaymentPlanCreated}
       />
     </div>
   );
