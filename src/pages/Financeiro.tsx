@@ -96,29 +96,29 @@ const Financeiro = () => {
             Controle financeiro completo do seu negócio
           </p>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90">
-              <Plus className="w-4 h-4 mr-2" />
-              Nova Transação
-              <ChevronDown className="w-4 h-4 ml-2" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => handleTransactionTypeSelect('entrada')}>
-              <TrendingUp className="w-4 h-4 mr-2 text-green-600" />
-              Entrada
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleTransactionTypeSelect('saida')}>
-              <TrendingDown className="w-4 h-4 mr-2 text-red-600" />
-              Saída
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPaymentPlanDialogOpen(true)}>
-              <Calendar className="w-4 h-4 mr-2 text-blue-600" />
-              Parcelamento
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => handleTransactionTypeSelect('entrada')}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            <TrendingUp className="w-4 h-4 mr-2" />
+            Entrada
+          </Button>
+          <Button 
+            onClick={() => handleTransactionTypeSelect('saida')}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            <TrendingDown className="w-4 h-4 mr-2" />
+            Saída
+          </Button>
+          <Button 
+            onClick={() => setPaymentPlanDialogOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Calendar className="w-4 h-4 mr-2" />
+            Parcelamento
+          </Button>
+        </div>
       </div>
 
       {/* Dashboard */}

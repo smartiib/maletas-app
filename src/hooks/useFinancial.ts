@@ -200,6 +200,19 @@ export const usePayInstallment = () => {
       late_fee?: number;
       discount?: number;
     }) => {
+      // Primeiro, buscar os dados da parcela para criar a transação
+      const { data: installment, error: installmentError } = await supabase
+        .from('payment_installments')
+        .select(`
+          *,
+          payment_plan:payment_plans(*)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (installmentError) throw installmentError;
+
+      // Atualizar a parcela
       const { data, error } = await supabase
         .from('payment_installments')
         .update({ 
@@ -215,13 +228,33 @@ export const usePayInstallment = () => {
         .single();
       
       if (error) throw error;
+
+      // Criar transação financeira
+      const finalAmount = Number(installment.amount) + late_fee - discount;
+      
+      await supabase
+        .from('financial_transactions')
+        .insert({
+          type: 'entrada',
+          description: `Recebimento de Parcela ${installment.installment_number}/${installment.payment_plan?.installments_count || 'N/A'} - ${installment.payment_plan?.customer_name || 'Cliente'}`,
+          amount: finalAmount,
+          date: payment_date,
+          payment_method: payment_method,
+          category: 'Recebimento de Parcela',
+          reference_type: 'payment_installment',
+          reference_id: id,
+          notes: notes,
+          status: 'completed'
+        });
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment-installments'] });
       queryClient.invalidateQueries({ queryKey: ['payment-plans'] });
       queryClient.invalidateQueries({ queryKey: ['financial-dashboard'] });
-      logger.success('Parcela Paga', 'Parcela foi marcada como paga');
+      queryClient.invalidateQueries({ queryKey: ['financial-transactions'] });
+      logger.success('Parcela Paga', 'Parcela foi marcada como paga e transação criada');
     },
     onError: () => {
       logger.error('Erro', 'Falha ao registrar pagamento da parcela');

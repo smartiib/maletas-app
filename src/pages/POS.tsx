@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
-import { useCreatePaymentPlan, useCreateInstallments } from '@/hooks/useFinancial';
+import { useCreatePaymentPlan, useCreateInstallments, useCreateTransaction } from '@/hooks/useFinancial';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -94,6 +94,7 @@ const POS = () => {
   const createOrder = useCreateOrder();
   const createPaymentPlan = useCreatePaymentPlan();
   const createInstallments = useCreateInstallments();
+  const createTransaction = useCreateTransaction();
 
   // Carregar carrinhos salvos do localStorage
   useEffect(() => {
@@ -458,6 +459,29 @@ const POS = () => {
           toast({
             title: "Aviso",
             description: "Pedido criado, mas erro ao registrar parcelamento no financeiro",
+            variant: "destructive"
+          });
+        }
+      } else {
+        // Criar transação financeira para pagamentos diretos (não parcelados)
+        try {
+          await createTransaction.mutateAsync({
+            type: 'entrada',
+            description: `Venda POS - ${isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim()}`,
+            amount: getTotalPrice(),
+            date: new Date().toISOString(),
+            payment_method: paymentMethods.map(p => p.name).join(', '),
+            category: 'Venda',
+            reference_type: 'pos_sale',
+            reference_id: order.id.toString(),
+            notes: `Venda realizada no POS - Pedido #${order.number || order.id}`,
+            status: 'completed'
+          });
+        } catch (error) {
+          console.error('Erro ao criar transação financeira:', error);
+          toast({
+            title: "Aviso",
+            description: "Pedido criado, mas erro ao registrar transação no financeiro",
             variant: "destructive"
           });
         }
