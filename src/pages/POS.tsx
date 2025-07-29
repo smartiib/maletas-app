@@ -932,14 +932,25 @@ const POS = () => {
                 <div>
                   <Label className="text-sm font-medium mb-3 block">Cliente</Label>
                   <div className="space-y-3">
-                    <Button
-                      variant={!isGuestSale ? "default" : "outline"}
-                      className={`w-full justify-start ${!isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                      onClick={() => setIsGuestSale(false)}
-                    >
-                      <User className="w-4 h-4 mr-2" />
-                      Cliente Cadastrado
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={isGuestSale ? "default" : "outline"}
+                        className={`flex-1 justify-start ${isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                        onClick={() => setIsGuestSale(true)}
+                      >
+                        <UserPlus className="w-4 h-4 mr-2" />
+                        Consumidor Final
+                      </Button>
+
+                      <Button
+                        variant={!isGuestSale ? "default" : "outline"}
+                        className={`flex-1 justify-start ${!isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                        onClick={() => setIsGuestSale(false)}
+                      >
+                        <User className="w-4 h-4 mr-2" />
+                        Cliente Cadastrado
+                      </Button>
+                    </div>
                     
                       {!isGuestSale && (
                         <div>
@@ -977,15 +988,6 @@ const POS = () => {
                           )}
                         </div>
                       )}
-
-                    <Button
-                      variant={isGuestSale ? "default" : "outline"}
-                      className={`w-full justify-start ${isGuestSale ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
-                      onClick={() => setIsGuestSale(true)}
-                    >
-                      <UserPlus className="w-4 h-4 mr-2" />
-                      Venda como Convidado
-                    </Button>
 
                     {isGuestSale && (
                       <div className="space-y-2">
