@@ -1056,6 +1056,7 @@ const POS = () => {
                                  <SelectItem value="Boleto">Boleto</SelectItem>
                                  <SelectItem value="Cheque">Cheque</SelectItem>
                                  <SelectItem value="Crediário">Crediário</SelectItem>
+                                 <SelectItem value="Parcelamento com Entrada">Parcelamento com Entrada</SelectItem>
                                </SelectContent>
                             </Select>
                             <Input
@@ -1099,8 +1100,8 @@ const POS = () => {
                    </div>
                  </div>
 
-                {/* Detalhes do Parcelamento */}
-                {activePaymentPlan && activePaymentPlan.installments && (
+                {/* Detalhes do Parcelamento com Entrada */}
+                {paymentMethods.some(payment => payment.name === "Parcelamento com Entrada") && activePaymentPlan && activePaymentPlan.installments && (
                   <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
                     <h4 className="font-semibold mb-3 flex items-center gap-2">
                       <CreditCard className="w-4 h-4" />
