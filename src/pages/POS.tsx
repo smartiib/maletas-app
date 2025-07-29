@@ -430,23 +430,16 @@ const POS = () => {
           // Criar o plano de pagamento
           const paymentPlan = await createPaymentPlan.mutateAsync(planData);
 
-          // Calcular e criar as parcelas
-          const firstDate = new Date(activePaymentPlan.first_due_date || new Date());
-          const installmentAmount = activePaymentPlan.total_amount / activePaymentPlan.installments_count;
-          
-          const installments = [];
-          for (let i = 0; i < activePaymentPlan.installments_count; i++) {
-            const dueDate = addDays(firstDate, i * 30); // 30 dias entre parcelas
-            installments.push({
-              payment_plan_id: paymentPlan.id,
-              installment_number: i + 1,
-              amount: installmentAmount,
-              due_date: format(dueDate, 'yyyy-MM-dd'),
-              status: 'pending' as const,
-              late_fee: 0,
-              discount: 0,
-            });
-          }
+          // Usar as parcelas já calculadas no plano
+          const installments = activePaymentPlan.installments.map((installment: any) => ({
+            payment_plan_id: paymentPlan.id,
+            installment_number: installment.installment_number,
+            amount: installment.amount,
+            due_date: installment.due_date,
+            status: 'pending' as const,
+            late_fee: 0,
+            discount: 0,
+          }));
 
           await createInstallments.mutateAsync(installments);
           
@@ -1104,7 +1097,47 @@ const POS = () => {
                        </div>
                      )}
                    </div>
-                </div>
+                 </div>
+
+                {/* Detalhes do Parcelamento */}
+                {activePaymentPlan && activePaymentPlan.installments && (
+                  <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
+                      Detalhes do Parcelamento
+                    </h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="grid grid-cols-3 gap-4 font-medium text-muted-foreground border-b pb-2">
+                        <span>Parcela</span>
+                        <span>Vencimento</span>
+                        <span>Valor</span>
+                      </div>
+                      {activePaymentPlan.installments.map((installment: any, index: number) => (
+                        <div key={index} className="grid grid-cols-3 gap-4">
+                          <span>{installment.installment_number}/{activePaymentPlan.installments_count}</span>
+                          <span>{new Date(installment.due_date).toLocaleDateString('pt-BR')}</span>
+                          <span className="font-semibold">R$ {installment.amount.toFixed(2)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t pt-2 mt-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Valor Original:</span>
+                        <span>R$ {getTotalPrice().toFixed(2)}</span>
+                      </div>
+                      {activePaymentPlan.interest_rate > 0 && (
+                        <div className="flex justify-between text-orange-600">
+                          <span>Juros ({activePaymentPlan.interest_rate}%):</span>
+                          <span>+R$ {(activePaymentPlan.total_amount - getTotalPrice()).toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between font-semibold">
+                        <span>Total Final:</span>
+                        <span>R$ {activePaymentPlan.total_amount.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Observações */}
                 <div>
@@ -1171,63 +1204,40 @@ const POS = () => {
         onOpenChange={setShowPaymentPlan}
         order={null}
         onPaymentPlanCreated={async (plan: any) => {
-          try {
-            // Criar o plano no financeiro
-            const paymentPlan = await createPaymentPlan.mutateAsync({
-              order_id: 0,
-              order_number: 'POS',
-              customer_name: isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim(),
-              customer_email: isGuestSale ? guestData.email : selectedCustomer?.email || '',
-              total_amount: plan.total_amount,
-              installments_count: plan.installments_count,
-              payment_type: plan.payment_type,
-              interest_rate: plan.interest_rate,
-              status: 'active',
-              notes: plan.notes
-            });
-
-            // Criar as parcelas
-            const installments = [];
-            const firstDate = new Date(plan.first_due_date);
+          // Calcular as parcelas para exibir no modal
+          const installments = [];
+          const firstDate = new Date(plan.first_due_date);
+          
+          for (let i = 0; i < plan.installments_count; i++) {
+            const dueDate = new Date(firstDate);
+            dueDate.setDate(firstDate.getDate() + (i * 30));
             
-            for (let i = 0; i < plan.installments_count; i++) {
-              const dueDate = new Date(firstDate);
-              dueDate.setDate(firstDate.getDate() + (i * 30));
-              
-              installments.push({
-                payment_plan_id: paymentPlan.id,
-                installment_number: i + 1,
-                amount: plan.total_amount / plan.installments_count,
-                due_date: dueDate.toISOString().split('T')[0],
-                status: 'pending',
-                late_fee: 0,
-                discount: 0,
-              });
-            }
-
-            await createInstallments.mutateAsync(installments);
-
-            // Atualizar os métodos de pagamento
-            setActivePaymentPlan(paymentPlan);
-            setPaymentMethods([{
-              id: '1',
-              name: `Parcelado em ${plan.installments_count}x`,
-              amount: plan.total_amount
-            }]);
-            setShowPaymentPlan(false);
-            
-            toast({
-              title: "Parcelamento criado",
-              description: `Plano criado no financeiro: ${plan.installments_count}x de R$ ${(plan.total_amount / plan.installments_count).toFixed(2)}`
-            });
-          } catch (error) {
-            console.error('Erro ao criar parcelamento:', error);
-            toast({
-              title: "Erro",
-              description: "Erro ao criar parcelamento no financeiro",
-              variant: "destructive"
+            installments.push({
+              installment_number: i + 1,
+              amount: plan.total_amount / plan.installments_count,
+              due_date: dueDate.toISOString().split('T')[0],
+              status: 'pending',
             });
           }
+
+          // Salvar dados do plano com parcelas para exibir no modal
+          const planWithInstallments = {
+            ...plan,
+            installments: installments
+          };
+
+          setActivePaymentPlan(planWithInstallments);
+          setPaymentMethods([{
+            id: '1',
+            name: `Parcelado em ${plan.installments_count}x`,
+            amount: plan.total_amount
+          }]);
+          setShowPaymentPlan(false);
+          
+          toast({
+            title: "Parcelamento configurado",
+            description: `Parcelamento: ${plan.installments_count}x de R$ ${(plan.total_amount / plan.installments_count).toFixed(2)}`
+          });
         }}
         posData={{
           total: getTotalPrice(),
