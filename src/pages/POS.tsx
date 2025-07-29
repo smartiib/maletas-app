@@ -69,8 +69,8 @@ const POS = () => {
 
   // Checkout modal states
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
-  const [isGuestSale, setIsGuestSale] = useState(false);
-  const [guestData, setGuestData] = useState({ name: '', email: '', phone: '' });
+  const [isGuestSale, setIsGuestSale] = useState(true);
+  const [guestData, setGuestData] = useState({ name: 'Consumidor Final', email: '', phone: '' });
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
     { id: '1', name: 'PIX', amount: 0 }
   ]);
