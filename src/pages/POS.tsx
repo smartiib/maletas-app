@@ -1034,50 +1034,53 @@ const POS = () => {
                      </div>
                    </div>
                   
-                    <div className="space-y-2">
-                      {paymentMethods.length === 0 ? (
-                        <div className="text-sm text-muted-foreground p-2">Nenhum método de pagamento adicionado</div>
-                      ) : (
-                        paymentMethods.map((payment) => (
-                          <div key={payment.id} className="flex gap-2">
-                            <Select 
-                              value={payment.name} 
-                              onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}
-                            >
-                              <SelectTrigger className="flex-1">
-                                <SelectValue placeholder="Selecionar método" />
-                              </SelectTrigger>
-                              <SelectContent className="z-[80] bg-background border shadow-lg max-h-[200px] overflow-y-auto">
-                                 <SelectItem value="PIX">PIX</SelectItem>
-                                 <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                                 <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
-                                 <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
-                                 <SelectItem value="Transferência">Transferência</SelectItem>
-                                 <SelectItem value="Boleto">Boleto</SelectItem>
-                                 <SelectItem value="Cheque">Cheque</SelectItem>
-                                 <SelectItem value="Crediário">Crediário</SelectItem>
-                               </SelectContent>
-                            </Select>
-                            <Input
-                              type="number"
-                              placeholder="Valor"
-                              value={payment.amount || ''}
-                              onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
-                              className="w-32"
-                            />
-                            {paymentMethods.length > 1 && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => removePaymentMethod(payment.id)}
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
+                     {/* Só mostra os métodos de pagamento se não for parcelamento com entrada */}
+                     {!(activePaymentPlan && activePaymentPlan.with_down_payment) && (
+                       <div className="space-y-2">
+                         {paymentMethods.length === 0 ? (
+                           <div className="text-sm text-muted-foreground p-2">Nenhum método de pagamento adicionado</div>
+                         ) : (
+                           paymentMethods.map((payment) => (
+                             <div key={payment.id} className="flex gap-2">
+                               <Select 
+                                 value={payment.name} 
+                                 onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}
+                               >
+                                 <SelectTrigger className="flex-1">
+                                   <SelectValue placeholder="Selecionar método" />
+                                 </SelectTrigger>
+                                 <SelectContent className="z-[80] bg-background border shadow-lg max-h-[200px] overflow-y-auto">
+                                    <SelectItem value="PIX">PIX</SelectItem>
+                                    <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                                    <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                                    <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                                    <SelectItem value="Transferência">Transferência</SelectItem>
+                                    <SelectItem value="Boleto">Boleto</SelectItem>
+                                    <SelectItem value="Cheque">Cheque</SelectItem>
+                                    <SelectItem value="Crediário">Crediário</SelectItem>
+                                  </SelectContent>
+                               </Select>
+                               <Input
+                                 type="number"
+                                 placeholder="Valor"
+                                 value={payment.amount || ''}
+                                 onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
+                                 className="w-32"
+                               />
+                               {paymentMethods.length > 1 && (
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => removePaymentMethod(payment.id)}
+                                 >
+                                   <X className="w-4 h-4" />
+                                 </Button>
+                               )}
+                             </div>
+                           ))
+                         )}
+                       </div>
+                     )}
 
                    <div className="text-sm mt-2">
                      <div className="flex justify-between">
