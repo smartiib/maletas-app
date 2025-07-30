@@ -1056,7 +1056,6 @@ const POS = () => {
                                  <SelectItem value="Boleto">Boleto</SelectItem>
                                  <SelectItem value="Cheque">Cheque</SelectItem>
                                  <SelectItem value="Crediário">Crediário</SelectItem>
-                                 <SelectItem value="Parcelamento com Entrada">Parcelamento com Entrada</SelectItem>
                                </SelectContent>
                             </Select>
                             <Input
@@ -1100,13 +1099,59 @@ const POS = () => {
                    </div>
                  </div>
 
-                {/* Detalhes do Parcelamento com Entrada */}
-                {paymentMethods.some(payment => payment.name === "Parcelamento com Entrada") && activePaymentPlan && activePaymentPlan.installments && (
-                  <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
-                    <h4 className="font-semibold mb-3 flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" />
-                      Detalhes do Parcelamento
-                    </h4>
+                {/* Detalhes do Parcelamento */}
+                {activePaymentPlan && activePaymentPlan.installments && (
+                   <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-950/20">
+                     <h4 className="font-semibold mb-3 flex items-center gap-2">
+                       <CreditCard className="w-4 h-4" />
+                       {activePaymentPlan.with_down_payment ? 'Parcelamento com Entrada' : 'Parcelamento'}
+                     </h4>
+
+                     {/* Entrada */}
+                     {activePaymentPlan.with_down_payment && (
+                       <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                         <div className="flex justify-between items-center">
+                           <span className="font-medium">Entrada:</span>
+                           <span className="font-semibold text-green-600">
+                             R$ {activePaymentPlan.down_payment_amount?.toFixed(2) || '0.00'}
+                           </span>
+                         </div>
+                         {/* Adicionar método de pagamento da entrada */}
+                         <div className="mt-2">
+                           <label className="text-sm text-muted-foreground">Forma de Pagamento da Entrada:</label>
+                           <select 
+                             className="w-full mt-1 p-2 border rounded text-sm"
+                           onChange={(e) => {
+                               // Adicionar à lista de métodos de pagamento
+                               const newPayment = {
+                                 id: "entrada",
+                                 name: "Entrada",
+                                 amount: activePaymentPlan.down_payment_amount || 0,
+                                 method: e.target.value
+                               };
+                               
+                               // Verificar se já existe entrada nos métodos de pagamento
+                               const existingEntryIndex = paymentMethods.findIndex(p => p.name === "Entrada");
+                               if (existingEntryIndex >= 0) {
+                                 const updatedMethods = [...paymentMethods];
+                                 updatedMethods[existingEntryIndex] = newPayment;
+                                 setPaymentMethods(updatedMethods);
+                               } else {
+                                 setPaymentMethods([newPayment, ...paymentMethods]);
+                               }
+                             }}
+                           >
+                             <option value="">Selecionar</option>
+                             <option value="Dinheiro">Dinheiro</option>
+                             <option value="Cartão de Débito">Cartão de Débito</option>
+                             <option value="Cartão de Crédito">Cartão de Crédito</option>
+                             <option value="PIX">PIX</option>
+                             <option value="Boleto">Boleto</option>
+                             <option value="Cheque">Cheque</option>
+                           </select>
+                         </div>
+                       </div>
+                     )}
                     <div className="space-y-2 text-sm">
                       <div className="grid grid-cols-3 gap-4 font-medium text-muted-foreground border-b pb-2">
                         <span>Parcela</span>

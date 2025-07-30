@@ -18,6 +18,8 @@ const paymentPlanSchema = z.object({
   installments_count: z.number().min(1).max(12),
   interest_rate: z.number().min(0).default(0),
   first_due_date: z.string(),
+  with_down_payment: z.boolean().default(false),
+  down_payment_amount: z.number().min(0).default(0),
   notes: z.string().optional(),
 });
 
@@ -61,6 +63,8 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
       installments_count: 2,
       interest_rate: 0,
       first_due_date: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+      with_down_payment: false,
+      down_payment_amount: 0,
       notes: '',
     },
   });
@@ -68,7 +72,10 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
   const watchedValues = form.watch();
   const totalAmount = order ? parseFloat(order.total) : (posData?.total || 0);
   const totalWithInterest = totalAmount * (1 + watchedValues.interest_rate / 100);
-  const installmentAmount = totalWithInterest / watchedValues.installments_count;
+  const amountToInstall = watchedValues.with_down_payment 
+    ? totalWithInterest - watchedValues.down_payment_amount 
+    : totalWithInterest;
+  const installmentAmount = amountToInstall / watchedValues.installments_count;
 
   // Calcular datas das parcelas
   const calculateInstallments = () => {
@@ -103,6 +110,8 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
         installments_count: data.installments_count,
         payment_type: data.payment_type,
         interest_rate: data.interest_rate,
+        with_down_payment: data.with_down_payment,
+        down_payment_amount: data.down_payment_amount,
         status: 'active' as const,
         notes: data.notes,
       };
@@ -265,6 +274,56 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
               />
             </div>
 
+            {/* Opção de Entrada */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="with_down_payment"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">
+                        Parcelamento com Entrada
+                      </FormLabel>
+                      <div className="text-sm text-muted-foreground">
+                        Cobrar uma entrada no parcelamento
+                      </div>
+                    </div>
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        className="h-4 w-4"
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {watchedValues.with_down_payment && (
+                <FormField
+                  control={form.control}
+                  name="down_payment_amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Valor da Entrada (R$)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -322,6 +381,16 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
             <Card>
               <CardContent className="p-4">
                 <h4 className="font-medium mb-3">Preview das Parcelas</h4>
+                
+                {watchedValues.with_down_payment && (
+                  <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                    <div className="flex justify-between text-sm">
+                      <span className="font-medium">Entrada:</span>
+                      <span className="font-semibold text-green-600">R$ {watchedValues.down_payment_amount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <div className="grid grid-cols-3 gap-4 text-sm font-medium text-muted-foreground border-b pb-2">
                     <span>Parcela</span>
@@ -345,6 +414,12 @@ const PaymentPlanDialog: React.FC<PaymentPlanDialogProps> = ({
                     <div className="flex justify-between text-sm text-orange-600">
                       <span>Juros ({watchedValues.interest_rate}%):</span>
                       <span>+R$ {(totalWithInterest - totalAmount).toFixed(2)}</span>
+                    </div>
+                  )}
+                  {watchedValues.with_down_payment && (
+                    <div className="flex justify-between text-sm text-green-600">
+                      <span>Entrada:</span>
+                      <span>R$ {watchedValues.down_payment_amount.toFixed(2)}</span>
                     </div>
                   )}
                   <div className="flex justify-between font-semibold">
