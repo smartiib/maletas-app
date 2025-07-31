@@ -884,6 +884,96 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_config: {
+        Row: {
+          auto_sync_enabled: boolean | null
+          config_data: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_sync_at: string | null
+          next_sync_at: string | null
+          sync_interval: string | null
+          sync_on_startup: boolean | null
+          sync_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          auto_sync_enabled?: boolean | null
+          config_data?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          next_sync_at?: string | null
+          sync_interval?: string | null
+          sync_on_startup?: boolean | null
+          sync_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          auto_sync_enabled?: boolean | null
+          config_data?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_sync_at?: string | null
+          next_sync_at?: string | null
+          sync_interval?: string | null
+          sync_on_startup?: boolean | null
+          sync_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          duration_ms: number | null
+          error_details: string | null
+          id: string
+          items_failed: number | null
+          items_processed: number | null
+          message: string
+          operation: string
+          status: string
+          sync_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_details?: string | null
+          id?: string
+          items_failed?: number | null
+          items_processed?: number | null
+          message: string
+          operation: string
+          status?: string
+          sync_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          duration_ms?: number | null
+          error_details?: string | null
+          id?: string
+          items_failed?: number | null
+          items_processed?: number | null
+          message?: string
+          operation?: string
+          status?: string
+          sync_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_configurations: {
         Row: {
           config_data: Json
@@ -948,6 +1038,393 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      wc_product_categories: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          description: string | null
+          display: string | null
+          id: number
+          image: Json | null
+          menu_order: number | null
+          name: string
+          parent: number | null
+          slug: string | null
+          synced_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          description?: string | null
+          display?: string | null
+          id: number
+          image?: Json | null
+          menu_order?: number | null
+          name: string
+          parent?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          description?: string | null
+          display?: string | null
+          id?: number
+          image?: Json | null
+          menu_order?: number | null
+          name?: string
+          parent?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      wc_product_variations: {
+        Row: {
+          attributes: Json | null
+          backordered: boolean | null
+          backorders: string | null
+          backorders_allowed: boolean | null
+          created_at: string | null
+          date_created: string | null
+          date_modified: string | null
+          date_on_sale_from: string | null
+          date_on_sale_to: string | null
+          description: string | null
+          dimensions: Json | null
+          download_expiry: number | null
+          download_limit: number | null
+          downloadable: boolean | null
+          downloads: Json | null
+          id: number
+          image: Json | null
+          low_stock_amount: number | null
+          manage_stock: boolean | null
+          menu_order: number | null
+          meta_data: Json | null
+          on_sale: boolean | null
+          parent_id: number
+          permalink: string | null
+          price: number | null
+          purchasable: boolean | null
+          regular_price: number | null
+          sale_price: number | null
+          shipping_class: string | null
+          shipping_class_id: number | null
+          sku: string | null
+          status: string | null
+          stock_quantity: number | null
+          stock_status: string | null
+          synced_at: string | null
+          tax_class: string | null
+          tax_status: string | null
+          updated_at: string | null
+          virtual: boolean | null
+          weight: string | null
+        }
+        Insert: {
+          attributes?: Json | null
+          backordered?: boolean | null
+          backorders?: string | null
+          backorders_allowed?: boolean | null
+          created_at?: string | null
+          date_created?: string | null
+          date_modified?: string | null
+          date_on_sale_from?: string | null
+          date_on_sale_to?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          download_expiry?: number | null
+          download_limit?: number | null
+          downloadable?: boolean | null
+          downloads?: Json | null
+          id: number
+          image?: Json | null
+          low_stock_amount?: number | null
+          manage_stock?: boolean | null
+          menu_order?: number | null
+          meta_data?: Json | null
+          on_sale?: boolean | null
+          parent_id: number
+          permalink?: string | null
+          price?: number | null
+          purchasable?: boolean | null
+          regular_price?: number | null
+          sale_price?: number | null
+          shipping_class?: string | null
+          shipping_class_id?: number | null
+          sku?: string | null
+          status?: string | null
+          stock_quantity?: number | null
+          stock_status?: string | null
+          synced_at?: string | null
+          tax_class?: string | null
+          tax_status?: string | null
+          updated_at?: string | null
+          virtual?: boolean | null
+          weight?: string | null
+        }
+        Update: {
+          attributes?: Json | null
+          backordered?: boolean | null
+          backorders?: string | null
+          backorders_allowed?: boolean | null
+          created_at?: string | null
+          date_created?: string | null
+          date_modified?: string | null
+          date_on_sale_from?: string | null
+          date_on_sale_to?: string | null
+          description?: string | null
+          dimensions?: Json | null
+          download_expiry?: number | null
+          download_limit?: number | null
+          downloadable?: boolean | null
+          downloads?: Json | null
+          id?: number
+          image?: Json | null
+          low_stock_amount?: number | null
+          manage_stock?: boolean | null
+          menu_order?: number | null
+          meta_data?: Json | null
+          on_sale?: boolean | null
+          parent_id?: number
+          permalink?: string | null
+          price?: number | null
+          purchasable?: boolean | null
+          regular_price?: number | null
+          sale_price?: number | null
+          shipping_class?: string | null
+          shipping_class_id?: number | null
+          sku?: string | null
+          status?: string | null
+          stock_quantity?: number | null
+          stock_status?: string | null
+          synced_at?: string | null
+          tax_class?: string | null
+          tax_status?: string | null
+          updated_at?: string | null
+          virtual?: boolean | null
+          weight?: string | null
+        }
+        Relationships: []
+      }
+      wc_products: {
+        Row: {
+          attributes: Json | null
+          average_rating: string | null
+          backordered: boolean | null
+          backorders: string | null
+          backorders_allowed: boolean | null
+          button_text: string | null
+          catalog_visibility: string | null
+          categories: Json | null
+          created_at: string | null
+          cross_sell_ids: Json | null
+          date_created: string | null
+          date_modified: string | null
+          date_on_sale_from: string | null
+          date_on_sale_to: string | null
+          default_attributes: Json | null
+          description: string | null
+          dimensions: Json | null
+          download_expiry: number | null
+          download_limit: number | null
+          downloadable: boolean | null
+          downloads: Json | null
+          external_url: string | null
+          featured: boolean | null
+          global_unique_id: string | null
+          grouped_products: Json | null
+          has_options: boolean | null
+          id: number
+          images: Json | null
+          low_stock_amount: number | null
+          manage_stock: boolean | null
+          menu_order: number | null
+          meta_data: Json | null
+          name: string
+          on_sale: boolean | null
+          parent_id: number | null
+          permalink: string | null
+          post_password: string | null
+          price: number | null
+          price_html: string | null
+          purchasable: boolean | null
+          purchase_note: string | null
+          rating_count: number | null
+          regular_price: number | null
+          related_ids: Json | null
+          reviews_allowed: boolean | null
+          sale_price: number | null
+          shipping_class: string | null
+          shipping_class_id: number | null
+          shipping_required: boolean | null
+          shipping_taxable: boolean | null
+          short_description: string | null
+          sku: string | null
+          slug: string | null
+          sold_individually: boolean | null
+          status: string | null
+          stock_quantity: number | null
+          stock_status: string | null
+          synced_at: string | null
+          tags: Json | null
+          tax_class: string | null
+          tax_status: string | null
+          total_sales: number | null
+          type: string | null
+          updated_at: string | null
+          upsell_ids: Json | null
+          variations: Json | null
+          virtual: boolean | null
+          weight: string | null
+        }
+        Insert: {
+          attributes?: Json | null
+          average_rating?: string | null
+          backordered?: boolean | null
+          backorders?: string | null
+          backorders_allowed?: boolean | null
+          button_text?: string | null
+          catalog_visibility?: string | null
+          categories?: Json | null
+          created_at?: string | null
+          cross_sell_ids?: Json | null
+          date_created?: string | null
+          date_modified?: string | null
+          date_on_sale_from?: string | null
+          date_on_sale_to?: string | null
+          default_attributes?: Json | null
+          description?: string | null
+          dimensions?: Json | null
+          download_expiry?: number | null
+          download_limit?: number | null
+          downloadable?: boolean | null
+          downloads?: Json | null
+          external_url?: string | null
+          featured?: boolean | null
+          global_unique_id?: string | null
+          grouped_products?: Json | null
+          has_options?: boolean | null
+          id: number
+          images?: Json | null
+          low_stock_amount?: number | null
+          manage_stock?: boolean | null
+          menu_order?: number | null
+          meta_data?: Json | null
+          name: string
+          on_sale?: boolean | null
+          parent_id?: number | null
+          permalink?: string | null
+          post_password?: string | null
+          price?: number | null
+          price_html?: string | null
+          purchasable?: boolean | null
+          purchase_note?: string | null
+          rating_count?: number | null
+          regular_price?: number | null
+          related_ids?: Json | null
+          reviews_allowed?: boolean | null
+          sale_price?: number | null
+          shipping_class?: string | null
+          shipping_class_id?: number | null
+          shipping_required?: boolean | null
+          shipping_taxable?: boolean | null
+          short_description?: string | null
+          sku?: string | null
+          slug?: string | null
+          sold_individually?: boolean | null
+          status?: string | null
+          stock_quantity?: number | null
+          stock_status?: string | null
+          synced_at?: string | null
+          tags?: Json | null
+          tax_class?: string | null
+          tax_status?: string | null
+          total_sales?: number | null
+          type?: string | null
+          updated_at?: string | null
+          upsell_ids?: Json | null
+          variations?: Json | null
+          virtual?: boolean | null
+          weight?: string | null
+        }
+        Update: {
+          attributes?: Json | null
+          average_rating?: string | null
+          backordered?: boolean | null
+          backorders?: string | null
+          backorders_allowed?: boolean | null
+          button_text?: string | null
+          catalog_visibility?: string | null
+          categories?: Json | null
+          created_at?: string | null
+          cross_sell_ids?: Json | null
+          date_created?: string | null
+          date_modified?: string | null
+          date_on_sale_from?: string | null
+          date_on_sale_to?: string | null
+          default_attributes?: Json | null
+          description?: string | null
+          dimensions?: Json | null
+          download_expiry?: number | null
+          download_limit?: number | null
+          downloadable?: boolean | null
+          downloads?: Json | null
+          external_url?: string | null
+          featured?: boolean | null
+          global_unique_id?: string | null
+          grouped_products?: Json | null
+          has_options?: boolean | null
+          id?: number
+          images?: Json | null
+          low_stock_amount?: number | null
+          manage_stock?: boolean | null
+          menu_order?: number | null
+          meta_data?: Json | null
+          name?: string
+          on_sale?: boolean | null
+          parent_id?: number | null
+          permalink?: string | null
+          post_password?: string | null
+          price?: number | null
+          price_html?: string | null
+          purchasable?: boolean | null
+          purchase_note?: string | null
+          rating_count?: number | null
+          regular_price?: number | null
+          related_ids?: Json | null
+          reviews_allowed?: boolean | null
+          sale_price?: number | null
+          shipping_class?: string | null
+          shipping_class_id?: number | null
+          shipping_required?: boolean | null
+          shipping_taxable?: boolean | null
+          short_description?: string | null
+          sku?: string | null
+          slug?: string | null
+          sold_individually?: boolean | null
+          status?: string | null
+          stock_quantity?: number | null
+          stock_status?: string | null
+          synced_at?: string | null
+          tags?: Json | null
+          tax_class?: string | null
+          tax_status?: string | null
+          total_sales?: number | null
+          type?: string | null
+          updated_at?: string | null
+          upsell_ids?: Json | null
+          variations?: Json | null
+          virtual?: boolean | null
+          weight?: string | null
+        }
+        Relationships: []
       }
       webhook_logs: {
         Row: {

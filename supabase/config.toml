@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.save-webhook-secret]
 verify_jwt = false
+
+[functions.wc-sync]
+verify_jwt = true
