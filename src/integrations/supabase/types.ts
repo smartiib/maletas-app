@@ -607,7 +607,6 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
-          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
         }
@@ -617,7 +616,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
         }
@@ -627,7 +625,6 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
         }
@@ -738,7 +735,6 @@ export type Database = {
           max_users: number
           name: string
           price_monthly: number
-          type: Database["public"]["Enums"]["subscription_plan_type"]
           updated_at: string
         }
         Insert: {
@@ -750,7 +746,6 @@ export type Database = {
           max_users?: number
           name: string
           price_monthly?: number
-          type: Database["public"]["Enums"]["subscription_plan_type"]
           updated_at?: string
         }
         Update: {
@@ -762,7 +757,6 @@ export type Database = {
           max_users?: number
           name?: string
           price_monthly?: number
-          type?: Database["public"]["Enums"]["subscription_plan_type"]
           updated_at?: string
         }
         Relationships: []
@@ -777,7 +771,6 @@ export type Database = {
           id: string
           organization_id: string
           plan_id: string
-          status: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at: string | null
           updated_at: string
         }
@@ -790,7 +783,6 @@ export type Database = {
           id?: string
           organization_id: string
           plan_id: string
-          status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
           updated_at?: string
         }
@@ -803,7 +795,6 @@ export type Database = {
           id?: string
           organization_id?: string
           plan_id?: string
-          status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
           updated_at?: string
         }
@@ -1009,7 +1000,6 @@ export type Database = {
           created_at: string
           id: string
           organization_id: string
-          role: Database["public"]["Enums"]["user_role"]
           updated_at: string
           user_id: string
         }
@@ -1017,7 +1007,6 @@ export type Database = {
           created_at?: string
           id?: string
           organization_id: string
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id: string
         }
@@ -1025,7 +1014,6 @@ export type Database = {
           created_at?: string
           id?: string
           organization_id?: string
-          role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
           user_id?: string
         }
@@ -1507,14 +1495,14 @@ export type Database = {
       }
     }
     Enums: {
-      subscription_plan_type: "trial" | "basic" | "professional" | "enterprise"
+      subscription_plan_type: "basic" | "pro" | "enterprise"
       subscription_status:
+        | "trialing"
         | "active"
         | "canceled"
         | "past_due"
-        | "trialing"
-        | "incomplete"
-      user_role: "owner" | "admin" | "manager" | "user"
+        | "unpaid"
+      user_role: "owner" | "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1642,15 +1630,15 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      subscription_plan_type: ["trial", "basic", "professional", "enterprise"],
+      subscription_plan_type: ["basic", "pro", "enterprise"],
       subscription_status: [
+        "trialing",
         "active",
         "canceled",
         "past_due",
-        "trialing",
-        "incomplete",
+        "unpaid",
       ],
-      user_role: ["owner", "admin", "manager", "user"],
+      user_role: ["owner", "admin", "user"],
     },
   },
 } as const
