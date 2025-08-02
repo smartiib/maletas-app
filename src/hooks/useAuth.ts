@@ -1,68 +1,133 @@
 import { useState, useEffect } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export const useAuth = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkAuth = async () => {
-      // Verificar se já existe uma sessão do Supabase
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session) {
-        setIsAuthenticated(true);
-      } else {
-        // Se não existe sessão, tentar fazer login automático com credenciais demo
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: 'barbara@riejoias.com',
-          password: 'bar#Rie@2025'
-        });
-        
-        if (data.session) {
-          setIsAuthenticated(true);
-        } else {
-          // Se falhar, criar conta demo
-          await supabase.auth.signUp({
-            email: 'barbara@riejoias.com',
-            password: 'bar#Rie@2025'
-          });
-          setIsAuthenticated(true);
-        }
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
-      
-      setIsLoading(false);
-    };
+    );
 
-    checkAuth();
-
-    // Escutar mudanças no estado de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAuthenticated(!!session);
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const login = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: 'barbara@riejoias.com',
-      password: 'bar#Rie@2025'
-    });
-    
-    if (data.session) {
-      setIsAuthenticated(true);
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao fazer login",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Login realizado com sucesso",
+          description: "Bem-vindo de volta!",
+        });
+      }
+
+      return { error };
+    } catch (error) {
+      return { error };
     }
   };
 
+  const signUp = async (email: string, password: string) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Erro ao criar conta",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Conta criada com sucesso",
+          description: "Verifique seu email para confirmar a conta.",
+        });
+      }
+
+      return { error };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        toast({
+          title: "Erro ao sair",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Logout realizado",
+          description: "Até logo!",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao sair",
+        description: "Ocorreu um erro inesperado",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Backward compatibility
+  const login = async () => {
+    return signIn('douglas@agencia2b.com.br', '#Dgskua1712');
+  };
+
   const logout = async () => {
-    await supabase.auth.signOut();
-    setIsAuthenticated(false);
+    return signOut();
   };
 
   return {
-    isAuthenticated,
-    isLoading,
+    user,
+    session,
+    loading,
+    signIn,
+    signUp,
+    signOut,
+    isAuthenticated: !!session,
+    isLoading: loading,
+    // Backward compatibility
     login,
     logout,
   };

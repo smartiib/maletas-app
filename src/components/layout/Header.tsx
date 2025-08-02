@@ -14,17 +14,20 @@ interface HeaderProps {
 }
 
 const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
-  const { logout } = useAuth();
+  const { user, signOut } = useAuth();
   
-  // Dados mock para desenvolvimento sem autenticação
-  const mockUser = {
-    display_name: 'Riê Joias',
-    email: 'rie@joias.com',
-    roles: ['administrator']
+  const handleLogout = () => {
+    signOut();
   };
 
-  const handleLogout = () => {
-    logout();
+  const getUserDisplayName = () => {
+    if (user?.email === 'douglas@agencia2b.com.br') return 'Douglas (Admin)';
+    return user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
+  };
+
+  const getUserRole = () => {
+    if (user?.email === 'douglas@agencia2b.com.br') return 'Super Admin';
+    return 'Usuário';
   };
 
 
@@ -77,9 +80,9 @@ const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="hidden md:block text-left">
-              <div className="text-sm font-medium">{mockUser.display_name}</div>
+              <div className="text-sm font-medium">{getUserDisplayName()}</div>
               <div className="text-xs text-slate-500 capitalize">
-                {mockUser.roles[0] || 'Usuário'}
+                {getUserRole()}
               </div>
             </div>
             <Button
