@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAllProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
 import PaginationControls from '@/components/ui/pagination-controls';
@@ -37,7 +38,15 @@ const Products = () => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allProducts = [] } = useAllProducts();
+  const { data: allProductsData } = useSupabaseProducts(1, '', '', '');
+  // Adaptar os produtos do Supabase para o tipo Product esperado
+  const allProducts = (allProductsData?.products || []).map((product: any) => ({
+    ...product,
+    type: product.type as "variable" | "simple" | "grouped" | "external",
+    categories: product.categories || [],
+    images: product.images || [],
+    meta_data: product.meta_data || []
+  }));
   const { data: suppliers = [] } = useSuppliers();
   const deleteProduct = useDeleteProduct();
   const { viewMode, toggleViewMode } = useViewMode('products');
