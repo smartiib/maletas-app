@@ -1,17 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Search, Filter, Edit, Trash2, Package, Eye, MoreHorizontal, AlertCircle, ChevronDown, ChevronRight, Warehouse } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAllProducts, useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useAllProducts, useDeleteProduct, useWooCommerceConfig, useCategories } from '@/hooks/useWooCommerce';
 import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -22,6 +24,7 @@ import { Product } from '@/services/woocommerce';
 import ProductDialog from '@/components/products/ProductDialog';
 import ProductDetails from '@/components/products/ProductDetails';
 import ProductCard from '@/components/products/ProductCard';
+import { StockRow } from '@/components/stock/StockRow';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 import { useSuppliers } from '@/hooks/useSuppliers';
@@ -30,6 +33,8 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedSupplier, setSelectedSupplier] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('products');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [selectedProduct, setSelectedProduct] = useState<Product | undefined>();
@@ -48,6 +53,7 @@ const Products = () => {
     meta_data: product.meta_data || []
   }));
   const { data: suppliers = [] } = useSuppliers();
+  const { data: categories = [] } = useCategories();
   const deleteProduct = useDeleteProduct();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
@@ -57,15 +63,17 @@ const Products = () => {
       const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = !selectedStatus || product.status === selectedStatus;
+      const matchesCategory = selectedCategory === 'all' || 
+        product.categories?.some((cat: any) => cat.id.toString() === selectedCategory);
       
       // Buscar supplier_id no meta_data
       const supplierMeta = (product as any).meta_data?.find((meta: any) => meta.key === 'supplier_id');
       const productSupplierId = supplierMeta?.value;
       const matchesSupplier = !selectedSupplier || productSupplierId === selectedSupplier;
       
-      return matchesSearch && matchesStatus && matchesSupplier;
+      return matchesSearch && matchesStatus && matchesSupplier && matchesCategory;
     });
-  }, [allProducts, searchTerm, selectedStatus, selectedSupplier]);
+  }, [allProducts, searchTerm, selectedStatus, selectedSupplier, selectedCategory]);
 
   const pagination = usePagination(filteredProducts.length, 20);
   
@@ -168,6 +176,27 @@ const Products = () => {
     });
   };
 
+  // Funções específicas para o controle de estoque
+  const getStockStatusForStock = (stock: number, status: string) => {
+    if (status === 'outofstock' || stock === 0) {
+      return { label: 'Sem estoque', color: 'destructive' };
+    } else if (stock <= 5) {
+      return { label: 'Estoque baixo', color: 'secondary' };
+    } else {
+      return { label: 'Em estoque', color: 'default' };
+    }
+  };
+
+  const getTotalStock = (product: any) => {
+    if (product.type === 'variable' && product.variations) {
+      return product.variations.reduce((total: number, variation: any) => {
+        const stock = variation.stock_quantity || 0;
+        return total + Math.max(0, stock);
+      }, 0);
+    }
+    return Math.max(0, product.stock_quantity || 0);
+  };
+
   if (!isConfigured) {
     return (
       <div className="space-y-6">
@@ -202,100 +231,155 @@ const Products = () => {
     <div className="space-y-6">
       {/* Ajuda da Página */}
       <PageHelp 
-        title={helpContent.produtos.title}
-        description={helpContent.produtos.description}
-        helpContent={helpContent.produtos}
+        title={activeTab === 'products' ? helpContent.produtos.title : helpContent.estoque.title}
+        description={activeTab === 'products' ? helpContent.produtos.description : helpContent.estoque.description}
+        helpContent={activeTab === 'products' ? helpContent.produtos : helpContent.estoque}
       />
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Produtos
+            {activeTab === 'products' ? 'Produtos' : 'Controle de Estoque'}
           </h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Gerencie seu catálogo de produtos
+            {activeTab === 'products' ? 'Gerencie seu catálogo de produtos' : 'Gerencie o estoque dos seus produtos'}
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateProduct}>
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Produto
-        </Button>
+        {activeTab === 'products' && (
+          <Button className="bg-gradient-primary hover:opacity-90" onClick={handleCreateProduct}>
+            <Plus className="w-4 h-4 mr-2" />
+            Novo Produto
+          </Button>
+        )}
       </div>
 
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col lg:flex-row gap-4 flex-1">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Buscar produtos por nome ou SKU..."
-                    value={searchTerm}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10"
-                  />
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="products" className="flex items-center gap-2">
+            <Package className="w-4 h-4" />
+            Produtos
+          </TabsTrigger>
+          <TabsTrigger value="stock" className="flex items-center gap-2">
+            <Warehouse className="w-4 h-4" />
+            Estoque
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Filtros */}
+        <TabsContent value="products">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+                <div className="flex flex-col lg:flex-row gap-4 flex-1">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                      <Input
+                        placeholder="Buscar produtos por nome ou SKU..."
+                        value={searchTerm}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <select
+                      value={selectedStatus}
+                      onChange={(e) => setSelectedStatus(e.target.value)}
+                      className="px-3 py-2 border border-input rounded-md bg-background"
+                    >
+                      <option value="">Todos os Status</option>
+                      {statuses.slice(1).map(status => (
+                        <option key={status} value={status}>
+                          {getStatusLabel(status)}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <select
+                      value={selectedSupplier}
+                      onChange={(e) => setSelectedSupplier(e.target.value)}
+                      className="px-3 py-2 border border-input rounded-md bg-background"
+                    >
+                      <option value="">Todos os Fornecedores</option>
+                      {suppliers.map(supplier => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <Button variant="outline" onClick={() => window.location.reload()}>
+                      <Filter className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <ViewModeToggle 
+                  viewMode={viewMode} 
+                  onToggle={toggleViewMode} 
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="stock">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                      <SelectTrigger className="w-48 pl-10">
+                        <SelectValue placeholder="Filtrar por categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas as categorias</SelectItem>
+                        {categories.map((cat: any) => (
+                          <SelectItem key={cat.id} value={cat.id.toString()}>
+                            {cat.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Buscar por nome ou SKU..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 w-64"
+                    />
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex gap-2">
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="px-3 py-2 border border-input rounded-md bg-background"
-                >
-                  <option value="">Todos os Status</option>
-                  {statuses.slice(1).map(status => (
-                    <option key={status} value={status}>
-                      {getStatusLabel(status)}
-                    </option>
-                  ))}
-                </select>
-                
-                <select
-                  value={selectedSupplier}
-                  onChange={(e) => setSelectedSupplier(e.target.value)}
-                  className="px-3 py-2 border border-input rounded-md bg-background"
-                >
-                  <option value="">Todos os Fornecedores</option>
-                  {suppliers.map(supplier => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                    </option>
-                  ))}
-                </select>
-                
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  <Filter className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <ViewModeToggle 
-              viewMode={viewMode} 
-              onToggle={toggleViewMode} 
-            />
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      {/* Produtos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Lista de Produtos ({filteredProducts.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {paginatedProducts.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum produto encontrado</p>
-            </div>
-          ) : viewMode === 'list' ? (
+        {/* Produtos */}
+        <TabsContent value="products">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="w-5 h-5" />
+                Lista de Produtos ({filteredProducts.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {paginatedProducts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground">Nenhum produto encontrado</p>
+                </div>
+              ) : viewMode === 'list' ? (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -500,7 +584,7 @@ const Products = () => {
       </Card>
 
       {/* Paginação */}
-      {filteredProducts.length > 0 && (
+      {filteredProducts.length > 0 && activeTab === 'products' && (
         <PaginationControls
           info={pagination.info}
           actions={pagination.actions}
@@ -510,22 +594,56 @@ const Products = () => {
           className="mt-6"
         />
       )}
+    </TabsContent>
 
+    {/* Controle de Estoque */}
+    <TabsContent value="stock">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Package className="w-5 h-5" />
+            <span>Produtos em Estoque ({filteredProducts.length})</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground">Nenhum produto encontrado</p>
+              </div>
+            ) : (
+              filteredProducts.map((product: any) => (
+                <StockRow
+                  key={product.id}
+                  product={product}
+                  isExpanded={expandedProducts.has(product.id)}
+                  onToggleExpand={() => toggleProductExpansion(product.id)}
+                  getTotalStock={getTotalStock}
+                  getStockStatus={getStockStatusForStock}
+                />
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </TabsContent>
+  </Tabs>
 
-      {/* Dialogs */}
-      <ProductDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        product={selectedProduct}
-        mode={dialogMode}
-      />
+  {/* Dialogs */}
+  <ProductDialog
+    open={dialogOpen}
+    onOpenChange={setDialogOpen}
+    product={selectedProduct}
+    mode={dialogMode}
+  />
 
-      <ProductDetails
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        product={productForDetails}
-      />
-    </div>
+  <ProductDetails
+    open={detailsOpen}
+    onOpenChange={setDetailsOpen}
+    product={productForDetails}
+  />
+</div>
   );
 };
 

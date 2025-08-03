@@ -40,12 +40,6 @@ const navigationItems = [
     permission: 'products'
   },
   { 
-    title: 'Estoque', 
-    href: '/estoque', 
-    icon: Warehouse,
-    permission: 'stock'
-  },
-  { 
     title: 'Pedidos', 
     href: '/pedidos', 
     icon: ShoppingCart,

@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "./components/layout/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
-import Stock from "./pages/Stock";
 import Orders from "./pages/Orders";
 import Customers from "./pages/Customers";
 import POS from "./pages/POS";
@@ -45,7 +44,6 @@ const App = () => {
             }>
               <Route index element={<Dashboard />} />
               <Route path="/produtos" element={<Products />} />
-              <Route path="/estoque" element={<Stock />} />
               <Route path="/pedidos" element={<Orders />} />
               <Route path="/clientes" element={<Customers />} />
               <Route path="/pos" element={<POS />} />
