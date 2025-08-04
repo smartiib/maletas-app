@@ -320,3 +320,215 @@ export const useTimeSinceLastSync = () => {
   
   return getTimeSinceLastSync();
 };
+
+// Orders hooks
+export const useSupabaseOrders = (page: number, search: string, status: string) => {
+  return useQuery({
+    queryKey: ['supabase-orders', page, search, status],
+    queryFn: async () => {
+      let query = supabase
+        .from('wc_orders')
+        .select('*', { count: 'exact' })
+        .order('date_created', { ascending: false });
+
+      // Apply filters
+      if (search) {
+        query = query.or(`number.ilike.%${search}%,billing->>first_name.ilike.%${search}%,billing->>last_name.ilike.%${search}%,billing->>email.ilike.%${search}%`);
+      }
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      // Apply pagination
+      const from = (page - 1) * 20;
+      const to = from + 19;
+      query = query.range(from, to);
+
+      const { data: orders, error, count } = await query;
+
+      if (error) {
+        throw new Error(`Erro ao buscar pedidos: ${error.message}`);
+      }
+
+      return {
+        orders: orders || [],
+        total: count || 0,
+        pages: Math.ceil((count || 0) / 20)
+      };
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    gcTime: 1000 * 60 * 10, // 10 minutes
+  });
+};
+
+export const useSupabaseAllOrders = (search: string, status: string) => {
+  return useQuery({
+    queryKey: ['supabase-all-orders', search, status],
+    queryFn: async () => {
+      let query = supabase
+        .from('wc_orders')
+        .select('*')
+        .order('date_created', { ascending: false });
+
+      // Apply filters
+      if (search) {
+        query = query.or(`number.ilike.%${search}%,billing->>first_name.ilike.%${search}%,billing->>last_name.ilike.%${search}%,billing->>email.ilike.%${search}%`);
+      }
+
+      if (status && status !== 'all') {
+        query = query.eq('status', status);
+      }
+
+      const { data: orders, error } = await query;
+
+      if (error) {
+        throw new Error(`Erro ao buscar pedidos: ${error.message}`);
+      }
+
+      return orders || [];
+    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+export const useSupabaseOrder = (id: number) => {
+  return useQuery({
+    queryKey: ['supabase-order', id],
+    queryFn: async () => {
+      const { data: order, error } = await supabase
+        .from('wc_orders')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Erro ao buscar pedido: ${error.message}`);
+      }
+
+      return order;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+// Customers hooks
+export const useSupabaseCustomers = (page: number, search: string) => {
+  return useQuery({
+    queryKey: ['supabase-customers', page, search],
+    queryFn: async () => {
+      let query = supabase
+        .from('wc_customers')
+        .select('*', { count: 'exact' })
+        .order('date_created', { ascending: false });
+
+      // Apply search filter
+      if (search) {
+        query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      // Apply pagination
+      const from = (page - 1) * 20;
+      const to = from + 19;
+      query = query.range(from, to);
+
+      const { data: customers, error, count } = await query;
+
+      if (error) {
+        throw new Error(`Erro ao buscar clientes: ${error.message}`);
+      }
+
+      return {
+        customers: customers || [],
+        total: count || 0,
+        pages: Math.ceil((count || 0) / 20)
+      };
+    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+export const useSupabaseAllCustomers = (search: string = '') => {
+  return useQuery({
+    queryKey: ['supabase-all-customers', search],
+    queryFn: async () => {
+      let query = supabase
+        .from('wc_customers')
+        .select('*')
+        .order('first_name', { ascending: true });
+
+      // Apply search filter
+      if (search) {
+        query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+
+      const { data: customers, error } = await query;
+
+      if (error) {
+        throw new Error(`Erro ao buscar clientes: ${error.message}`);
+      }
+
+      return customers || [];
+    },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+export const useSupabaseCustomer = (id: number) => {
+  return useQuery({
+    queryKey: ['supabase-customer', id],
+    queryFn: async () => {
+      const { data: customer, error } = await supabase
+        .from('wc_customers')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (error) {
+        throw new Error(`Erro ao buscar cliente: ${error.message}`);
+      }
+
+      return customer;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
+  });
+};
+
+export const useSupabaseBirthdayCustomers = (month?: number) => {
+  return useQuery({
+    queryKey: ['supabase-birthday-customers', month],
+    queryFn: async () => {
+      const targetMonth = month || new Date().getMonth() + 1;
+      
+      const { data: customers, error } = await supabase
+        .from('wc_customers')
+        .select('*')
+        .not('billing->>date_of_birth', 'is', null);
+
+      if (error) {
+        throw new Error(`Erro ao buscar aniversariantes: ${error.message}`);
+      }
+
+      // Filter by month on the client side since we need to extract month from JSON
+      const birthdayCustomers = (customers || []).filter(customer => {
+        const billing = customer.billing as any;
+        if (billing?.date_of_birth) {
+          const birthDate = new Date(billing.date_of_birth);
+          return birthDate.getMonth() + 1 === targetMonth;
+        }
+        return false;
+      });
+
+      return birthdayCustomers;
+    },
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+  });
+};

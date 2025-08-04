@@ -10,7 +10,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { ShoppingCart, User, CreditCard, Package, ArrowRight } from 'lucide-react';
 import { MaletaItem } from '@/services/maletas';
-import { useCustomers, useCreateOrder } from '@/hooks/useWooCommerce';
+import { useCreateOrder } from '@/hooks/useWooCommerce';
+import { useSupabaseCustomers } from '@/hooks/useSupabaseSync';
 import { toast } from '@/hooks/use-toast';
 
 interface MaletaCheckoutDialogProps {
@@ -47,7 +48,8 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: customers = [] } = useCustomers(1, '');
+  const { data: customersData } = useSupabaseCustomers(1, '');
+  const customers = customersData?.customers || [];
   const createOrder = useCreateOrder();
 
   useEffect(() => {

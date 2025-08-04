@@ -1030,6 +1030,231 @@ export type Database = {
           },
         ]
       }
+      wc_customers: {
+        Row: {
+          avatar_url: string | null
+          billing: Json | null
+          created_at: string | null
+          date_created: string | null
+          date_created_gmt: string | null
+          date_modified: string | null
+          date_modified_gmt: string | null
+          email: string
+          first_name: string | null
+          id: number
+          is_paying_customer: boolean | null
+          last_name: string | null
+          meta_data: Json | null
+          orders_count: number | null
+          role: string | null
+          shipping: Json | null
+          synced_at: string | null
+          total_spent: number | null
+          updated_at: string | null
+          username: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          billing?: Json | null
+          created_at?: string | null
+          date_created?: string | null
+          date_created_gmt?: string | null
+          date_modified?: string | null
+          date_modified_gmt?: string | null
+          email: string
+          first_name?: string | null
+          id: number
+          is_paying_customer?: boolean | null
+          last_name?: string | null
+          meta_data?: Json | null
+          orders_count?: number | null
+          role?: string | null
+          shipping?: Json | null
+          synced_at?: string | null
+          total_spent?: number | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          billing?: Json | null
+          created_at?: string | null
+          date_created?: string | null
+          date_created_gmt?: string | null
+          date_modified?: string | null
+          date_modified_gmt?: string | null
+          email?: string
+          first_name?: string | null
+          id?: number
+          is_paying_customer?: boolean | null
+          last_name?: string | null
+          meta_data?: Json | null
+          orders_count?: number | null
+          role?: string | null
+          shipping?: Json | null
+          synced_at?: string | null
+          total_spent?: number | null
+          updated_at?: string | null
+          username?: string | null
+        }
+        Relationships: []
+      }
+      wc_orders: {
+        Row: {
+          billing: Json | null
+          cart_hash: string | null
+          cart_tax: number | null
+          coupon_lines: Json | null
+          created_at: string | null
+          created_via: string | null
+          currency: string | null
+          currency_symbol: string | null
+          customer_id: number | null
+          customer_ip_address: string | null
+          customer_note: string | null
+          customer_user_agent: string | null
+          date_completed: string | null
+          date_completed_gmt: string | null
+          date_created: string | null
+          date_created_gmt: string | null
+          date_modified: string | null
+          date_modified_gmt: string | null
+          date_paid: string | null
+          date_paid_gmt: string | null
+          discount_tax: number | null
+          discount_total: number | null
+          fee_lines: Json | null
+          id: number
+          is_editable: boolean | null
+          line_items: Json | null
+          meta_data: Json | null
+          needs_payment: boolean | null
+          needs_processing: boolean | null
+          number: string | null
+          order_key: string | null
+          parent_id: number | null
+          payment_method: string | null
+          payment_method_title: string | null
+          payment_url: string | null
+          prices_include_tax: boolean | null
+          refunds: Json | null
+          shipping: Json | null
+          shipping_lines: Json | null
+          shipping_tax: number | null
+          shipping_total: number | null
+          status: string
+          synced_at: string | null
+          tax_lines: Json | null
+          total: number
+          total_tax: number | null
+          transaction_id: string | null
+          updated_at: string | null
+          version: string | null
+        }
+        Insert: {
+          billing?: Json | null
+          cart_hash?: string | null
+          cart_tax?: number | null
+          coupon_lines?: Json | null
+          created_at?: string | null
+          created_via?: string | null
+          currency?: string | null
+          currency_symbol?: string | null
+          customer_id?: number | null
+          customer_ip_address?: string | null
+          customer_note?: string | null
+          customer_user_agent?: string | null
+          date_completed?: string | null
+          date_completed_gmt?: string | null
+          date_created?: string | null
+          date_created_gmt?: string | null
+          date_modified?: string | null
+          date_modified_gmt?: string | null
+          date_paid?: string | null
+          date_paid_gmt?: string | null
+          discount_tax?: number | null
+          discount_total?: number | null
+          fee_lines?: Json | null
+          id: number
+          is_editable?: boolean | null
+          line_items?: Json | null
+          meta_data?: Json | null
+          needs_payment?: boolean | null
+          needs_processing?: boolean | null
+          number?: string | null
+          order_key?: string | null
+          parent_id?: number | null
+          payment_method?: string | null
+          payment_method_title?: string | null
+          payment_url?: string | null
+          prices_include_tax?: boolean | null
+          refunds?: Json | null
+          shipping?: Json | null
+          shipping_lines?: Json | null
+          shipping_tax?: number | null
+          shipping_total?: number | null
+          status?: string
+          synced_at?: string | null
+          tax_lines?: Json | null
+          total?: number
+          total_tax?: number | null
+          transaction_id?: string | null
+          updated_at?: string | null
+          version?: string | null
+        }
+        Update: {
+          billing?: Json | null
+          cart_hash?: string | null
+          cart_tax?: number | null
+          coupon_lines?: Json | null
+          created_at?: string | null
+          created_via?: string | null
+          currency?: string | null
+          currency_symbol?: string | null
+          customer_id?: number | null
+          customer_ip_address?: string | null
+          customer_note?: string | null
+          customer_user_agent?: string | null
+          date_completed?: string | null
+          date_completed_gmt?: string | null
+          date_created?: string | null
+          date_created_gmt?: string | null
+          date_modified?: string | null
+          date_modified_gmt?: string | null
+          date_paid?: string | null
+          date_paid_gmt?: string | null
+          discount_tax?: number | null
+          discount_total?: number | null
+          fee_lines?: Json | null
+          id?: number
+          is_editable?: boolean | null
+          line_items?: Json | null
+          meta_data?: Json | null
+          needs_payment?: boolean | null
+          needs_processing?: boolean | null
+          number?: string | null
+          order_key?: string | null
+          parent_id?: number | null
+          payment_method?: string | null
+          payment_method_title?: string | null
+          payment_url?: string | null
+          prices_include_tax?: boolean | null
+          refunds?: Json | null
+          shipping?: Json | null
+          shipping_lines?: Json | null
+          shipping_tax?: number | null
+          shipping_total?: number | null
+          status?: string
+          synced_at?: string | null
+          tax_lines?: Json | null
+          total?: number
+          total_tax?: number | null
+          transaction_id?: string | null
+          updated_at?: string | null
+          version?: string | null
+        }
+        Relationships: []
+      }
       wc_product_categories: {
         Row: {
           count: number | null

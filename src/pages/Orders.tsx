@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useAllOrders, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useSupabaseAllOrders } from '@/hooks/useSupabaseSync';
 import { Order } from '@/services/woocommerce';
 import OrderDialog from '@/components/orders/OrderDialog';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -29,14 +30,15 @@ const Orders = () => {
   const [orderForPaymentPlan, setOrderForPaymentPlan] = useState<Order | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allOrders = [] } = useAllOrders(selectedStatus);
+  const { data: allOrders = [] } = useSupabaseAllOrders('', selectedStatus);
   const { data: paymentPlans = [] } = usePaymentPlans();
   
   // Filtrar e paginar os pedidos
-  const filteredOrders = allOrders.filter(order => {
-    const matchesSearch = order.billing?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.billing?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredOrders = allOrders.filter((order: any) => {
+    const billing = order.billing as any;
+    const matchesSearch = billing?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         billing?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.number?.toString().includes(searchTerm);
     return matchesSearch;
   });
@@ -107,9 +109,9 @@ const Orders = () => {
   };
 
   const getTotalOrders = () => allOrders.length;
-  const getPendingOrders = () => allOrders.filter((o: Order) => o.status === 'pending').length;
-  const getTotalRevenue = () => allOrders.reduce((sum: number, order: Order) => {
-    const total = parseFloat(order.total || '0');
+  const getPendingOrders = () => allOrders.filter((o: any) => o.status === 'pending').length;
+  const getTotalRevenue = () => allOrders.reduce((sum: number, order: any) => {
+    const total = parseFloat(order.total?.toString() || '0');
     return sum + (isNaN(total) ? 0 : total);
   }, 0);
 
@@ -287,7 +289,7 @@ const Orders = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {orders.map((order: Order) => (
+                {orders.map((order: any) => (
                   <TableRow key={order.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                     <TableCell>
                       <div>
@@ -301,8 +303,8 @@ const Orders = () => {
                           <User className="w-4 h-4 text-white" />
                         </div>
                         <div>
-                          <div className="font-medium">{order.billing.first_name} {order.billing.last_name}</div>
-                          <div className="text-sm text-slate-500">{order.billing.email}</div>
+                          <div className="font-medium">{(order.billing as any)?.first_name} {(order.billing as any)?.last_name}</div>
+                          <div className="text-sm text-slate-500">{(order.billing as any)?.email}</div>
                         </div>
                       </div>
                     </TableCell>

@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useCreateOrder, useAllCustomers } from '@/hooks/useWooCommerce';
-import { useSupabaseProducts, useSupabaseCategories } from '@/hooks/useSupabaseSync';
+import { useCreateOrder } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts, useSupabaseCategories, useSupabaseAllCustomers } from '@/hooks/useSupabaseSync';
 import { useCreatePaymentPlan, useCreateInstallments, useCreateTransaction } from '@/hooks/useFinancial';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
@@ -86,7 +86,7 @@ const POS = () => {
   // Carregar todos os produtos sincronizados do Supabase
   const { data: productsData = { products: [] }, isLoading, error } = useSupabaseProducts(1, '', '', '');
   const products = productsData.products || [];
-  const { data: customers = [], isLoading: isLoadingCustomers, error: customersError } = useAllCustomers();
+  const { data: customers = [], isLoading: isLoadingCustomers, error: customersError } = useSupabaseAllCustomers();
   const { data: categoriesData = [] } = useSupabaseCategories();
 
   // Debug logging

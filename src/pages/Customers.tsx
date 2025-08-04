@@ -12,7 +12,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAllCustomers, useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
+import { useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
+import { useSupabaseAllCustomers } from '@/hooks/useSupabaseSync';
 import { useCreateRepresentative } from '@/hooks/useMaletas';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -38,7 +39,7 @@ const Customers = () => {
   const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allCustomersData = [], isLoading: customersLoading } = useAllCustomers();
+  const { data: allCustomersData = [], isLoading: customersLoading } = useSupabaseAllCustomers();
   
   // Debug log
   console.log('🔍 Total customers loaded:', allCustomersData.length);
@@ -57,8 +58,8 @@ const Customers = () => {
                            customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesFilter = filterType === 'all' || 
-                           (filterType === 'representatives' && isRepresentative(customer)) ||
-                           (filterType === 'customers' && !isRepresentative(customer));
+                           (filterType === 'representatives' && isRepresentative(customer as any)) ||
+                           (filterType === 'customers' && !isRepresentative(customer as any));
       
       return matchesSearch && matchesFilter;
     });
@@ -66,7 +67,7 @@ const Customers = () => {
 
   // Use allCustomersData for calculations
   const allCustomersForCalculations = useMemo(() => {
-    return allCustomersData.filter(customer => {
+    return allCustomersData.filter((customer: any) => {
       const matchesFilter = filterType === 'all' || 
                            (filterType === 'representatives' && isRepresentative(customer)) ||
                            (filterType === 'customers' && !isRepresentative(customer));
@@ -145,7 +146,7 @@ const Customers = () => {
 
   const syncRepresentatives = async () => {
     try {
-      const representatives = allCustomersData.filter(isRepresentative);
+      const representatives = allCustomersData.filter((customer: any) => isRepresentative(customer));
       
       if (representatives.length === 0) {
         toast({
@@ -162,8 +163,8 @@ const Customers = () => {
         try {
           const representativeData = {
             name: `${customer.first_name} ${customer.last_name}`,
-            email: customer.email || customer.billing.email,
-            phone: customer.billing.phone,
+            email: customer.email || (customer.billing as any)?.email,
+            phone: (customer.billing as any)?.phone,
             commission_settings: {
               use_global: true,
               penalty_rate: 1
@@ -196,10 +197,10 @@ const Customers = () => {
   };
 
   const getTotalCustomers = () => allCustomersForCalculations.length;
-  const getTotalRepresentatives = () => allCustomersForCalculations.filter(isRepresentative).length;
+  const getTotalRepresentatives = () => allCustomersForCalculations.filter((customer: any) => isRepresentative(customer)).length;
   const getAverageSpent = () => {
     if (allCustomersForCalculations.length === 0) return 0;
-    const total = allCustomersForCalculations.reduce((sum: number, customer: Customer) => {
+    const total = allCustomersForCalculations.reduce((sum: number, customer: any) => {
       const spent = parseFloat(customer.total_spent || '0');
       return sum + (isNaN(spent) ? 0 : spent);
     }, 0);
@@ -413,7 +414,7 @@ const Customers = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedCustomers.map((customer: Customer) => (
+                 {paginatedCustomers.map((customer: any) => (
                   <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -437,10 +438,10 @@ const Customers = () => {
                           <Mail className="w-3 h-3" />
                           {customer.email}
                         </div>
-                        {customer.billing.phone && (
+                        {(customer.billing as any)?.phone && (
                           <div className="flex items-center gap-2 text-sm">
                             <Phone className="w-3 h-3" />
-                            {customer.billing.phone}
+                            {(customer.billing as any)?.phone}
                           </div>
                         )}
                       </div>
@@ -448,7 +449,7 @@ const Customers = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-slate-400" />
-                        <span>{customer.billing.city}, {customer.billing.state}</span>
+                        <span>{(customer.billing as any)?.city}, {(customer.billing as any)?.state}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -509,7 +510,7 @@ const Customers = () => {
             </Table>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-              {paginatedCustomers.map((customer: Customer) => (
+              {paginatedCustomers.map((customer: any) => (
                 <CustomerCard
                   key={customer.id}
                   customer={customer}

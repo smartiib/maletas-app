@@ -6,8 +6,7 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import QuickActions from '@/components/dashboard/QuickActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useOrders, useCustomers } from '@/hooks/useWooCommerce';
-import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
+import { useSupabaseProducts, useSupabaseAllOrders, useSupabaseAllCustomers } from '@/hooks/useSupabaseSync';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 const Dashboard = () => {
@@ -17,10 +16,10 @@ const Dashboard = () => {
   const products = productsData?.products || [];
   const {
     data: orders = []
-  } = useOrders();
+  } = useSupabaseAllOrders('', 'all');
   const {
     data: customers = []
-  } = useCustomers();
+  } = useSupabaseAllCustomers();
 
   // Calcular métricas da semana
   const weekOrders = orders.filter(order => {
@@ -36,14 +35,14 @@ const Dashboard = () => {
   });
   const pendingOrders = orders.filter(order => ['pending', 'processing', 'on-hold'].includes(order.status));
   const lowStockProducts = products.filter(product => product.stock_quantity !== undefined && product.stock_quantity < 10);
-  const todaySales = todayOrders.reduce((total, order) => total + parseFloat(order.total || '0'), 0);
+  const todaySales = todayOrders.reduce((total, order) => total + parseFloat(order.total?.toString() || '0'), 0);
   const weekCustomers = customers.filter(customer => {
     const customerDate = new Date(customer.date_created);
     const weekAgo = new Date();
     weekAgo.setDate(weekAgo.getDate() - 7);
     return customerDate >= weekAgo;
   });
-  const weekSales = weekOrders.reduce((total, order) => total + parseFloat(order.total || '0'), 0);
+  const weekSales = weekOrders.reduce((total, order) => total + parseFloat(order.total?.toString() || '0'), 0);
   const kpis = [{
     title: 'Vendas da Semana',
     value: `R$ ${weekSales.toFixed(2)}`,
@@ -152,7 +151,7 @@ const Dashboard = () => {
 
       {/* Gráficos e Análises */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SalesChart orders={orders} />
+        <SalesChart orders={orders as any} />
         
         <Card>
           <CardHeader>
@@ -184,7 +183,7 @@ const Dashboard = () => {
       {/* Atividade Recente e Ações Rápidas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RecentActivity orders={orders} customers={customers} products={products as any} />
+          <RecentActivity orders={orders as any} customers={customers as any} products={products as any} />
         </div>
         <QuickActions />
       </div>
