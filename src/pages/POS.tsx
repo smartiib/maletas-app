@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { useAllProducts, useCreateOrder, useAllCustomers, useCategories } from '@/hooks/useWooCommerce';
+import { useCreateOrder, useAllCustomers } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts, useSupabaseCategories } from '@/hooks/useSupabaseSync';
 import { useCreatePaymentPlan, useCreateInstallments, useCreateTransaction } from '@/hooks/useFinancial';
 import { Product } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
@@ -82,10 +83,11 @@ const POS = () => {
   // Mobile detection
   const isMobile = useIsMobile();
 
-  // Carregar todos os produtos uma única vez (sem busca na API)
-  const { data: products = [], isLoading, error } = useAllProducts('');
+  // Carregar todos os produtos sincronizados do Supabase
+  const { data: productsData = { products: [] }, isLoading, error } = useSupabaseProducts(1, '', '', '');
+  const products = productsData.products || [];
   const { data: customers = [], isLoading: isLoadingCustomers, error: customersError } = useAllCustomers();
-  const { data: categoriesData = [] } = useCategories();
+  const { data: categoriesData = [] } = useSupabaseCategories();
 
   // Debug logging
   useEffect(() => {

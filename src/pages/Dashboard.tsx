@@ -6,13 +6,15 @@ import RecentActivity from '@/components/dashboard/RecentActivity';
 import QuickActions from '@/components/dashboard/QuickActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useProducts, useOrders, useCustomers } from '@/hooks/useWooCommerce';
+import { useOrders, useCustomers } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 const Dashboard = () => {
   const {
-    data: products = []
-  } = useProducts();
+    data: productsData
+  } = useSupabaseProducts(1, '', '', '');
+  const products = productsData?.products || [];
   const {
     data: orders = []
   } = useOrders();
@@ -182,7 +184,7 @@ const Dashboard = () => {
       {/* Atividade Recente e Ações Rápidas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RecentActivity orders={orders} customers={customers} products={products} />
+          <RecentActivity orders={orders} customers={customers} products={products as any} />
         </div>
         <QuickActions />
       </div>

@@ -13,7 +13,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useAllProducts, useDeleteProduct, useWooCommerceConfig, useCategories } from '@/hooks/useWooCommerce';
+import { useDeleteProduct, useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { useSupabaseCategories } from '@/hooks/useSupabaseSync';
 import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import { usePagination } from '@/hooks/usePagination';
 import { useViewMode } from '@/hooks/useViewMode';
@@ -53,7 +54,7 @@ const Products = () => {
     meta_data: product.meta_data || []
   }));
   const { data: suppliers = [] } = useSuppliers();
-  const { data: categories = [] } = useCategories();
+  const { data: categories = [] } = useSupabaseCategories();
   const deleteProduct = useDeleteProduct();
   const { viewMode, toggleViewMode } = useViewMode('products');
 

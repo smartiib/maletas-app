@@ -20,7 +20,7 @@ import SupplierDialog from '@/components/suppliers/SupplierDialog';
 import SupplierCard from '@/components/suppliers/SupplierCard';
 import ProductSuppliersDialog from '@/components/suppliers/ProductSuppliersDialog';
 import { useSuppliers, useDeleteSupplier, useSupplierProducts } from '@/hooks/useSuppliers';
-import { useAllProducts } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
@@ -36,7 +36,8 @@ const Suppliers = () => {
 
   const { toast } = useToast();
   const { data: allSuppliers = [], isLoading } = useSuppliers();
-  const { data: allProducts = [] } = useAllProducts();
+  const { data: productsData } = useSupabaseProducts(1, '', '', '');
+  const allProducts = productsData?.products || [];
   const { data: supplierProducts = [] } = useSupplierProducts(supplierForProductsView?.id);
   const deleteSupplier = useDeleteSupplier();
   const { viewMode, toggleViewMode } = useViewMode('suppliers');

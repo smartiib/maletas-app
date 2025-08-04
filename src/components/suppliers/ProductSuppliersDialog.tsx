@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { useAllProducts } from '@/hooks/useWooCommerce';
+import { useSupabaseProducts } from '@/hooks/useSupabaseSync';
 import {
   useSupplierProducts,
   useCreateProductSupplier,
@@ -44,7 +44,8 @@ const ProductSuppliersDialog = ({ open, onOpenChange, supplier }: ProductSupplie
   const [isPrimary, setIsPrimary] = useState(false);
 
   const { toast } = useToast();
-  const { data: allProducts = [] } = useAllProducts();
+  const { data: productsData } = useSupabaseProducts(1, '', '', '');
+  const allProducts = productsData?.products || [];
   const { data: supplierProducts = [], refetch } = useSupplierProducts(supplier?.id);
   const createProductSupplier = useCreateProductSupplier();
   const deleteProductSupplier = useDeleteProductSupplier();
