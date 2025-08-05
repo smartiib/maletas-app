@@ -10,8 +10,8 @@ import { Loader2, Lock, Mail, User } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('douglas@agencia2b.com.br');
-  const [password, setPassword] = useState('#Dgskua1712');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
@@ -39,14 +39,6 @@ const Auth = () => {
     }
   };
 
-  const handleQuickLogin = async () => {
-    setIsSubmitting(true);
-    try {
-      await signIn('douglas@agencia2b.com.br', '#Dgskua1712');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -75,33 +67,6 @@ const Auth = () => {
             </TabsList>
             
             <TabsContent value="login" className="space-y-4">
-              <div className="space-y-4">
-                <Button 
-                  onClick={handleQuickLogin}
-                  disabled={isSubmitting}
-                  className="w-full"
-                  variant="outline"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <User className="mr-2 h-4 w-4" />
-                  )}
-                  Login como Admin
-                </Button>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-background px-2 text-muted-foreground">
-                      Ou entre manualmente
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -192,10 +157,6 @@ const Auth = () => {
             </TabsContent>
           </Tabs>
           
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Credenciais padrão do admin:</p>
-            <p className="font-mono text-xs">douglas@agencia2b.com.br</p>
-          </div>
         </CardContent>
       </Card>
     </div>

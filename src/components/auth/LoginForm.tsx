@@ -109,9 +109,6 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             <p>🔐 Sistema de Gestão - Riê Joias</p>
-            <p className="text-xs mt-1 text-purple-600">
-              Usuário: <code>barbara</code> | Senha: <code>bar#Rie@2025</code>
-            </p>
           </div>
         </CardContent>
       </Card>
