@@ -604,11 +604,12 @@ async function syncCustomers(
         const url = new URL(`${config.url}/wp-json/wc/v3/customers`);
         url.searchParams.set('page', page.toString());
         url.searchParams.set('per_page', batchSize.toString());
-        url.searchParams.set('orderby', 'date_created');
+        url.searchParams.set('orderby', 'registered_date');
         url.searchParams.set('order', 'desc');
         
         if (lastSync) {
-          url.searchParams.set('modified_after', lastSync);
+          const syncDate = new Date(lastSync).toISOString();
+          url.searchParams.set('after', syncDate);
         }
 
         const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
