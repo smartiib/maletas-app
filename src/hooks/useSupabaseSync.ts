@@ -176,7 +176,7 @@ export const useManualSync = () => {
 
   return useMutation({
     mutationFn: async (params: {
-      sync_type: 'products' | 'categories' | 'full';
+      sync_type: 'products' | 'categories' | 'orders' | 'customers' | 'full';
       config: {
         url: string;
         consumer_key: string;
@@ -235,6 +235,16 @@ export const useSyncStats = () => {
         .from('wc_product_categories')
         .select('*', { count: 'exact', head: true });
 
+      // Buscar contagem de pedidos
+      const { count: ordersCount } = await supabase
+        .from('wc_orders')
+        .select('*', { count: 'exact', head: true });
+
+      // Buscar contagem de clientes
+      const { count: customersCount } = await supabase
+        .from('wc_customers')
+        .select('*', { count: 'exact', head: true });
+
       // Buscar última sincronização
       const { data: lastSync } = await supabase
         .from('sync_logs')
@@ -253,6 +263,8 @@ export const useSyncStats = () => {
       return {
         products_count: productsCount || 0,
         categories_count: categoriesCount || 0,
+        orders_count: ordersCount || 0,
+        customers_count: customersCount || 0,
         last_sync: lastSync,
         active_configs: activeConfigs || [],
         last_sync_time: lastSync?.created_at ? new Date(lastSync.created_at) : null

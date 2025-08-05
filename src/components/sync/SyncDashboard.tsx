@@ -41,7 +41,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
     saveSyncConfig.mutate(newConfig);
   };
 
-  const handleManualSync = (syncType: 'products' | 'categories' | 'full') => {
+  const handleManualSync = (syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full') => {
     if (!wooConfig?.apiUrl || !wooConfig?.consumerKey || !wooConfig?.consumerSecret) {
       toast.error('Configure as credenciais do WooCommerce antes de sincronizar');
       return;
@@ -62,7 +62,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
   return (
     <div className={`space-y-6 ${className}`}>
       {/* Header com Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Produtos</CardTitle>
@@ -82,6 +82,28 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
           <CardContent>
             <div className="text-2xl font-bold">{stats?.categories_count || 0}</div>
             <p className="text-xs text-muted-foreground">sincronizadas</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pedidos</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.orders_count || 0}</div>
+            <p className="text-xs text-muted-foreground">sincronizados</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats?.customers_count || 0}</div>
+            <p className="text-xs text-muted-foreground">sincronizados</p>
           </CardContent>
         </Card>
 
@@ -137,34 +159,60 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button
-                  onClick={() => handleManualSync('products')}
-                  disabled={manualSync.isPending || syncStatus?.is_syncing}
-                  className="flex items-center gap-2"
-                >
-                  <Database className="h-4 w-4" />
-                  {manualSync.isPending ? 'Sincronizando...' : 'Sincronizar Produtos'}
-                </Button>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    onClick={() => handleManualSync('products')}
+                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    className="flex items-center gap-2"
+                  >
+                    <Database className="h-4 w-4" />
+                    {manualSync.isPending ? 'Sincronizando...' : 'Sincronizar Produtos'}
+                  </Button>
 
-                <Button
-                  onClick={() => handleManualSync('categories')}
-                  disabled={manualSync.isPending || syncStatus?.is_syncing}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  Sincronizar Categorias
-                </Button>
+                  <Button
+                    onClick={() => handleManualSync('categories')}
+                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    Sincronizar Categorias
+                  </Button>
+                </div>
 
-                <Button
-                  onClick={() => handleManualSync('full')}
-                  disabled={manualSync.isPending || syncStatus?.is_syncing}
-                  variant="secondary"
-                  className="flex items-center gap-2"
-                >
-                  <RefreshCw className="h-4 w-4" />
-                  Sincronização Completa
-                </Button>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    onClick={() => handleManualSync('orders')}
+                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <Database className="h-4 w-4" />
+                    Sincronizar Pedidos
+                  </Button>
+
+                  <Button
+                    onClick={() => handleManualSync('customers')}
+                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    variant="outline"
+                    className="flex items-center gap-2"
+                  >
+                    <TrendingUp className="h-4 w-4" />
+                    Sincronizar Clientes
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    onClick={() => handleManualSync('full')}
+                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    variant="secondary"
+                    className="flex items-center gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Sincronização Completa
+                  </Button>
+                </div>
               </div>
 
               {syncStatus?.is_syncing && (
