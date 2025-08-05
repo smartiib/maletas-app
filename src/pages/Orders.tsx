@@ -30,8 +30,14 @@ const Orders = () => {
   const [orderForPaymentPlan, setOrderForPaymentPlan] = useState<Order | null>(null);
 
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allOrders = [] } = useSupabaseAllOrders('', selectedStatus);
+  const { data: allOrders = [], isLoading, error } = useSupabaseAllOrders('', selectedStatus);
   const { data: paymentPlans = [] } = usePaymentPlans();
+  
+  // Debug logs
+  console.log('🔍 Orders loading state:', isLoading);
+  console.log('🔍 Orders error:', error);
+  console.log('🔍 Total orders loaded:', allOrders.length);
+  console.log('🔍 Orders data sample:', allOrders.slice(0, 2));
   
   // Filtrar e paginar os pedidos
   const filteredOrders = allOrders.filter((order: any) => {
