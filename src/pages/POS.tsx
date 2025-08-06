@@ -284,9 +284,9 @@ const POS = () => {
   };
 
   const getTotalPayments = () => {
-    // Para parcelamento com entrada, só considera o valor da entrada no momento da venda
-    if (activePaymentPlan && activePaymentPlan.with_down_payment) {
-      return activePaymentPlan.down_payment_amount || 0;
+    // Para parcelamento, o valor total sempre deve ser igual ao total do carrinho
+    if (activePaymentPlan) {
+      return getTotalPrice(); // O parcelamento cobre o valor total
     }
     // Para outros casos, soma todos os métodos de pagamento
     return paymentMethods.reduce((total, payment) => total + payment.amount, 0);
