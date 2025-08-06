@@ -1273,13 +1273,19 @@ const POS = () => {
           const installments = [];
           const firstDate = new Date(plan.first_due_date);
           
+          // Calcular valor correto das parcelas (descontando entrada se houver)
+          const amountToInstall = plan.with_down_payment 
+            ? plan.total_amount - plan.down_payment_amount 
+            : plan.total_amount;
+          const installmentAmount = amountToInstall / plan.installments_count;
+          
           for (let i = 0; i < plan.installments_count; i++) {
             const dueDate = new Date(firstDate);
             dueDate.setDate(firstDate.getDate() + (i * 30));
             
             installments.push({
               installment_number: i + 1,
-              amount: plan.total_amount / plan.installments_count,
+              amount: installmentAmount,
               due_date: dueDate.toISOString().split('T')[0],
               status: 'pending',
             });
