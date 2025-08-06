@@ -360,17 +360,8 @@ const POS = () => {
     const totalPayments = getTotalPayments();
     const orderTotal = getTotalPrice();
     
-    // Validação específica para parcelamento com juros
-    if (activePaymentPlan && activePaymentPlan.total_amount > orderTotal) {
-      toast({
-        title: "Erro no Parcelamento",
-        description: `O valor do parcelamento (R$ ${activePaymentPlan.total_amount.toFixed(2)}) é maior que o valor do carrinho (R$ ${orderTotal.toFixed(2)}). Não é possível finalizar o pedido.`,
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (Math.abs(totalPayments - orderTotal) > 0.01) {
+    // Para parcelamento, não validar valores (pode ter juros)
+    if (!activePaymentPlan && Math.abs(totalPayments - orderTotal) > 0.01) {
       toast({
         title: "Erro",
         description: "O valor total dos pagamentos deve ser igual ao valor do pedido",
