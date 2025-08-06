@@ -292,6 +292,15 @@ const POS = () => {
     return paymentMethods.reduce((total, payment) => total + payment.amount, 0);
   };
 
+  const isPaymentValid = () => {
+    if (activePaymentPlan) {
+      // Para parcelamento, sempre válido se há plano ativo
+      return true;
+    }
+    // Para pagamento tradicional, verifica se valores conferem
+    return Math.abs(getTotalPayments() - getTotalPrice()) < 0.01;
+  };
+
   const printReceipt = () => {
     // Implementar impressão térmica Zebra
     const receiptData = {
@@ -1229,10 +1238,10 @@ const POS = () => {
               <Button
                 className="flex-1 bg-gradient-success"
                 onClick={finalizePurchase}
-                disabled={createOrder.isPending || getTotalPayments() !== getTotalPrice()}
+                disabled={createOrder.isPending || !isPaymentValid()}
               >
                 {createOrder.isPending ? 'Processando...' : 
-                 getTotalPayments() !== getTotalPrice() ? 
+                 !isPaymentValid() ? 
                  'Valores não conferem' : 'Confirmar Pedido'}
               </Button>
             </div>
