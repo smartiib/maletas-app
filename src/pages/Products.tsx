@@ -29,6 +29,7 @@ import { StockRow } from '@/components/stock/StockRow';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 import { useSuppliers } from '@/hooks/useSuppliers';
+import SyncHeader from '@/components/sync/SyncHeader';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -236,6 +237,9 @@ const Products = () => {
         description={activeTab === 'products' ? helpContent.produtos.description : helpContent.estoque.description}
         helpContent={activeTab === 'products' ? helpContent.produtos : helpContent.estoque}
       />
+
+      {/* Informações de Sincronização */}
+      <SyncHeader syncType="products" />
 
       {/* Header */}
       <div className="flex items-center justify-between">

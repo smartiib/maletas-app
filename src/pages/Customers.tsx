@@ -28,6 +28,7 @@ import { MoreHorizontal, RefreshCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
+import SyncHeader from '@/components/sync/SyncHeader';
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -245,6 +246,9 @@ const Customers = () => {
         description={helpContent.clientes.description}
         helpContent={helpContent.clientes}
       />
+
+      {/* Informações de Sincronização */}
+      <SyncHeader syncType="customers" />
 
       {/* Header */}
       <div className="flex items-center justify-between">

@@ -15,6 +15,7 @@ import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
 import { usePaymentPlans } from '@/hooks/useFinancial';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
+import SyncHeader from '@/components/sync/SyncHeader';
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -159,6 +160,9 @@ const Orders = () => {
         description={helpContent.pedidos.description}
         helpContent={helpContent.pedidos}
       />
+
+      {/* Informações de Sincronização */}
+      <SyncHeader syncType="orders" />
 
       {/* Header */}
       <div className="flex items-center justify-between">

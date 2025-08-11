@@ -22,6 +22,7 @@ import PaymentPlanDialog from '@/components/orders/PaymentPlanDialog';
 import { addDays, format } from 'date-fns';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
+import SyncHeader from '@/components/sync/SyncHeader';
 
 interface CartItem extends Product {
   quantity: number;
@@ -554,6 +555,11 @@ const POS = () => {
           description={helpContent.pos.description}
           helpContent={helpContent.pos}
         />
+      </div>
+
+      {/* Informações de Sincronização */}
+      <div className="bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700">
+        <SyncHeader syncType="all" />
       </div>
 
       {/* Header POS */}
