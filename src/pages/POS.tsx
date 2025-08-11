@@ -559,7 +559,7 @@ const POS = () => {
 
       {/* Informações de Sincronização */}
       <div className="bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-700">
-        <SyncHeader syncType="all" />
+        <SyncHeader syncType="all" showProductsOnly={true} />
       </div>
 
       {/* Header POS */}

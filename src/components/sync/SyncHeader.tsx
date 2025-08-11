@@ -9,9 +9,10 @@ import { toast } from '@/hooks/use-toast';
 interface SyncHeaderProps {
   syncType: 'products' | 'customers' | 'orders' | 'all';
   title?: string;
+  showProductsOnly?: boolean; // Para o POS mostrar só produtos
 }
 
-const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title }) => {
+const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOnly = false }) => {
   const { data: stats } = useSyncStats();
   const { data: syncStatus } = useSyncStatus();
   const manualSync = useManualSync();
@@ -38,9 +39,9 @@ const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title }) => {
         };
       case 'all':
         return {
-          count: (stats?.products_count || 0) + (stats?.customers_count || 0) + (stats?.orders_count || 0),
+          count: showProductsOnly ? (stats?.products_count || 0) : (stats?.products_count || 0) + (stats?.customers_count || 0) + (stats?.orders_count || 0),
           lastSync: stats?.last_sync_time,
-          label: 'itens'
+          label: showProductsOnly ? 'produtos' : 'itens'
         };
       default:
         return {
