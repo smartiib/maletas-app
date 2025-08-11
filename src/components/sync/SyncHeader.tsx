@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useManualSync, useSyncStats, useSyncStatus } from '@/hooks/useSupabaseSync';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { toast } from '@/hooks/use-toast';
 
 interface SyncHeaderProps {
@@ -15,6 +16,7 @@ interface SyncHeaderProps {
 const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOnly = false }) => {
   const { data: stats } = useSyncStats();
   const { data: syncStatus } = useSyncStatus();
+  const { config: wooConfig } = useWooCommerceConfig();
   const manualSync = useManualSync();
 
   const getSyncInfo = () => {
@@ -56,36 +58,40 @@ const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOn
   const isSyncing = syncStatus?.is_syncing;
 
   const handleManualSync = async () => {
+    if (!wooConfig?.apiUrl || !wooConfig?.consumerKey || !wooConfig?.consumerSecret) {
+      toast({
+        title: "Configuração Necessária",
+        description: "Configure sua integração com WooCommerce nas configurações",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
-      let syncTypes = [];
-      
-      switch (syncType) {
-        case 'products':
-          syncTypes = ['products'];
-          break;
-        case 'customers':
-          syncTypes = ['customers'];
-          break;
-        case 'orders':
-          syncTypes = ['orders'];
-          break;
-        case 'all':
-          syncTypes = ['products', 'customers', 'orders'];
-          break;
+      let syncTypeForApi: 'products' | 'categories' | 'orders' | 'customers' | 'full' = syncType as any;
+      if (syncType === 'all') {
+        syncTypeForApi = 'full';
       }
 
-      for (const type of syncTypes) {
-        await manualSync.mutateAsync(type);
-      }
+      await manualSync.mutateAsync({
+        sync_type: syncTypeForApi,
+        config: {
+          url: wooConfig.apiUrl,
+          consumer_key: wooConfig.consumerKey,
+          consumer_secret: wooConfig.consumerSecret,
+        },
+        batch_size: 50,
+        force_full_sync: false
+      });
 
       toast({
         title: "Sincronização Iniciada",
         description: `Sincronização de ${syncInfo.label} iniciada com sucesso`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro na Sincronização",
-        description: "Erro ao iniciar sincronização",
+        description: error.message || "Erro ao iniciar sincronização",
         variant: "destructive"
       });
     }
