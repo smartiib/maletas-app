@@ -24,7 +24,7 @@ interface OrganizationProviderProps {
   children: React.ReactNode;
 }
 
-export function OrganizationProvider({ children }: OrganizationProviderProps) {
+export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -106,7 +106,7 @@ export function OrganizationProvider({ children }: OrganizationProviderProps) {
       {children}
     </OrganizationContext.Provider>
   );
-}
+};
 
 export function useOrganization() {
   const context = useContext(OrganizationContext);
