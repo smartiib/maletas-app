@@ -16,9 +16,6 @@ const MasterLogin = ({ onMasterLogin }: MasterLoginProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Senha master padrão - em produção isso deveria vir de variável de ambiente
-  const MASTER_PASSWORD = 'admin123';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -26,7 +23,20 @@ const MasterLogin = ({ onMasterLogin }: MasterLoginProps) => {
     // Simular pequeno delay para UX
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (masterPassword === MASTER_PASSWORD) {
+    // Get master password from environment variable
+    const envMasterPassword = import.meta.env.VITE_MASTER_PASSWORD;
+    
+    if (!envMasterPassword) {
+      toast({
+        title: "Erro de Configuração",
+        description: "Senha master não configurada. Contate o administrador do sistema.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (masterPassword === envMasterPassword) {
       localStorage.setItem('master_auth', 'true');
       onMasterLogin();
       toast({
@@ -97,8 +107,8 @@ const MasterLogin = ({ onMasterLogin }: MasterLoginProps) => {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             <p>🔐 Acesso restrito ao administrador</p>
-            <p className="text-xs mt-1 text-orange-600">
-              Senha padrão: <code>admin123</code>
+            <p className="text-xs mt-1 text-slate-500">
+              Configure VITE_MASTER_PASSWORD no ambiente
             </p>
           </div>
         </CardContent>

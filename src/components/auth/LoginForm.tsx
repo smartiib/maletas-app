@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,10 +17,6 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Credenciais de login
-  const VALID_USERNAME = 'barbara';
-  const VALID_PASSWORD = 'bar#Rie@2025';
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -27,12 +24,26 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
     // Simular pequeno delay para UX
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    if (username === VALID_USERNAME && password === VALID_PASSWORD) {
+    // Get credentials from environment variables
+    const validUsername = import.meta.env.VITE_LOGIN_USERNAME;
+    const validPassword = import.meta.env.VITE_LOGIN_PASSWORD;
+
+    if (!validUsername || !validPassword) {
+      toast({
+        title: "Erro de Configuração",
+        description: "Credenciais de login não configuradas. Contate o administrador.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      return;
+    }
+
+    if (username === validUsername && password === validPassword) {
       localStorage.setItem('user_authenticated', 'true');
       onLogin();
       toast({
         title: "Login realizado com sucesso",
-        description: `Bem-vinda, ${username}!`,
+        description: `Bem-vindo, ${username}!`,
       });
     } else {
       toast({
@@ -109,6 +120,9 @@ const LoginForm = ({ onLogin }: LoginFormProps) => {
 
           <div className="mt-6 text-center text-sm text-slate-600">
             <p>🔐 Sistema de Gestão - Riê Joias</p>
+            <p className="text-xs mt-1 text-slate-500">
+              Configure as credenciais no ambiente
+            </p>
           </div>
         </CardContent>
       </Card>

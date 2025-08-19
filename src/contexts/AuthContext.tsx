@@ -125,7 +125,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       if (error) {
         toast({
           title: 'Erro ao fazer login',
-          description: error.message,
+          description: 'Credenciais inválidas ou erro de conexão',
           variant: 'destructive',
         });
       } else {
@@ -137,6 +137,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
       return { error };
     } catch (error) {
+      toast({
+        title: 'Erro ao fazer login',
+        description: 'Erro de conexão. Tente novamente.',
+        variant: 'destructive',
+      });
       return { error };
     }
   };
@@ -156,7 +161,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       if (error) {
         toast({
           title: 'Erro ao criar conta',
-          description: error.message,
+          description: 'Erro ao criar conta. Verifique os dados e tente novamente.',
           variant: 'destructive',
         });
       } else {
@@ -168,6 +173,11 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
       return { error };
     } catch (error) {
+      toast({
+        title: 'Erro ao criar conta',
+        description: 'Erro de conexão. Tente novamente.',
+        variant: 'destructive',
+      });
       return { error };
     }
   };
@@ -178,7 +188,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       if (error) {
         toast({
           title: 'Erro ao sair',
-          description: error.message,
+          description: 'Erro ao realizar logout',
           variant: 'destructive',
         });
       } else {
@@ -196,8 +206,23 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
     }
   };
 
-  // Backward compatibility helpers
-  const login = async () => signIn('douglas@agencia2b.com.br', '#Dgskua1712');
+  // Backward compatibility helpers - now use environment variables
+  const login = async () => {
+    const email = import.meta.env.VITE_DEFAULT_EMAIL;
+    const password = import.meta.env.VITE_DEFAULT_PASSWORD;
+    
+    if (!email || !password) {
+      toast({
+        title: 'Erro de Configuração',
+        description: 'Credenciais padrão não configuradas',
+        variant: 'destructive',
+      });
+      return { error: new Error('Default credentials not configured') };
+    }
+    
+    return signIn(email, password);
+  };
+  
   const logout = async () => signOut();
 
   const value: AuthContextValue = useMemo(() => ({
