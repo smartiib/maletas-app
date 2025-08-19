@@ -49,14 +49,21 @@ export interface WooCommerceProduct {
   synced_at?: string;
 }
 
-// Hook para buscar produtos do Supabase
+// Hook para buscar produtos do Supabase filtrados por organização
 export const useSupabaseProducts = (page = 1, search = '', status = '', category = '') => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-products', page, search, status, category],
+    queryKey: ['supabase-products', currentOrganization?.id, page, search, status, category],
     queryFn: async () => {
+      if (!currentOrganization) {
+        return { products: [], total: 0, pages: 0 };
+      }
+
       let query = supabase
         .from('wc_products')
         .select('*', { count: 'exact' })
+        .eq('organization_id', currentOrganization.id)
         .order('synced_at', { ascending: false });
 
       if (search) {
@@ -82,31 +89,41 @@ export const useSupabaseProducts = (page = 1, search = '', status = '', category
         pages: Math.ceil((count || 0) / 20)
       };
     },
-    enabled: true
+    enabled: !!currentOrganization
   });
 };
 
-// Hook para buscar categorias do Supabase
+// Hook para buscar categorias do Supabase filtradas por organização
 export const useSupabaseCategories = () => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-categories'],
+    queryKey: ['supabase-categories', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization) return [];
+
       const { data, error } = await supabase
         .from('wc_product_categories')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .order('name');
 
       if (error) throw error;
       return data || [];
-    }
+    },
+    enabled: !!currentOrganization
   });
 };
 
-// Hook para configurações de sincronização
+// Hook para configurações de sincronização filtradas por organização
 export const useSyncConfig = () => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['sync-config'],
+    queryKey: ['sync-config', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization) return [];
+
       const { data, error } = await supabase
         .from('sync_config')
         .select('*')
@@ -114,16 +131,20 @@ export const useSyncConfig = () => {
 
       if (error) throw error;
       return data || [];
-    }
+    },
+    enabled: !!currentOrganization
   });
 };
 
 // Hook para salvar configuração de sincronização
 export const useSaveSyncConfig = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (config: SyncConfig) => {
+      if (!currentOrganization) throw new Error('Nenhuma organização selecionada');
+
       const { data, error } = await supabase
         .from('sync_config')
         .upsert({
@@ -139,7 +160,7 @@ export const useSaveSyncConfig = () => {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sync-config'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-config', currentOrganization?.id] });
       toast.success('Configuração de sincronização salva com sucesso!');
     },
     onError: (error: any) => {
@@ -148,14 +169,19 @@ export const useSaveSyncConfig = () => {
   });
 };
 
-// Hook para logs de sincronização
+// Hook para logs de sincronização filtrados por organização
 export const useSyncLogs = (syncType?: string, limit = 50) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['sync-logs', syncType, limit],
+    queryKey: ['sync-logs', currentOrganization?.id, syncType, limit],
     queryFn: async () => {
+      if (!currentOrganization) return [];
+
       let query = supabase
         .from('sync_logs')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -167,13 +193,15 @@ export const useSyncLogs = (syncType?: string, limit = 50) => {
 
       if (error) throw error;
       return data || [];
-    }
+    },
+    enabled: !!currentOrganization
   });
 };
 
 // Hook para executar sincronização manual
 export const useManualSync = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (params: {
@@ -186,11 +214,16 @@ export const useManualSync = () => {
       batch_size?: number;
       force_full_sync?: boolean;
     }) => {
+      if (!currentOrganization) throw new Error('Nenhuma organização selecionada');
+
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Usuário não autenticado');
 
       const response = await supabase.functions.invoke('wc-sync', {
-        body: params,
+        body: {
+          ...params,
+          organization_id: currentOrganization.id
+        },
         headers: {
           Authorization: `Bearer ${session.access_token}`
         }
@@ -204,10 +237,10 @@ export const useManualSync = () => {
     },
     onSuccess: (data) => {
       // Invalidar todas as queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['supabase-products'] });
-      queryClient.invalidateQueries({ queryKey: ['supabase-categories'] });
-      queryClient.invalidateQueries({ queryKey: ['sync-logs'] });
-      queryClient.invalidateQueries({ queryKey: ['sync-config'] });
+      queryClient.invalidateQueries({ queryKey: ['supabase-products', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['supabase-categories', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['sync-logs', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['sync-config', currentOrganization?.id] });
       
       if (data.success) {
         toast.success(`Sincronização concluída! ${data.items_processed} itens processados`);
@@ -221,35 +254,54 @@ export const useManualSync = () => {
   });
 };
 
-// Hook para obter estatísticas de sincronização
+// Hook para obter estatísticas de sincronização filtradas por organização
 export const useSyncStats = () => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['sync-stats'],
+    queryKey: ['sync-stats', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization) {
+        return {
+          products_count: 0,
+          categories_count: 0,
+          orders_count: 0,
+          customers_count: 0,
+          last_sync: null,
+          active_configs: [],
+          last_sync_time: null
+        };
+      }
+
       // Buscar contagem de produtos
       const { count: productsCount } = await supabase
         .from('wc_products')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id);
 
       // Buscar contagem de categorias
       const { count: categoriesCount } = await supabase
         .from('wc_product_categories')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id);
 
       // Buscar contagem de pedidos
       const { count: ordersCount } = await supabase
         .from('wc_orders')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id);
 
       // Buscar contagem de clientes
       const { count: customersCount } = await supabase
         .from('wc_customers')
-        .select('*', { count: 'exact', head: true });
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id);
 
       // Buscar última sincronização
       const { data: lastSync } = await supabase
         .from('sync_logs')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .eq('operation', 'sync_completed')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -271,18 +323,26 @@ export const useSyncStats = () => {
         last_sync_time: lastSync?.created_at ? new Date(lastSync.created_at) : null
       };
     },
+    enabled: !!currentOrganization,
     refetchInterval: 30000 // Atualizar a cada 30 segundos
   });
 };
 
 // Hook para verificar se há sincronização em andamento
 export const useSyncStatus = () => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['sync-status'],
+    queryKey: ['sync-status', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization) {
+        return { is_syncing: false };
+      }
+
       const { data } = await supabase
         .from('sync_logs')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .eq('operation', 'sync_started')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -294,6 +354,7 @@ export const useSyncStatus = () => {
       const { data: completed } = await supabase
         .from('sync_logs')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .eq('sync_type', data.sync_type)
         .in('operation', ['sync_completed', 'sync_error'])
         .gte('created_at', data.created_at)
@@ -306,6 +367,7 @@ export const useSyncStatus = () => {
         started_at: data.created_at
       };
     },
+    enabled: !!currentOrganization,
     refetchInterval: 5000 // Verificar a cada 5 segundos
   });
 };
@@ -334,14 +396,21 @@ export const useTimeSinceLastSync = () => {
   return getTimeSinceLastSync();
 };
 
-// Orders hooks
+// Orders hooks filtrados por organização
 export const useSupabaseOrders = (page: number, search: string, status: string) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-orders', page, search, status],
+    queryKey: ['supabase-orders', currentOrganization?.id, page, search, status],
     queryFn: async () => {
+      if (!currentOrganization) {
+        return { orders: [], total: 0, pages: 0 };
+      }
+
       let query = supabase
         .from('wc_orders')
         .select('*', { count: 'exact' })
+        .eq('organization_id', currentOrganization.id)
         .order('date_created', { ascending: false });
 
       // Apply filters
@@ -370,18 +439,24 @@ export const useSupabaseOrders = (page: number, search: string, status: string) 
         pages: Math.ceil((count || 0) / 20)
       };
     },
+    enabled: !!currentOrganization,
     staleTime: 1000 * 60 * 5, // 5 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
   });
 };
 
 export const useSupabaseAllOrders = (search: string, status: string) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-all-orders', search, status],
+    queryKey: ['supabase-all-orders', currentOrganization?.id, search, status],
     queryFn: async () => {
+      if (!currentOrganization) return [];
+
       let query = supabase
         .from('wc_orders')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .order('date_created', { ascending: false });
 
       // Apply filters
@@ -401,18 +476,24 @@ export const useSupabaseAllOrders = (search: string, status: string) => {
 
       return orders || [];
     },
+    enabled: !!currentOrganization,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
 export const useSupabaseOrder = (id: number) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-order', id],
+    queryKey: ['supabase-order', currentOrganization?.id, id],
     queryFn: async () => {
+      if (!currentOrganization) return null;
+
       const { data: order, error } = await supabase
         .from('wc_orders')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .eq('id', id)
         .maybeSingle();
 
@@ -422,20 +503,27 @@ export const useSupabaseOrder = (id: number) => {
 
       return order;
     },
-    enabled: !!id,
+    enabled: !!id && !!currentOrganization,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
-// Customers hooks
+// Customers hooks filtrados por organização
 export const useSupabaseCustomers = (page: number, search: string) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-customers', page, search],
+    queryKey: ['supabase-customers', currentOrganization?.id, page, search],
     queryFn: async () => {
+      if (!currentOrganization) {
+        return { customers: [], total: 0, pages: 0 };
+      }
+
       let query = supabase
         .from('wc_customers')
         .select('*', { count: 'exact' })
+        .eq('organization_id', currentOrganization.id)
         .order('date_created', { ascending: false });
 
       // Apply search filter
@@ -460,14 +548,17 @@ export const useSupabaseCustomers = (page: number, search: string) => {
         pages: Math.ceil((count || 0) / 20)
       };
     },
+    enabled: !!currentOrganization,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
 export const useSupabaseAllCustomers = (search: string = '') => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-all-customers', search],
+    queryKey: ['supabase-all-customers', currentOrganization?.id, search],
     queryFn: async () => {
       let query = supabase
         .from('wc_customers')
@@ -487,14 +578,17 @@ export const useSupabaseAllCustomers = (search: string = '') => {
 
       return customers || [];
     },
+    enabled: !!currentOrganization,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
 export const useSupabaseCustomer = (id: number) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-customer', id],
+    queryKey: ['supabase-customer', currentOrganization?.id, id],
     queryFn: async () => {
       const { data: customer, error } = await supabase
         .from('wc_customers')
@@ -508,15 +602,17 @@ export const useSupabaseCustomer = (id: number) => {
 
       return customer;
     },
-    enabled: !!id,
+    enabled: !!id && !!currentOrganization,
     staleTime: 1000 * 60 * 5,
     gcTime: 1000 * 60 * 10,
   });
 };
 
 export const useSupabaseBirthdayCustomers = (month?: number) => {
+  const { currentOrganization } = useOrganization();
+
   return useQuery({
-    queryKey: ['supabase-birthday-customers', month],
+    queryKey: ['supabase-birthday-customers', currentOrganization?.id, month],
     queryFn: async () => {
       const targetMonth = month || new Date().getMonth() + 1;
       
@@ -559,6 +655,8 @@ export function useSupabaseSync() {
     itemsFailed = 0,
     durationMs?: number
   ) => {
+    if (!currentOrganization) return;
+
     try {
       await supabase.from('sync_logs').insert({
         sync_type: syncType,
@@ -570,7 +668,7 @@ export function useSupabaseSync() {
         items_failed: itemsFailed,
         duration_ms: durationMs,
         user_id: (await supabase.auth.getUser()).data.user?.id,
-        organization_id: currentOrganization?.id || null,
+        organization_id: currentOrganization.id,
       });
     } catch (error) {
       console.error('Erro ao salvar log de sincronização:', error);

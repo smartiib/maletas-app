@@ -10,8 +10,10 @@ import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig as WooCommerceConfigType } from '@/services/woocommerce';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 export const WooCommerceConfig = () => {
+  const { currentOrganization } = useOrganization();
   const { config, testConnection, saveConfig, isConfigured, webhooks, setupWebhook } = useWooCommerceConfig();
   
   const [wooSettings, setWooSettings] = useState<WooCommerceConfigType>({
@@ -25,6 +27,20 @@ export const WooCommerceConfig = () => {
       setWooSettings(config);
     }
   }, [config]);
+
+  // Se não há organização selecionada, mostrar aviso
+  if (!currentOrganization) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <Activity className="w-5 h-5 text-yellow-600" />
+          <span className="text-yellow-800 font-medium">
+            Selecione uma organização para configurar o WooCommerce
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   const handleTest = () => {
     if (!wooSettings.apiUrl || !wooSettings.consumerKey || !wooSettings.consumerSecret) {
@@ -78,6 +94,14 @@ export const WooCommerceConfig = () => {
 
   return (
     <div className="space-y-6">
+      {/* Organization Info */}
+      <div className="flex items-center gap-2 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <Building2 className="w-5 h-5 text-blue-600" />
+        <span className="text-blue-800 font-medium">
+          Configurando para: {currentOrganization.name}
+        </span>
+      </div>
+
       {/* Status Header */}
       {isConfigured && (
         <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
