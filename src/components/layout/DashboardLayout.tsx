@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Loader2 } from 'lucide-react';
 
-const DashboardLayout = () => {
+const DashboardLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { isAuthenticated, isLoading, login } = useAuth();
@@ -65,3 +65,4 @@ const DashboardLayout = () => {
 };
 
 export default DashboardLayout;
+
