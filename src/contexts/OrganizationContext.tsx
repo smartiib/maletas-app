@@ -20,7 +20,11 @@ interface OrganizationContextType {
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
-export function OrganizationProvider({ children }: { children: React.ReactNode }) {
+interface OrganizationProviderProps {
+  children: React.ReactNode;
+}
+
+export function OrganizationProvider({ children }: OrganizationProviderProps) {
   const { user } = useAuth();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
