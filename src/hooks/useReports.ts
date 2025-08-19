@@ -23,6 +23,7 @@ export const useReportsData = () => {
           *,
           representative:representatives(*)
         `)
+        .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -48,6 +49,7 @@ export const useReportsData = () => {
             representative:representatives(*)
           )
         `)
+        .eq('organization_id', currentOrganization.id)
         .order('return_date', { ascending: false });
       
       if (error) throw error;
@@ -67,6 +69,7 @@ export const useReportsData = () => {
       const { data, error } = await supabase
         .from('representatives')
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .order('name');
       
       if (error) throw error;
@@ -85,7 +88,8 @@ export const useReportsData = () => {
 
       const { data, error } = await supabase
         .from('maleta_items')
-        .select('*');
+        .select('*')
+        .eq('organization_id', currentOrganization.id);
       
       if (error) throw error;
       return data;

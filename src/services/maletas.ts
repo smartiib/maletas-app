@@ -262,118 +262,78 @@ class MaletasAPI {
 
   async createMaleta(data: CreateMaletaData): Promise<Maleta> {
     try {
-      // Buscar dados do representante
-      const { data: representative, error: repError } = await supabase
-        .from('representatives')
-        .select('*')
-        .eq('id', data.representative_id)
+      // Get current organization from context
+      const orgResponse = await supabase.auth.getUser();
+      if (!orgResponse.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Get user's current organization
+      const { data: userOrgs, error: userOrgError } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', orgResponse.data.user.id)
+        .limit(1)
         .single();
 
-      if (repError || !representative) {
-        throw new Error('Representante não encontrado');
+      if (userOrgError || !userOrgs) {
+        throw new Error('Usuário não pertence a nenhuma organização');
       }
-
-      // Gerar número da maleta
-      const { data: numberResult, error: numberError } = await supabase
-        .rpc('generate_maleta_number');
-
-      if (numberError) {
-        console.error('Erro ao gerar número da maleta:', numberError);
-        throw numberError;
-      }
-
-      const maletaNumber = numberResult;
-
-      // Calcular valor total
-      const totalValue = data.items.reduce((total, item) => {
-        return total + (parseFloat(item.price) * item.quantity);
-      }, 0);
-
-      // Buscar configurações de comissão
-      const commissionTiers = await this.getCommissionTiers();
 
       // Criar maleta
-      const { data: newMaleta, error: maletaError } = await supabase
+      const { data: maleta, error: maletaError } = await supabase
         .from('maletas')
         .insert({
-          number: maletaNumber,
           representative_id: data.representative_id,
-          customer_name: data.customer_name || representative.name,
-          customer_email: data.customer_email || representative.email,
           return_date: data.return_date,
-          total_value: totalValue,
-          commission_settings: JSON.stringify(data.commission_settings?.use_global ? {
-            use_global: true,
-            tiers: commissionTiers,
-            penalty_rate: DEFAULT_PENALTY_RATE
-          } : {
-            use_global: false,
-            tiers: [{
-              min_amount: 0,
-              percentage: data.commission_settings?.custom_percentage || 20,
-              bonus: 0,
-              label: 'Personalizada'
-            }],
-            penalty_rate: DEFAULT_PENALTY_RATE
-          }),
-          notes: data.notes
+          notes: data.notes,
+          commission_settings: data.commission_settings,
+          organization_id: userOrgs.organization_id
         })
-        .select()
+        .select('*')
         .single();
 
-      if (maletaError) {
-        console.error('Erro ao criar maleta:', maletaError);
-        throw maletaError;
-      }
+      if (maletaError) throw maletaError;
 
       // Criar itens da maleta
-      const itemsToInsert = data.items.map(item => ({
-        maleta_id: newMaleta.id,
+      const maletaItems = data.items.map(item => ({
+        maleta_id: maleta.id,
         product_id: item.product_id,
         variation_id: item.variation_id,
         name: item.name,
         sku: item.sku,
-        price: parseFloat(item.price),
         quantity: item.quantity,
-        variation_attributes: item.variation_id ? [{ name: 'Variação', value: `Var ${item.variation_id}` }] : []
+        price: item.price,
+        organization_id: userOrgs.organization_id
       }));
 
-      const { data: items, error: itemsError } = await supabase
+      const { error: itemsError } = await supabase
         .from('maleta_items')
-        .insert(itemsToInsert)
-        .select();
+        .insert(maletaItems);
 
-      if (itemsError) {
-        console.error('Erro ao criar itens da maleta:', itemsError);
-        // Rollback: deletar maleta criada
-        await supabase.from('maletas').delete().eq('id', newMaleta.id);
-        throw itemsError;
+      if (itemsError) throw itemsError;
+
+      // Reduzir estoque dos produtos
+      for (const item of data.items) {
+        const { data: product } = await supabase
+          .from('wc_products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product) {
+          const newStock = Math.max(0, (product.stock_quantity || 0) - item.quantity);
+          
+          await supabase
+            .from('wc_products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id);
+        }
       }
 
-      toast({
-        title: "Maleta Criada",
-        description: `Maleta ${maletaNumber} criada com sucesso!`,
-      });
-
-      return {
-        ...newMaleta,
-        status: newMaleta.status as 'active' | 'expired' | 'finalized',
-        total_value: newMaleta.total_value?.toString() || '0',
-        representative_name: representative.name,
-        commission_settings: this.parseCommissionSettings(newMaleta.commission_settings),
-        commission_percentage: this.getCommissionPercentage(newMaleta.commission_settings),
-        items: (items || []).map((item: any) => ({
-          ...item,
-          price: item.price.toString()
-        }))
-      };
+      return maleta;
     } catch (error) {
       console.error('Erro ao criar maleta:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao criar maleta",
-        variant: "destructive"
-      });
       throw error;
     }
   }
@@ -422,63 +382,67 @@ class MaletasAPI {
     }
   }
 
-  async processMaletaReturn(id: string, returnData: Omit<MaletaReturn, 'maleta_id'>): Promise<MaletaReturn> {
+  async processMaletaReturn(id: string, returnData: Omit<MaletaReturn, 'maleta_id'>): Promise<void> {
     try {
-      // Criar registro de devolução
-      const { data: returnRecord, error: returnError } = await supabase
-        .from('maleta_returns')
-        .insert({
-          maleta_id: id,
-          items_sold: returnData.items_sold,
-          items_returned: returnData.items_returned,
-          return_date: returnData.return_date,
-          delay_days: returnData.delay_days,
-          commission_amount: returnData.commission_amount,
-          penalty_amount: returnData.penalty_amount,
-          final_amount: returnData.final_amount,
-          notes: returnData.notes
-        })
-        .select()
+      // Get current organization from context
+      const orgResponse = await supabase.auth.getUser();
+      if (!orgResponse.data.user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Get user's current organization
+      const { data: userOrgs, error: userOrgError } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', orgResponse.data.user.id)
+        .limit(1)
         .single();
 
-      if (returnError) {
-        console.error('Erro ao processar devolução:', returnError);
-        throw returnError;
+      if (userOrgError || !userOrgs) {
+        throw new Error('Usuário não pertence a nenhuma organização');
       }
 
-      // Atualizar status dos itens
-      for (const soldItem of returnData.items_sold) {
-        await supabase
-          .from('maleta_items')
-          .update({ status: 'sold' })
-          .eq('id', soldItem.item_id);
-      }
+      // Registrar retorno
+      const { error: returnError } = await supabase
+        .from('maleta_returns')
+        .insert({
+          ...returnData,
+          maleta_id: id,
+          organization_id: userOrgs.organization_id
+        });
 
-      for (const returnedItem of returnData.items_returned) {
-        await supabase
-          .from('maleta_items')
-          .update({ status: 'returned' })
-          .eq('id', returnedItem.item_id);
-      }
+      if (returnError) throw returnError;
 
       // Atualizar status da maleta
-      await supabase
+      const { error: updateError } = await supabase
         .from('maletas')
-        .update({ status: 'finalized' })
+        .update({ status: 'returned' })
         .eq('id', id);
 
-      toast({
-        title: "Devolução Processada",
-        description: "Devolução foi processada com sucesso!",
-      });
+      if (updateError) throw updateError;
 
-      return {
-        ...returnRecord,
-        items_sold: returnRecord.items_sold as Array<{ item_id: string; quantity_sold: number; }>,
-        items_returned: returnRecord.items_returned as Array<{ item_id: string; quantity_returned: number; }>
-      };
+      // Processar produtos retornados (devolver ao estoque)
+      const returnedItems = returnData.items_returned || [];
+      
+      for (const item of returnedItems) {
+        const { data: product } = await supabase
+          .from('wc_products')
+          .select('stock_quantity')
+          .eq('id', item.product_id)
+          .single();
+
+        if (product) {
+          const newStock = (product.stock_quantity || 0) + item.quantity_returned;
+          
+          await supabase
+            .from('wc_products')
+            .update({ stock_quantity: newStock })
+            .eq('id', item.product_id);
+        }
+      }
+
     } catch (error) {
-      console.error('Erro ao processar devolução:', error);
+      console.error('Erro ao processar retorno:', error);
       throw error;
     }
   }
@@ -514,43 +478,37 @@ class MaletasAPI {
 
   async createRepresentative(data: Partial<Representative>): Promise<Representative> {
     try {
-      const { data: newRep, error } = await supabase
-        .from('representatives')
-        .insert({
-          name: data.name!,
-          email: data.email!,
-          phone: data.phone,
-          commission_settings: JSON.stringify(data.commission_settings || {
-            use_global: true,
-            custom_rates: [],
-            penalty_rate: DEFAULT_PENALTY_RATE
-          }),
-          referrer_id: data.referrer_id
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Erro ao criar representante:', error);
-        throw error;
+      // Get current organization from context
+      const orgResponse = await supabase.auth.getUser();
+      if (!orgResponse.data.user) {
+        throw new Error('Usuário não autenticado');
       }
 
-      toast({
-        title: "Representante Criado",
-        description: `${data.name} foi cadastrado como representante!`,
-      });
+      // Get user's current organization
+      const { data: userOrgs, error: userOrgError } = await supabase
+        .from('user_organizations')
+        .select('organization_id')
+        .eq('user_id', orgResponse.data.user.id)
+        .limit(1)
+        .single();
 
-      return {
-        ...newRep,
-        commission_settings: newRep.commission_settings as any
-      };
+      if (userOrgError || !userOrgs) {
+        throw new Error('Usuário não pertence a nenhuma organização');
+      }
+
+      const { data: representative, error } = await supabase
+        .from('representatives')
+        .insert({
+          ...data,
+          organization_id: userOrgs.organization_id
+        })
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return representative;
     } catch (error) {
       console.error('Erro ao criar representante:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao criar representante",
-        variant: "destructive"
-      });
       throw error;
     }
   }

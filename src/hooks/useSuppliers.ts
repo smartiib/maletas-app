@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -20,6 +21,7 @@ interface Supplier {
   website?: string;
   notes?: string;
   is_active: boolean;
+  organization_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +41,7 @@ interface SupplierInsert {
   website?: string;
   notes?: string;
   is_active?: boolean;
+  organization_id: string;
 }
 
 interface SupplierUpdate {
@@ -67,6 +70,7 @@ interface ProductSupplier {
   minimum_order_quantity: number;
   lead_time_days?: number;
   is_primary: boolean;
+  organization_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +83,7 @@ interface ProductSupplierInsert {
   minimum_order_quantity?: number;
   lead_time_days?: number;
   is_primary?: boolean;
+  organization_id: string;
 }
 
 interface ProductSupplierUpdate {
@@ -103,6 +108,7 @@ export const useSuppliers = () => {
       const { data, error } = await supabase
         .from('suppliers' as any)
         .select('*')
+        .eq('organization_id', currentOrganization.id)
         .order('name');
 
       if (error) throw error;
@@ -127,6 +133,7 @@ export const useSupplier = (id: string) => {
         .from('suppliers' as any)
         .select('*')
         .eq('id', id)
+        .eq('organization_id', currentOrganization.id)
         .single();
 
       if (error) throw error;
@@ -141,10 +148,17 @@ export const useCreateSupplier = () => {
   const { currentOrganization } = useOrganization();
 
   return useMutation({
-    mutationFn: async (supplier: SupplierInsert) => {
+    mutationFn: async (supplier: Omit<SupplierInsert, 'organization_id'>) => {
+      if (!currentOrganization) {
+        throw new Error('Nenhuma organização selecionada');
+      }
+
       const { data, error } = await supabase
         .from('suppliers' as any)
-        .insert(supplier)
+        .insert({
+          ...supplier,
+          organization_id: currentOrganization.id
+        })
         .select()
         .single();
 
@@ -167,6 +181,7 @@ export const useUpdateSupplier = () => {
         .from('suppliers' as any)
         .update(supplier)
         .eq('id', id)
+        .eq('organization_id', currentOrganization?.id)
         .select()
         .single();
 
@@ -188,7 +203,8 @@ export const useDeleteSupplier = () => {
       const { error } = await supabase
         .from('suppliers' as any)
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('organization_id', currentOrganization?.id);
 
       if (error) throw error;
     },
@@ -216,7 +232,8 @@ export const useProductSuppliers = (productId?: number) => {
           *,
           supplier:suppliers(*)
         `)
-        .eq('product_id', productId);
+        .eq('product_id', productId)
+        .eq('organization_id', currentOrganization.id);
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
@@ -242,6 +259,7 @@ export const useSupplierProducts = (supplierId?: string) => {
         .from('product_suppliers' as any)
         .select('*')
         .eq('supplier_id', supplierId)
+        .eq('organization_id', currentOrganization.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -256,10 +274,17 @@ export const useCreateProductSupplier = () => {
   const { currentOrganization } = useOrganization();
 
   return useMutation({
-    mutationFn: async (data: ProductSupplierInsert) => {
+    mutationFn: async (data: Omit<ProductSupplierInsert, 'organization_id'>) => {
+      if (!currentOrganization) {
+        throw new Error('Nenhuma organização selecionada');
+      }
+
       const { data: result, error } = await supabase
         .from('product_suppliers' as any)
-        .insert(data)
+        .insert({
+          ...data,
+          organization_id: currentOrganization.id
+        })
         .select()
         .single();
 
@@ -283,6 +308,7 @@ export const useUpdateProductSupplier = () => {
         .from('product_suppliers' as any)
         .update(data)
         .eq('id', id)
+        .eq('organization_id', currentOrganization?.id)
         .select()
         .single();
 
@@ -305,7 +331,8 @@ export const useDeleteProductSupplier = () => {
       const { error } = await supabase
         .from('product_suppliers' as any)
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('organization_id', currentOrganization?.id);
 
       if (error) throw error;
     },

@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { maletasAPI, Maleta, Representative, CreateMaletaData, MaletaReturn, CommissionCalculation } from '@/services/maletas';
 import { toast } from '@/hooks/use-toast';
@@ -23,7 +24,8 @@ export const useMaletas = (page = 1, status = '', representative_id = '') => {
         .select(`
           *,
           representative:representatives(*)
-        `, { count: 'exact' });
+        `, { count: 'exact' })
+        .eq('organization_id', currentOrganization.id);
 
       // Apply filters
       if (status) {
@@ -134,7 +136,8 @@ export const useRepresentatives = (page = 1, search = '') => {
       // Use direct Supabase query with organization filtering
       let query = supabase
         .from('representatives')
-        .select('*', { count: 'exact' });
+        .select('*', { count: 'exact' })
+        .eq('organization_id', currentOrganization.id);
 
       if (search) {
         query = query.ilike('name', `%${search}%`);
