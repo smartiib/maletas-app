@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,12 +16,13 @@ const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  // Get organization first so we can pass its id to the hook
   const { currentOrganization, loading: orgLoading } = useOrganization();
-
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
-  const { isConfigured } = useWooCommerceConfig();
+  const { config } = useWooCommerceConfig();
   const { viewMode } = useViewMode('products');
+
+  // Verificação mais robusta de configuração
+  const isConfigured = !!(config?.apiUrl && config?.consumerKey && config?.consumerSecret);
 
   const filteredProducts = products.filter((product) =>
     product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -29,15 +31,15 @@ const Products = () => {
 
   if (orgLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="w-full max-w-full space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
             <Skeleton className="h-4 w-48" />
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-48" />
           ))}
@@ -48,7 +50,7 @@ const Products = () => {
 
   if (!currentOrganization) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="w-full max-w-full">
         <EmptyWooCommerceState
           title="Nenhuma Organização Selecionada"
           description="Selecione uma organização para ver os produtos."
@@ -60,7 +62,7 @@ const Products = () => {
 
   if (!isConfigured) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="w-full max-w-full">
         <EmptyWooCommerceState
           title="WooCommerce Não Configurado"
           description="Configure sua conexão com o WooCommerce para começar a gerenciar produtos."
@@ -71,11 +73,11 @@ const Products = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="flex justify-between items-center">
+      <div className="w-full max-w-full space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Produtos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gerencie seu catálogo de produtos
             </p>
           </div>
@@ -84,7 +86,7 @@ const Products = () => {
             Novo Produto
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-48" />
           ))}
@@ -95,11 +97,11 @@ const Products = () => {
 
   if (products.length === 0) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="w-full max-w-full">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
           <div>
-            <h1 className="text-3xl font-bold">Produtos</h1>
-            <p className="text-muted-foreground">
+            <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
               Gerencie seu catálogo de produtos
             </p>
           </div>
@@ -113,15 +115,15 @@ const Products = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="w-full max-w-full space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Produtos</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)}>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Novo Produto
         </Button>
@@ -132,11 +134,11 @@ const Products = () => {
           placeholder="Buscar por nome ou SKU..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-sm"
+          className="w-full sm:max-w-sm"
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredProducts.map((product) => (
           <ProductCard key={product.id} product={product} viewMode={viewMode} />
         ))}
