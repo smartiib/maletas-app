@@ -1,27 +1,111 @@
+
 import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+interface Profile {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
+        
+        // Fetch profile if user exists
+        if (session?.user) {
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileData) {
+              setProfile({
+                id: profileData.id,
+                name: profileData.name || session.user.email || 'Usuário',
+                email: profileData.email || session.user.email || '',
+                role: profileData.role || 'user'
+              });
+            } else {
+              // Create basic profile from user data
+              setProfile({
+                id: session.user.id,
+                name: session.user.email || 'Usuário',
+                email: session.user.email || '',
+                role: 'user'
+              });
+            }
+          } catch (error) {
+            console.error('Error fetching profile:', error);
+            // Fallback profile
+            setProfile({
+              id: session.user.id,
+              name: session.user.email || 'Usuário',
+              email: session.user.email || '',
+              role: 'user'
+            });
+          }
+        } else {
+          setProfile(null);
+        }
+        
         setLoading(false);
       }
     );
 
     // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileData) {
+            setProfile({
+              id: profileData.id,
+              name: profileData.name || session.user.email || 'Usuário',
+              email: profileData.email || session.user.email || '',
+              role: profileData.role || 'user'
+            });
+          } else {
+            setProfile({
+              id: session.user.id,
+              name: session.user.email || 'Usuário',
+              email: session.user.email || '',
+              role: 'user'
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          setProfile({
+            id: session.user.id,
+            name: session.user.email || 'Usuário',
+            email: session.user.email || '',
+            role: 'user'
+          });
+        }
+      }
+      
       setLoading(false);
     });
 
@@ -121,6 +205,7 @@ export const useAuth = () => {
   return {
     user,
     session,
+    profile,
     loading,
     signIn,
     signUp,

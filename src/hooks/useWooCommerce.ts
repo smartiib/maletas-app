@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData, WooCommerceTestResult } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { supabase } from '@/integrations/supabase/client';
 
 // Products hooks
 export const useProducts = (page = 1, search = '', status = '', category = '') => {
