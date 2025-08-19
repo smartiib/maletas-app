@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+// Removido: import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNavigation from './BottomNavigation';
@@ -53,7 +53,8 @@ const DashboardLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
           
           <main className={`flex-1 overflow-x-hidden overflow-y-auto p-6 ${isMobile ? 'pb-20' : ''}`}>
             <div className="animate-fade-in">
-              <Outlet />
+              {/* Renderizar corretamente o conteúdo das páginas */}
+              {children}
             </div>
           </main>
         </div>
@@ -65,4 +66,3 @@ const DashboardLayout: React.FC<React.PropsWithChildren> = ({ children }) => {
 };
 
 export default DashboardLayout;
-
