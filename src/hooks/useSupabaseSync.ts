@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -237,17 +236,48 @@ export const useManualSync = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      // Invalidar todas as queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['supabase-products', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['supabase-categories', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['sync-logs', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['sync-config', currentOrganization?.id] });
-      
-      if (data.success) {
-        toast.success(`Sincronização concluída! ${data.items_processed} itens processados`);
-      } else {
-        toast.error(`Sincronização com falhas: ${data.message}`);
-      }
+      // Invalidar TODAS as queries relacionadas para forçar atualização
+      queryClient.invalidateQueries({ 
+        queryKey: ['supabase-products'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['supabase-categories'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['supabase-orders'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['supabase-customers'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['sync-logs'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['sync-config'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['sync-stats'],
+        refetchType: 'all'
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: ['sync-status'],
+        refetchType: 'all'
+      });
+
+      // Aguardar um pouco antes de mostrar a mensagem para garantir que as queries foram atualizadas
+      setTimeout(() => {
+        if (data.success) {
+          toast.success(`Sincronização concluída! ${data.items_processed} itens processados`);
+        } else {
+          toast.error(`Sincronização com falhas: ${data.message}`);
+        }
+      }, 1000);
     },
     onError: (error: any) => {
       toast.error(`Erro na sincronização: ${error.message}`);
@@ -333,7 +363,8 @@ export const useSyncStats = () => {
       };
     },
     enabled: !!currentOrganization,
-    refetchInterval: 30000 // Atualizar a cada 30 segundos
+    staleTime: 0, // Sempre buscar dados frescos
+    gcTime: 0 // Não manter em cache
   });
 };
 
