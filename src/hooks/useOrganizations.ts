@@ -7,6 +7,14 @@ interface Organization {
   id: string;
   name: string;
   slug: string;
+  email?: string;
+  phone?: string;
+  contact_person?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
+  is_active: boolean;
   asaas_customer_id?: string;
   created_at: string;
   updated_at: string;
@@ -15,6 +23,13 @@ interface Organization {
 interface CreateOrganizationData {
   name: string;
   slug: string;
+  email?: string;
+  phone?: string;
+  contact_person?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
 }
 
 export function useOrganizations() {
@@ -26,7 +41,7 @@ export function useOrganizations() {
     try {
       // Usar Edge Function para criar e vincular a organização (evita bloqueio do RLS)
       const { data: result, error } = await supabase.functions.invoke('create-organization', {
-        body: { name: data.name, slug: data.slug }
+        body: data
       });
 
       if (error) {

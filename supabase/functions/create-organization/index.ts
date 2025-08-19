@@ -9,6 +9,13 @@ const corsHeaders = {
 interface CreateOrgBody {
   name: string;
   slug: string;
+  email?: string;
+  phone?: string;
+  contact_person?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip_code?: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -40,12 +47,23 @@ Deno.serve(async (req: Request) => {
     }
     const userId = authData.user.id;
 
-    const { name, slug }: CreateOrgBody = await req.json();
+    const orgData: CreateOrgBody = await req.json();
 
-    // Inserir organização
+    // Inserir organização com todos os campos
     const { data: org, error: orgError } = await admin
       .from("organizations")
-      .insert({ name, slug })
+      .insert({
+        name: orgData.name,
+        slug: orgData.slug,
+        email: orgData.email,
+        phone: orgData.phone,
+        contact_person: orgData.contact_person,
+        address: orgData.address,
+        city: orgData.city,
+        state: orgData.state,
+        zip_code: orgData.zip_code,
+        is_active: true,
+      })
       .select()
       .single();
 
@@ -64,11 +82,30 @@ Deno.serve(async (req: Request) => {
 
     if (linkError) {
       console.error("Erro ao vincular usuário à organização:", linkError);
-      // Opcionalmente, poderíamos remover a org criada, mas manter simples: informe erro.
       return new Response(
         JSON.stringify({ error: "Organização criada, mas falha ao vincular usuário." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Criar páginas padrão para a organização
+    const defaultPages = [
+      'dashboard', 'products', 'customers', 'orders', 'pos', 'reports', 'settings'
+    ];
+
+    const pageInserts = defaultPages.map(pageKey => ({
+      organization_id: org.id,
+      page_key: pageKey,
+      is_enabled: true,
+    }));
+
+    const { error: pagesError } = await admin
+      .from("organization_pages")
+      .insert(pageInserts);
+
+    if (pagesError) {
+      console.error("Erro ao criar páginas padrão:", pagesError);
+      // Não falha a criação da organização por causa das páginas
     }
 
     return new Response(JSON.stringify({ success: true, organization: org }), {
