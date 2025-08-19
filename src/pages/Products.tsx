@@ -8,16 +8,19 @@ import ProductDialog from "@/components/products/ProductDialog";
 import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // ensure named import
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
-  const { isConfigured } = useWooCommerceConfig();
+
+  // Get organization first so we can pass its id to the hook
   const { currentOrganization, loading: orgLoading } = useOrganization();
+
+  const { data: products = [], isLoading } = useWooCommerceFilteredProducts(currentOrganization?.id ?? "");
+  const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode();
 
   const filteredProducts = products.filter((product) =>
@@ -158,3 +161,4 @@ const Products = () => {
 };
 
 export default Products;
+

@@ -10,16 +10,20 @@ import {
 } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // fixed: named import
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 
 const Dashboard = () => {
-  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
-  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders();
-  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers();
-  const { isConfigured } = useWooCommerceConfig();
+  // Get organization first so we can pass its id to the hooks
   const { currentOrganization, loading: orgLoading } = useOrganization();
+
+  // Pass organizationId expected by filtered hooks (fallback to empty string to satisfy types)
+  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts(currentOrganization?.id ?? "");
+  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders(currentOrganization?.id ?? "");
+  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers(currentOrganization?.id ?? "");
+
+  const { isConfigured } = useWooCommerceConfig();
   
   const isLoading = productsLoading || ordersLoading || customersLoading || orgLoading;
 
@@ -125,3 +129,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

@@ -8,16 +8,19 @@ import CustomerDialog from "@/components/customers/CustomerDialog";
 import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // ensure named import
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
-  const { isConfigured } = useWooCommerceConfig();
+
+  // Get organization first so we can pass its id to the hook
   const { currentOrganization, loading: orgLoading } = useOrganization();
+
+  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers(currentOrganization?.id ?? "");
+  const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode();
 
   const filteredCustomers = customers.filter((customer) =>
@@ -159,3 +162,4 @@ const Customers = () => {
 };
 
 export default Customers;
+

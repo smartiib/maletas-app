@@ -8,16 +8,19 @@ import OrderDialog from "@/components/orders/OrderDialog";
 import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // ensure named import
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
-  const { isConfigured } = useWooCommerceConfig();
+
+  // Get organization first so we can pass its id to the hook
   const { currentOrganization, loading: orgLoading } = useOrganization();
+
+  const { data: orders = [], isLoading } = useWooCommerceFilteredOrders(currentOrganization?.id ?? "");
+  const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode();
 
   const filteredOrders = orders.filter((order) =>
@@ -160,3 +163,4 @@ const Orders = () => {
 };
 
 export default Orders;
+
