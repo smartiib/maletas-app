@@ -1,3 +1,4 @@
+
 import {
   Package,
   LayoutDashboard,
@@ -105,9 +106,8 @@ const Sidebar = () => {
   return (
     <div
       className={cn(
-        "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-card border-r transition-transform duration-300 ease-in-out",
-        isCollapsed ? "-translate-x-full" : "translate-x-0",
-        "lg:translate-x-0"
+        "fixed inset-y-0 left-0 z-40 w-64 flex flex-col bg-card border-r transition-transform duration-300 ease-in-out",
+        isCollapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"
       )}
     >
       <div className="flex h-16 items-center justify-between px-4 border-b">
