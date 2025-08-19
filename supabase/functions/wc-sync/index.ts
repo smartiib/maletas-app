@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -15,6 +16,7 @@ interface SyncRequest {
   config: WooCommerceConfig;
   batch_size?: number;
   force_full_sync?: boolean;
+  organization_id?: string; // <-- incluir org recebida do app
 }
 
 interface SyncResult {
@@ -49,35 +51,45 @@ Deno.serve(async (req) => {
       throw new Error('Usuário não autenticado');
     }
 
-    const { sync_type, config, batch_size = 50, force_full_sync = false }: SyncRequest = await req.json();
+    const {
+      sync_type,
+      config,
+      batch_size = 50,
+      force_full_sync = false,
+      organization_id
+    }: SyncRequest = await req.json();
 
-    console.log(`Iniciando sincronização: ${sync_type} para usuário ${user.id}`);
+    if (!organization_id) {
+      throw new Error('organization_id é obrigatório');
+    }
 
-    // Log início da sincronização
-    await logSyncEvent(supabase, user.id, sync_type, 'sync_started', 'success', 
+    console.log(`Iniciando sincronização: ${sync_type} para usuário ${user.id} na org ${organization_id}`);
+
+    // Log início da sincronização (com organization_id)
+    await logSyncEvent(supabase, user.id, organization_id, sync_type, 'sync_started', 'success', 
       `Iniciando sincronização de ${sync_type}`, { batch_size, force_full_sync });
 
     let result: SyncResult;
 
     switch (sync_type) {
       case 'products':
-        result = await syncProducts(supabase, user.id, config, batch_size, force_full_sync);
+        result = await syncProducts(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         break;
       case 'categories':
-        result = await syncCategories(supabase, user.id, config, batch_size, force_full_sync);
+        result = await syncCategories(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         break;
       case 'orders':
-        result = await syncOrders(supabase, user.id, config, batch_size, force_full_sync);
+        result = await syncOrders(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         break;
       case 'customers':
-        result = await syncCustomers(supabase, user.id, config, batch_size, force_full_sync);
+        result = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         break;
       case 'full':
         // Sincronizar na ordem: categorias, produtos, clientes, pedidos
-        const categoriesResult = await syncCategories(supabase, user.id, config, batch_size, force_full_sync);
-        const productsResult = await syncProducts(supabase, user.id, config, batch_size, force_full_sync);
-        const customersResult = await syncCustomers(supabase, user.id, config, batch_size, force_full_sync);
-        const ordersResult = await syncOrders(supabase, user.id, config, batch_size, force_full_sync);
+        const categoriesResult = await syncCategories(supabase, user.id, organization_id, config, batch_size, force_full_sync);
+        const productsResult = await syncProducts(supabase, user.id, organization_id, config, batch_size, force_full_sync);
+        const customersResult = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
+        const ordersResult = await syncOrders(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         
         result = {
           success: categoriesResult.success && productsResult.success && customersResult.success && ordersResult.success,
@@ -92,8 +104,8 @@ Deno.serve(async (req) => {
         throw new Error(`Tipo de sincronização não suportado: ${sync_type}`);
     }
 
-    // Log conclusão da sincronização
-    await logSyncEvent(supabase, user.id, sync_type, 'sync_completed', 
+    // Log conclusão (com organization_id)
+    await logSyncEvent(supabase, user.id, organization_id, sync_type, 'sync_completed', 
       result.success ? 'success' : 'error', result.message, {
         items_processed: result.items_processed,
         items_failed: result.items_failed,
@@ -109,7 +121,7 @@ Deno.serve(async (req) => {
       status: result.success ? 200 : 500
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na sincronização:', error);
     
     return new Response(JSON.stringify({
@@ -125,9 +137,11 @@ Deno.serve(async (req) => {
   }
 });
 
+// ------------------------- PRODUCTS -------------------------
 async function syncProducts(
   supabase: any, 
-  userId: string, 
+  userId: string,
+  organizationId: string,
   config: WooCommerceConfig, 
   batchSize: number,
   forceFullSync: boolean
@@ -191,9 +205,9 @@ async function syncProducts(
         // Processar produtos em lote
         for (const product of products) {
           try {
-            await upsertProduct(supabase, product);
+            await upsertProduct(supabase, product, organizationId);
             itemsProcessed++;
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Erro ao processar produto ${product.id}:`, error);
             errors.push(`Produto ${product.id}: ${error.message}`);
             itemsFailed++;
@@ -207,7 +221,7 @@ async function syncProducts(
           page++;
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Erro na página ${page}:`, error);
         errors.push(`Página ${page}: ${error.message}`);
         hasMore = false;
@@ -226,7 +240,7 @@ async function syncProducts(
       errors: errors.length > 0 ? errors : undefined
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro geral na sincronização de produtos:', error);
     return {
       success: false,
@@ -239,9 +253,11 @@ async function syncProducts(
   }
 }
 
+// ------------------------- CATEGORIES -------------------------
 async function syncCategories(
   supabase: any, 
   userId: string, 
+  organizationId: string,
   config: WooCommerceConfig, 
   batchSize: number,
   forceFullSync: boolean
@@ -289,9 +305,9 @@ async function syncCategories(
 
         for (const category of categories) {
           try {
-            await upsertCategory(supabase, category);
+            await upsertCategory(supabase, category, organizationId);
             itemsProcessed++;
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Erro ao processar categoria ${category.id}:`, error);
             errors.push(`Categoria ${category.id}: ${error.message}`);
             itemsFailed++;
@@ -304,7 +320,7 @@ async function syncCategories(
           page++;
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Erro na página ${page}:`, error);
         errors.push(`Página ${page}: ${error.message}`);
         hasMore = false;
@@ -320,7 +336,7 @@ async function syncCategories(
       errors: errors.length > 0 ? errors : undefined
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro geral na sincronização de categorias:', error);
     return {
       success: false,
@@ -333,7 +349,8 @@ async function syncCategories(
   }
 }
 
-async function upsertProduct(supabase: any, product: any) {
+// ------------------------- UPSERT HELPERS -------------------------
+async function upsertProduct(supabase: any, product: any, organizationId: string) {
   const productData = {
     id: product.id,
     name: product.name,
@@ -400,7 +417,8 @@ async function upsertProduct(supabase: any, product: any) {
     has_options: product.has_options,
     post_password: product.post_password,
     global_unique_id: product.global_unique_id,
-    synced_at: new Date().toISOString()
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId // <-- chave para a UI enxergar
   };
 
   const { error } = await supabase
@@ -412,7 +430,7 @@ async function upsertProduct(supabase: any, product: any) {
   }
 }
 
-async function upsertCategory(supabase: any, category: any) {
+async function upsertCategory(supabase: any, category: any, organizationId: string) {
   const categoryData = {
     id: category.id,
     name: category.name,
@@ -423,7 +441,8 @@ async function upsertCategory(supabase: any, category: any) {
     image: category.image,
     menu_order: category.menu_order,
     count: category.count,
-    synced_at: new Date().toISOString()
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId // <-- incluir org
   };
 
   const { error } = await supabase
@@ -435,9 +454,11 @@ async function upsertCategory(supabase: any, category: any) {
   }
 }
 
+// ------------------------- LOGS -------------------------
 async function logSyncEvent(
   supabase: any,
   userId: string,
+  organizationId: string,
   syncType: string,
   operation: string,
   status: string,
@@ -448,6 +469,7 @@ async function logSyncEvent(
     .from('sync_logs')
     .insert({
       user_id: userId,
+      organization_id: organizationId, // <-- incluir org
       sync_type: syncType,
       operation,
       status,
@@ -464,9 +486,11 @@ async function logSyncEvent(
   }
 }
 
+// ------------------------- ORDERS -------------------------
 async function syncOrders(
   supabase: any, 
   userId: string, 
+  organizationId: string,
   config: WooCommerceConfig, 
   batchSize: number,
   forceFullSync: boolean
@@ -527,9 +551,9 @@ async function syncOrders(
 
         for (const order of orders) {
           try {
-            await upsertOrder(supabase, order);
+            await upsertOrder(supabase, order, organizationId);
             itemsProcessed++;
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Erro ao processar pedido ${order.id}:`, error);
             errors.push(`Pedido ${order.id}: ${error.message}`);
             itemsFailed++;
@@ -542,7 +566,7 @@ async function syncOrders(
           page++;
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Erro na página ${page}:`, error);
         errors.push(`Página ${page}: ${error.message}`);
         hasMore = false;
@@ -558,7 +582,7 @@ async function syncOrders(
       errors: errors.length > 0 ? errors : undefined
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro geral na sincronização de pedidos:', error);
     return {
       success: false,
@@ -571,9 +595,11 @@ async function syncOrders(
   }
 }
 
+// ------------------------- CUSTOMERS -------------------------
 async function syncCustomers(
   supabase: any, 
   userId: string, 
+  organizationId: string,
   config: WooCommerceConfig, 
   batchSize: number,
   forceFullSync: boolean
@@ -635,9 +661,9 @@ async function syncCustomers(
 
         for (const customer of customers) {
           try {
-            await upsertCustomer(supabase, customer);
+            await upsertCustomer(supabase, customer, organizationId);
             itemsProcessed++;
-          } catch (error) {
+          } catch (error: any) {
             console.error(`Erro ao processar cliente ${customer.id}:`, error);
             errors.push(`Cliente ${customer.id}: ${error.message}`);
             itemsFailed++;
@@ -650,7 +676,7 @@ async function syncCustomers(
           page++;
         }
 
-      } catch (error) {
+      } catch (error: any) {
         console.error(`Erro na página ${page}:`, error);
         errors.push(`Página ${page}: ${error.message}`);
         hasMore = false;
@@ -666,7 +692,7 @@ async function syncCustomers(
       errors: errors.length > 0 ? errors : undefined
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro geral na sincronização de clientes:', error);
     return {
       success: false,
@@ -679,7 +705,8 @@ async function syncCustomers(
   }
 }
 
-async function upsertOrder(supabase: any, order: any) {
+// ------------------------- UPSERT HELPERS (orders/customers) -------------------------
+async function upsertOrder(supabase: any, order: any, organizationId: string) {
   const orderData = {
     id: order.id,
     parent_id: order.parent_id || 0,
@@ -727,7 +754,8 @@ async function upsertOrder(supabase: any, order: any) {
     is_editable: order.is_editable,
     needs_payment: order.needs_payment,
     needs_processing: order.needs_processing,
-    synced_at: new Date().toISOString()
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId // <-- incluir org
   };
 
   const { error } = await supabase
@@ -739,7 +767,7 @@ async function upsertOrder(supabase: any, order: any) {
   }
 }
 
-async function upsertCustomer(supabase: any, customer: any) {
+async function upsertCustomer(supabase: any, customer: any, organizationId: string) {
   const customerData = {
     id: customer.id,
     date_created: customer.date_created,
@@ -758,7 +786,8 @@ async function upsertCustomer(supabase: any, customer: any) {
     meta_data: customer.meta_data,
     orders_count: customer.orders_count || 0,
     total_spent: parseFloat(customer.total_spent) || 0,
-    synced_at: new Date().toISOString()
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId // <-- incluir org
   };
 
   const { error } = await supabase
