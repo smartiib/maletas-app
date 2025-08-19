@@ -38,6 +38,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       return;
     }
 
+    console.log('Carregando organizações...');
+    
     try {
       const { data, error } = await supabase
         .from('organizations')
@@ -46,18 +48,23 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       if (error) {
         console.error('Erro ao buscar organizações:', error);
+        setOrganizations([]);
+        setCurrentOrganization(null);
         return;
       }
 
+      console.log('Organizações carregadas:', data);
       setOrganizations(data || []);
       
-      // Se não há organização atual selecionada, seleciona a primeira
+      // Se não há organização atual e existem organizações, seleciona a primeira
       if (!currentOrganization && data && data.length > 0) {
         setCurrentOrganization(data[0]);
         localStorage.setItem('currentOrganizationId', data[0].id);
       }
     } catch (error) {
       console.error('Erro ao buscar organizações:', error);
+      setOrganizations([]);
+      setCurrentOrganization(null);
     } finally {
       setLoading(false);
     }
@@ -65,10 +72,9 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
   useEffect(() => {
     if (user) {
-      refreshOrganizations();
-      
-      // Tentar restaurar organização atual do localStorage
+      // Tentar restaurar organização do localStorage primeiro
       const savedOrgId = localStorage.getItem('currentOrganizationId');
+      
       if (savedOrgId) {
         supabase
           .from('organizations')
@@ -81,6 +87,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
             }
           });
       }
+      
+      refreshOrganizations();
     } else {
       setOrganizations([]);
       setCurrentOrganization(null);

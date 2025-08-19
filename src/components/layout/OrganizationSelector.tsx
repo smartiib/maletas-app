@@ -1,5 +1,5 @@
 
-import { Building2, ChevronDown } from 'lucide-react';
+import { Building2, ChevronDown, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,15 +23,17 @@ export function OrganizationSelector() {
   }
 
   if (organizations.length === 0) {
-    // Adiciona CTA para cadastrar organização
     return (
-      <div className="flex flex-col gap-1 px-3 py-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <div className="px-3 py-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
           <Building2 className="h-4 w-4" />
           <span>Nenhuma empresa</span>
         </div>
-        <Link to="/organizations" className="text-xs text-primary hover:underline">
-          Cadastrar empresa
+        <Link to="/organizations">
+          <Button size="sm" className="w-full justify-start gap-2">
+            <Plus className="h-3 w-3" />
+            Cadastrar empresa
+          </Button>
         </Link>
       </div>
     );

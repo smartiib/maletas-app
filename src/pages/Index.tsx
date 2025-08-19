@@ -5,19 +5,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading) {
+    if (!isLoading) {
       if (isAuthenticated) {
-        // Redirecionar corretamente para o dashboard para evitar loop em "/"
-        navigate('/dashboard');
+        // Redirecionar para o dashboard imediatamente
+        navigate('/dashboard', { replace: true });
       } else {
-        navigate('/auth');
+        navigate('/auth', { replace: true });
       }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, isLoading, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
