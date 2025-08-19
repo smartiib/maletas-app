@@ -27,6 +27,7 @@ import Logs from "@/pages/Logs";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
 import type { PropsWithChildren, ComponentType } from "react";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 // Wrappers tipados para aceitar children (corrige o TS2559 sem alterar comportamento)
 const ConfigGuardWithChildren = ConfigGuard as unknown as ComponentType<PropsWithChildren>;
@@ -39,44 +40,46 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <BrowserRouter>
-          <OrganizationProvider>
-            <div className="min-h-screen bg-background">
-              <Toaster />
-              <SonnerToaster />
-              <Routes>
-                <Route path="/auth" element={<Auth />} />
-                <Route
-                  path="/*"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuardWithChildren>
-                        <DashboardLayoutWithChildren>
-                          <Routes>
-                            <Route path="/" element={<Index />} />
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/products" element={<Products />} />
-                            <Route path="/customers" element={<Customers />} />
-                            <Route path="/orders" element={<Orders />} />
-                            <Route path="/pos" element={<POS />} />
-                            <Route path="/maletas" element={<Maletas />} />
-                            <Route path="/reports" element={<Reports />} />
-                            <Route path="/settings" element={<Settings />} />
-                            <Route path="/suppliers" element={<Suppliers />} />
-                            <Route path="/financeiro" element={<Financeiro />} />
-                            <Route path="/pdf-templates" element={<PdfTemplates />} />
-                            <Route path="/organizations" element={<Organizations />} />
-                            <Route path="/billing" element={<Billing />} />
-                            <Route path="/logs" element={<Logs />} />
-                            <Route path="*" element={<NotFound />} />
-                          </Routes>
-                        </DashboardLayoutWithChildren>
-                      </ConfigGuardWithChildren>
-                    </ProtectedRoute>
-                  }
-                />
-              </Routes>
-            </div>
-          </OrganizationProvider>
+          <AuthProvider>
+            <OrganizationProvider>
+              <div className="min-h-screen bg-background">
+                <Toaster />
+                <SonnerToaster />
+                <Routes>
+                  <Route path="/auth" element={<Auth />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <ConfigGuardWithChildren>
+                          <DashboardLayoutWithChildren>
+                            <Routes>
+                              <Route path="/" element={<Index />} />
+                              <Route path="/dashboard" element={<Dashboard />} />
+                              <Route path="/products" element={<Products />} />
+                              <Route path="/customers" element={<Customers />} />
+                              <Route path="/orders" element={<Orders />} />
+                              <Route path="/pos" element={<POS />} />
+                              <Route path="/maletas" element={<Maletas />} />
+                              <Route path="/reports" element={<Reports />} />
+                              <Route path="/settings" element={<Settings />} />
+                              <Route path="/suppliers" element={<Suppliers />} />
+                              <Route path="/financeiro" element={<Financeiro />} />
+                              <Route path="/pdf-templates" element={<PdfTemplates />} />
+                              <Route path="/organizations" element={<Organizations />} />
+                              <Route path="/billing" element={<Billing />} />
+                              <Route path="/logs" element={<Logs />} />
+                              <Route path="*" element={<NotFound />} />
+                            </Routes>
+                          </DashboardLayoutWithChildren>
+                        </ConfigGuardWithChildren>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </div>
+            </OrganizationProvider>
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
