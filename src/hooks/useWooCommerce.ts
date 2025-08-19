@@ -106,7 +106,7 @@ export const useWooCommerceConfig = () => {
   // Buscar webhooks
   const webhooks = useQuery({
     queryKey: ['woocommerce-webhooks', currentOrganization?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Webhook[]> => {
       if (!config || !currentOrganization) return [];
 
       try {
@@ -122,7 +122,8 @@ export const useWooCommerceConfig = () => {
           throw new Error('Falha ao buscar webhooks');
         }
 
-        return response.json() as Webhook[];
+        const data = await response.json();
+        return data as Webhook[];
       } catch (error) {
         console.error('Erro ao buscar webhooks:', error);
         return [];
@@ -182,3 +183,6 @@ export const useWooCommerceConfig = () => {
     setupWebhook,
   };
 };
+
+// Re-export all the operations from the new hook file
+export * from './useWooCommerceOperations';

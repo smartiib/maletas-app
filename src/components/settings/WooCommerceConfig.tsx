@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Database, Globe, Activity, CheckCircle } from 'lucide-react';
+import { Database, Globe, Activity, CheckCircle, Building2 } from 'lucide-react';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig as WooCommerceConfigType } from '@/services/woocommerce';
 import { useState, useEffect } from 'react';
