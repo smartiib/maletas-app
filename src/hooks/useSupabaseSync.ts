@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -297,28 +298,36 @@ export const useSyncStats = () => {
         .select('*', { count: 'exact', head: true })
         .eq('organization_id', currentOrganization.id);
 
-      // Buscar última sincronização
-      const { data: lastSync } = await supabase
+      // Buscar última sincronização (pode não existir -> usar maybeSingle para evitar 406)
+      const { data: lastSync, error: lastSyncError } = await supabase
         .from('sync_logs')
         .select('*')
         .eq('organization_id', currentOrganization.id)
         .eq('operation', 'sync_completed')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (lastSyncError) {
+        console.warn('[useSyncStats] lastSync maybeSingle error:', lastSyncError);
+      }
 
       // Buscar configurações ativas
-      const { data: activeConfigs } = await supabase
+      const { data: activeConfigs, error: activeConfigsError } = await supabase
         .from('sync_config')
         .select('*')
         .eq('is_active', true);
+
+      if (activeConfigsError) {
+        console.warn('[useSyncStats] activeConfigs error:', activeConfigsError);
+      }
 
       return {
         products_count: productsCount || 0,
         categories_count: categoriesCount || 0,
         orders_count: ordersCount || 0,
         customers_count: customersCount || 0,
-        last_sync: lastSync,
+        last_sync: lastSync || null,
         active_configs: activeConfigs || [],
         last_sync_time: lastSync?.created_at ? new Date(lastSync.created_at) : null
       };
@@ -339,19 +348,26 @@ export const useSyncStatus = () => {
         return { is_syncing: false };
       }
 
-      const { data } = await supabase
+      // Pode não haver sync_started -> usar maybeSingle para evitar 406
+      const { data, error } = await supabase
         .from('sync_logs')
         .select('*')
         .eq('organization_id', currentOrganization.id)
         .eq('operation', 'sync_started')
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (!data) return { is_syncing: false };
+      if (error) {
+        console.warn('[useSyncStatus] sync_started maybeSingle error:', error);
+      }
 
-      // Verificar se há um sync_completed correspondente
-      const { data: completed } = await supabase
+      if (!data) {
+        return { is_syncing: false };
+      }
+
+      // Verificar se há um sync_completed correspondente (pode não existir ainda)
+      const { data: completed, error: completedError } = await supabase
         .from('sync_logs')
         .select('*')
         .eq('organization_id', currentOrganization.id)
@@ -359,7 +375,11 @@ export const useSyncStatus = () => {
         .in('operation', ['sync_completed', 'sync_error'])
         .gte('created_at', data.created_at)
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (completedError) {
+        console.warn('[useSyncStatus] completed maybeSingle error:', completedError);
+      }
 
       return {
         is_syncing: !completed,
