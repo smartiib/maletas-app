@@ -111,7 +111,6 @@ export const useWooCommerceConfig = () => {
 
       try {
         const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
-        // Buscar mais resultados por segurança
         const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks?per_page=100`, {
           headers: {
             'Authorization': `Basic ${auth}`,
@@ -134,50 +133,59 @@ export const useWooCommerceConfig = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Setup webhook - idempotente e completo
+  // Setup webhook - corrigido para remover order.refunded inválido
   const setupWebhook = useMutation({
     mutationFn: async () => {
       if (!config || !currentOrganization) throw new Error('Configuração ou organização não encontrada');
 
       const baseUrl = config.apiUrl.replace(/\/$/, '');
       const deliveryUrl = 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook';
+      
+      // Removido order.refunded que não é válido - reembolsos são capturados por order.updated
       const desired: Array<{ name: string; topic: string }> = [
         { name: 'Stock Sync Webhook', topic: 'order.created' },
         { name: 'Stock Sync Webhook', topic: 'order.updated' },
-        { name: 'Stock Sync Webhook', topic: 'order.refunded' },
         { name: 'Stock Sync Webhook', topic: 'product.updated' },
         { name: 'Customer Webhook - customer.created', topic: 'customer.created' },
       ];
 
       const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
 
+      // Buscar webhooks existentes
       const listRes = await fetch(`${baseUrl}/wp-json/wc/v3/webhooks?per_page=100`, {
         headers: {
           'Authorization': `Basic ${auth}`,
           'Content-Type': 'application/json'
         }
       });
+      
       if (!listRes.ok) {
         const errText = await listRes.text();
         throw new Error(`Falha ao listar webhooks: ${errText}`);
       }
+      
       const existing: Webhook[] = await listRes.json();
 
       const ensureSingleWebhook = async (topic: string, name: string) => {
-        // Webhooks existentes para o mesmo tópico e mesma URL de entrega
+        // Encontrar webhooks existentes para o mesmo tópico e URL
         const matches = existing.filter(w => w.topic === topic && w.delivery_url === deliveryUrl);
 
-        // Se houver mais de um, apagar os extras
+        // Se houver mais de um, deletar os extras
         if (matches.length > 1) {
           const extras = matches.slice(1);
           for (const w of extras) {
-            await fetch(`${baseUrl}/wp-json/wc/v3/webhooks/${w.id}?force=true`, {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Basic ${auth}`,
-                'Content-Type': 'application/json'
-              }
-            });
+            try {
+              await fetch(`${baseUrl}/wp-json/wc/v3/webhooks/${w.id}?force=true`, {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Basic ${auth}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              console.log(`Webhook duplicado removido: ${w.id}`);
+            } catch (error) {
+              console.warn(`Erro ao remover webhook duplicado ${w.id}:`, error);
+            }
           }
         }
 
@@ -203,10 +211,12 @@ export const useWooCommerceConfig = () => {
             const errText = await createRes.text();
             throw new Error(`Falha ao criar webhook (${topic}): ${errText}`);
           }
+          
+          console.log(`Webhook criado: ${topic}`);
           return;
         }
 
-        // Se existir: garantir status ativo e nome correto
+        // Se existir, garantir que está ativo e com nome correto
         const needsUpdate = current.status !== 'active' || current.name !== name;
         if (needsUpdate) {
           const updateRes = await fetch(`${baseUrl}/wp-json/wc/v3/webhooks/${current.id}`, {
@@ -226,10 +236,12 @@ export const useWooCommerceConfig = () => {
             const errText = await updateRes.text();
             throw new Error(`Falha ao atualizar webhook (${topic}): ${errText}`);
           }
+          
+          console.log(`Webhook atualizado: ${topic}`);
         }
       };
 
-      // Garantir cada tópico desejado
+      // Configurar cada webhook desejado
       for (const d of desired) {
         await ensureSingleWebhook(d.topic, d.name);
       }
@@ -238,9 +250,10 @@ export const useWooCommerceConfig = () => {
     },
     onSuccess: () => {
       webhooks.refetch();
-      toast.success('Webhooks configurados/atualizados com sucesso!');
+      toast.success('Webhooks configurados com sucesso!');
     },
     onError: (error: any) => {
+      console.error('Erro ao configurar webhooks:', error);
       toast.error(`Erro ao configurar webhooks: ${error.message}`);
     },
   });
