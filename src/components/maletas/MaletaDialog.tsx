@@ -37,8 +37,11 @@ const MaletaDialog: React.FC<MaletaDialogProps> = ({
   const [customCommission, setCustomCommission] = useState(false);
   const [commissionPercentage, setCommissionPercentage] = useState(0);
 
-  const { data: representatives = [] } = useRepresentatives(1, '');
+  const { data: representativesResponse } = useRepresentatives(1, '');
   const createMaleta = useCreateMaleta();
+
+  // Extract the actual data array from the paginated response
+  const representatives = representativesResponse?.data || [];
 
   const getTotalValue = () => {
     return cartItems.reduce((total, item) => {

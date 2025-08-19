@@ -20,7 +20,10 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
   const updateCustomer = useUpdateCustomer();
   const createRepresentative = useCreateRepresentative();
   const updateRepresentative = useUpdateRepresentative();
-  const { data: representatives } = useRepresentatives();
+  const { data: representativesResponse } = useRepresentatives();
+  
+  // Extract the actual data array from the paginated response
+  const representatives = representativesResponse?.data || [];
 
   const handleSubmit = async (data: any) => {
     try {
@@ -52,7 +55,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
       if (data.is_representative && savedCustomer) {
         try {
           // Verificar se já existe um representante com este email
-          const existingRepresentative = representatives?.find(rep => 
+          const existingRepresentative = representatives.find(rep => 
             rep.email === data.email || rep.email === data.billing.email
           );
 
@@ -91,7 +94,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
         }
       } else if (!data.is_representative) {
         // Se foi desmarcado como representante, verificar se precisa remover
-        const existingRepresentative = representatives?.find(rep => 
+        const existingRepresentative = representatives.find(rep => 
           rep.email === data.email || rep.email === data.billing.email
         );
         
