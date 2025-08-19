@@ -1,8 +1,8 @@
 
-import { KPICard } from "@/components/dashboard/KPICard";
-import { SalesChart } from "@/components/dashboard/SalesChart";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
-import { QuickActions } from "@/components/dashboard/QuickActions";
+import KPICard from "@/components/dashboard/KPICard";
+import SalesChart from "@/components/dashboard/SalesChart";
+import RecentActivity from "@/components/dashboard/RecentActivity";
+import QuickActions from "@/components/dashboard/QuickActions";
 import { 
   useWooCommerceFilteredProducts, 
   useWooCommerceFilteredOrders, 
@@ -10,7 +10,7 @@ import {
 } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 

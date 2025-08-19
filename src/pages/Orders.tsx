@@ -3,12 +3,12 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OrderCard } from "@/components/orders/OrderCard";
-import { OrderDialog } from "@/components/orders/OrderDialog";
+import OrderCard from "@/components/orders/OrderCard";
+import OrderDialog from "@/components/orders/OrderDialog";
 import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const Orders = () => {
