@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -421,23 +422,41 @@ class MaletasAPI {
 
       if (updateError) throw updateError;
 
+      // Get maleta items to map item_id to product_id
+      const { data: maletaItems, error: itemsError } = await supabase
+        .from('maleta_items')
+        .select('id, product_id')
+        .eq('maleta_id', id);
+
+      if (itemsError) throw itemsError;
+
+      // Create a map of item_id to product_id
+      const itemToProductMap = new Map();
+      maletaItems?.forEach(item => {
+        itemToProductMap.set(item.id, item.product_id);
+      });
+
       // Processar produtos retornados (devolver ao estoque)
       const returnedItems = returnData.items_returned || [];
       
       for (const item of returnedItems) {
-        const { data: product } = await supabase
-          .from('wc_products')
-          .select('stock_quantity')
-          .eq('id', item.product_id)
-          .single();
-
-        if (product) {
-          const newStock = (product.stock_quantity || 0) + item.quantity_returned;
-          
-          await supabase
+        const productId = itemToProductMap.get(item.item_id);
+        
+        if (productId) {
+          const { data: product } = await supabase
             .from('wc_products')
-            .update({ stock_quantity: newStock })
-            .eq('id', item.product_id);
+            .select('stock_quantity')
+            .eq('id', productId)
+            .single();
+
+          if (product) {
+            const newStock = (product.stock_quantity || 0) + item.quantity_returned;
+            
+            await supabase
+              .from('wc_products')
+              .update({ stock_quantity: newStock })
+              .eq('id', productId);
+          }
         }
       }
 
