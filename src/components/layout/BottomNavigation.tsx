@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Store, Package, ShoppingCart, Users } from 'lucide-react';
@@ -13,17 +14,17 @@ const BottomNavigation = () => {
     },
     {
       title: 'Produtos',
-      href: '/produtos',
+      href: '/products', // corrigido
       icon: Package,
     },
     {
       title: 'Pedidos',
-      href: '/pedidos',
+      href: '/orders', // corrigido
       icon: ShoppingCart,
     },
     {
       title: 'Clientes',
-      href: '/clientes',
+      href: '/customers', // corrigido
       icon: Users,
     },
   ];
