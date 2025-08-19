@@ -164,7 +164,21 @@ async function syncProducts(
 
     let page = 1;
     let hasMore = true;
-    const lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
+
+    // IMPORTANTE: se não houver produtos ainda para esta organização, fazer full sync automaticamente
+    const { count: existingProductsCount, error: countErr } = await supabase
+      .from('wc_products')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+    if (countErr) {
+      console.warn('Erro ao contar produtos existentes:', countErr);
+    }
+
+    let lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
+    if (!forceFullSync && (!existingProductsCount || existingProductsCount === 0)) {
+      console.log('Nenhum produto encontrado para a organização. Forçando FULL SYNC (ignorando modified_after).');
+      lastSync = null;
+    }
 
     while (hasMore) {
       try {
@@ -176,6 +190,8 @@ async function syncProducts(
         url.searchParams.set('per_page', batchSize.toString());
         url.searchParams.set('orderby', 'date');
         url.searchParams.set('order', 'desc');
+        // Buscar TODOS os status (publish, draft, private etc)
+        url.searchParams.set('status', 'any');
         
         if (lastSync) {
           url.searchParams.set('modified_after', lastSync);
@@ -512,7 +528,21 @@ async function syncOrders(
 
     let page = 1;
     let hasMore = true;
-    const lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
+
+    // Se ainda não há pedidos salvos para a organização, forçar FULL SYNC
+    const { count: existingOrdersCount, error: countErr } = await supabase
+      .from('wc_orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId);
+    if (countErr) {
+      console.warn('Erro ao contar pedidos existentes:', countErr);
+    }
+
+    let lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
+    if (!forceFullSync && (!existingOrdersCount || existingOrdersCount === 0)) {
+      console.log('Nenhum pedido encontrado para a organização. Forçando FULL SYNC (ignorando modified_after).');
+      lastSync = null;
+    }
 
     while (hasMore) {
       try {
@@ -523,6 +553,8 @@ async function syncOrders(
         url.searchParams.set('per_page', batchSize.toString());
         url.searchParams.set('orderby', 'date');
         url.searchParams.set('order', 'desc');
+        // Garantir todos os status
+        url.searchParams.set('status', 'any');
         
         if (lastSync) {
           url.searchParams.set('modified_after', lastSync);
