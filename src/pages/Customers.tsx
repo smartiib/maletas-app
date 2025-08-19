@@ -18,11 +18,8 @@ const Customers = () => {
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
-  const { config } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode('customers');
-
-  // Verificação mais robusta de configuração
-  const isConfigured = !!(config?.apiUrl && config?.consumerKey && config?.consumerSecret);
 
   const filteredCustomers = customers.filter((customer) =>
     customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -32,7 +29,7 @@ const Customers = () => {
 
   if (orgLoading) {
     return (
-      <div className="w-full max-w-full space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -51,30 +48,26 @@ const Customers = () => {
 
   if (!currentOrganization) {
     return (
-      <div className="w-full max-w-full">
-        <EmptyWooCommerceState
-          title="Nenhuma Organização Selecionada"
-          description="Selecione uma organização para ver os clientes."
-          showConfigButton={false}
-        />
-      </div>
+      <EmptyWooCommerceState
+        title="Nenhuma Organização Selecionada"
+        description="Selecione uma organização para ver os clientes."
+        showConfigButton={false}
+      />
     );
   }
 
   if (!isConfigured) {
     return (
-      <div className="w-full max-w-full">
-        <EmptyWooCommerceState
-          title="WooCommerce Não Configurado"
-          description="Configure sua conexão com o WooCommerce para começar a gerenciar clientes."
-        />
-      </div>
+      <EmptyWooCommerceState
+        title="WooCommerce Não Configurado"
+        description="Configure sua conexão com o WooCommerce para começar a gerenciar clientes."
+      />
     );
   }
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-full space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Clientes</h1>
@@ -98,8 +91,8 @@ const Customers = () => {
 
   if (customers.length === 0) {
     return (
-      <div className="w-full max-w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Clientes</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
@@ -116,7 +109,7 @@ const Customers = () => {
   }
 
   return (
-    <div className="w-full max-w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Clientes</h1>

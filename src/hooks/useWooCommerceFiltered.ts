@@ -11,7 +11,7 @@ export const useWooCommerceFilteredProducts = () => {
   return useQuery({
     queryKey: ['wc-products-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      if (!currentOrganization || !config?.apiUrl || !config?.consumerKey || !config?.consumerSecret) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -28,7 +28,7 @@ export const useWooCommerceFilteredProducts = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization && !!config?.apiUrl && !!config?.consumerKey && !!config?.consumerSecret,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
@@ -40,7 +40,7 @@ export const useWooCommerceFilteredOrders = () => {
   return useQuery({
     queryKey: ['wc-orders-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      if (!currentOrganization || !config?.apiUrl || !config?.consumerKey || !config?.consumerSecret) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -57,7 +57,7 @@ export const useWooCommerceFilteredOrders = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization && !!config?.apiUrl && !!config?.consumerKey && !!config?.consumerSecret,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
@@ -69,7 +69,7 @@ export const useWooCommerceFilteredCustomers = () => {
   return useQuery({
     queryKey: ['wc-customers-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      if (!currentOrganization || !config?.apiUrl || !config?.consumerKey || !config?.consumerSecret) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -86,7 +86,7 @@ export const useWooCommerceFilteredCustomers = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization && !!config?.apiUrl && !!config?.consumerKey && !!config?.consumerSecret,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
@@ -98,7 +98,7 @@ export const useWooCommerceFilteredCategories = () => {
   return useQuery({
     queryKey: ['wc-categories-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      if (!currentOrganization || !config?.apiUrl || !config?.consumerKey || !config?.consumerSecret) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -115,7 +115,7 @@ export const useWooCommerceFilteredCategories = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization && !!config?.apiUrl && !!config?.consumerKey && !!config?.consumerSecret,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 10 * 60 * 1000, // 10 minutos
   });
 };

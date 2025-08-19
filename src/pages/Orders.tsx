@@ -18,11 +18,8 @@ const Orders = () => {
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
-  const { config } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode('orders');
-
-  // Verificação mais robusta de configuração
-  const isConfigured = !!(config?.apiUrl && config?.consumerKey && config?.consumerSecret);
 
   const filteredOrders = orders.filter((order) =>
     order.number?.toString().includes(searchTerm) ||
@@ -33,7 +30,7 @@ const Orders = () => {
 
   if (orgLoading) {
     return (
-      <div className="w-full max-w-full space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -52,30 +49,26 @@ const Orders = () => {
 
   if (!currentOrganization) {
     return (
-      <div className="w-full max-w-full">
-        <EmptyWooCommerceState
-          title="Nenhuma Organização Selecionada"
-          description="Selecione uma organização para ver os pedidos."
-          showConfigButton={false}
-        />
-      </div>
+      <EmptyWooCommerceState
+        title="Nenhuma Organização Selecionada"
+        description="Selecione uma organização para ver os pedidos."
+        showConfigButton={false}
+      />
     );
   }
 
   if (!isConfigured) {
     return (
-      <div className="w-full max-w-full">
-        <EmptyWooCommerceState
-          title="WooCommerce Não Configurado"
-          description="Configure sua conexão com o WooCommerce para começar a gerenciar pedidos."
-        />
-      </div>
+      <EmptyWooCommerceState
+        title="WooCommerce Não Configurado"
+        description="Configure sua conexão com o WooCommerce para começar a gerenciar pedidos."
+      />
     );
   }
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-full space-y-6">
+      <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
@@ -99,8 +92,8 @@ const Orders = () => {
 
   if (orders.length === 0) {
     return (
-      <div className="w-full max-w-full">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
@@ -117,7 +110,7 @@ const Orders = () => {
   }
 
   return (
-    <div className="w-full max-w-full space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
