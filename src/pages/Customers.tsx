@@ -103,6 +103,7 @@ const Customers = () => {
         <EmptyWooCommerceState
           title="Nenhum Cliente Encontrado"
           description="Sincronize seus clientes do WooCommerce ou adicione clientes manualmente."
+          showConfigButton={false}
         />
       </div>
     );

@@ -102,6 +102,7 @@ const Products = () => {
         <EmptyWooCommerceState
           title="Nenhum Produto Encontrado"
           description="Sincronize seus produtos do WooCommerce ou adicione produtos manualmente."
+          showConfigButton={false}
         />
       </div>
     );

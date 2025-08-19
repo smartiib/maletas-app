@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -104,6 +103,7 @@ const Orders = () => {
         <EmptyWooCommerceState
           title="Nenhum Pedido Encontrado"
           description="Sincronize seus pedidos do WooCommerce ou crie pedidos manualmente."
+          showConfigButton={false}
         />
       </div>
     );
