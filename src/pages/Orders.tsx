@@ -8,8 +8,9 @@ import OrderDialog from "@/components/orders/OrderDialog";
 import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useViewMode } from "@/hooks/useViewMode";
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,6 +18,7 @@ const Orders = () => {
   const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
   const { isConfigured } = useWooCommerceConfig();
   const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { viewMode } = useViewMode();
 
   const filteredOrders = orders.filter((order) =>
     order.number?.toString().includes(searchTerm) ||
@@ -136,7 +138,7 @@ const Orders = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} />
+          <OrderCard key={order.id} order={order} viewMode={viewMode} />
         ))}
       </div>
 
@@ -151,6 +153,7 @@ const Orders = () => {
       <OrderDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        mode="create"
       />
     </div>
   );

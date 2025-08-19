@@ -8,8 +8,9 @@ import ProductDialog from "@/components/products/ProductDialog";
 import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useViewMode } from "@/hooks/useViewMode";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,6 +18,7 @@ const Products = () => {
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
   const { isConfigured } = useWooCommerceConfig();
   const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { viewMode } = useViewMode();
 
   const filteredProducts = products.filter((product) =>
     product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -134,7 +136,7 @@ const Products = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProducts.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} viewMode={viewMode} />
         ))}
       </div>
 
@@ -149,6 +151,7 @@ const Products = () => {
       <ProductDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        mode="create"
       />
     </div>
   );

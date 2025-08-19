@@ -10,7 +10,7 @@ import {
 } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 
@@ -91,32 +91,32 @@ const Dashboard = () => {
         <KPICard
           title="Receita Total"
           value={isLoading ? "..." : `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-          icon={<TrendingUp className="h-4 w-4" />}
-          trend={orders.length > 0 ? "+12.3%" : "0%"}
+          icon={TrendingUp}
+          trend="+12.3%"
         />
         <KPICard
           title="Pedidos"
           value={isLoading ? "..." : orders.length.toString()}
-          icon={<ShoppingBag className="h-4 w-4" />}
-          trend={orders.length > 0 ? "+5.2%" : "0%"}
+          icon={ShoppingBag}
+          trend="+5.2%"
         />
         <KPICard
           title="Produtos"
           value={isLoading ? "..." : products.length.toString()}
-          icon={<Package className="h-4 w-4" />}
+          icon={Package}
           trend={`${lowStockProducts} com estoque baixo`}
         />
         <KPICard
           title="Clientes"
           value={isLoading ? "..." : customers.length.toString()}
-          icon={<Users className="h-4 w-4" />}
-          trend={customers.length > 0 ? "+8.1%" : "0%"}
+          icon={Users}
+          trend="+8.1%"
         />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <SalesChart />
-        <RecentActivity />
+        <SalesChart orders={orders} />
+        <RecentActivity orders={orders} customers={customers} products={products} />
       </div>
 
       <QuickActions />

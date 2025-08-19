@@ -8,8 +8,9 @@ import CustomerDialog from "@/components/customers/CustomerDialog";
 import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import EmptyWooCommerceState from "@/components/woocommerce/EmptyWooCommerceState";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useViewMode } from "@/hooks/useViewMode";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -17,6 +18,7 @@ const Customers = () => {
   const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
   const { isConfigured } = useWooCommerceConfig();
   const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { viewMode } = useViewMode();
 
   const filteredCustomers = customers.filter((customer) =>
     customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -135,7 +137,7 @@ const Customers = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCustomers.map((customer) => (
-          <CustomerCard key={customer.id} customer={customer} />
+          <CustomerCard key={customer.id} customer={customer} viewMode={viewMode} />
         ))}
       </div>
 
@@ -150,6 +152,7 @@ const Customers = () => {
       <CustomerDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
+        mode="create"
       />
     </div>
   );

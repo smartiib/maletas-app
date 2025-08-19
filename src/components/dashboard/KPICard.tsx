@@ -9,10 +9,7 @@ interface KPICardProps {
   value: string | number;
   subtitle?: string;
   icon: LucideIcon;
-  trend?: {
-    value: number;
-    isPositive: boolean;
-  };
+  trend?: string;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -42,17 +39,11 @@ const KPICard = ({ title, value, subtitle, icon: Icon, trend, className, style }
               </p>
             )}
             {trend && (
-              <div className={cn(
-                "flex items-center mt-2 text-xs font-medium",
-                trend.isPositive ? "text-success-600" : "text-red-600"
-              )}>
-                <span className={cn(
-                  "mr-1",
-                  trend.isPositive ? "text-success-600" : "text-red-600"
-                )}>
-                  {trend.isPositive ? "↗" : "↘"}
+              <div className="flex items-center mt-2 text-xs font-medium text-slate-500 dark:text-slate-400">
+                <span className="mr-1">
+                  {trend.startsWith('+') ? "↗" : trend.startsWith('-') ? "↘" : ""}
                 </span>
-                {Math.abs(trend.value)}% vs mês anterior
+                {trend}
               </div>
             )}
           </div>
