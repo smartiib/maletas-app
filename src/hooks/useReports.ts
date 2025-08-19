@@ -1,12 +1,22 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAllOrders } from '@/hooks/useWooCommerce';
+import { useWooCommerceFilteredOrders } from '@/hooks/useWooCommerceFiltered';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
 export const useReportsData = () => {
-  // Buscar todas as maletas com representantes
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+
+  // Buscar todas as maletas com representantes (filtrado por organização)
   const { data: maletas = [] } = useQuery({
-    queryKey: ['maletas-reports'],
+    queryKey: ['maletas-reports', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('maletas')
         .select(`
@@ -17,13 +27,18 @@ export const useReportsData = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!currentOrganization && isConfigured,
   });
 
-  // Buscar todos os retornos com maletas e representantes
+  // Buscar todos os retornos com maletas e representantes (filtrado por organização)
   const { data: returns = [] } = useQuery({
-    queryKey: ['maleta-returns-reports'],
+    queryKey: ['maleta-returns-reports', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('maleta_returns')
         .select(`
@@ -37,13 +52,18 @@ export const useReportsData = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!currentOrganization && isConfigured,
   });
 
-  // Buscar todos os representantes
+  // Buscar todos os representantes (filtrado por organização)
   const { data: representatives = [] } = useQuery({
-    queryKey: ['representatives-reports'],
+    queryKey: ['representatives-reports', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('representatives')
         .select('*')
@@ -51,24 +71,30 @@ export const useReportsData = () => {
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!currentOrganization && isConfigured,
   });
 
-  // Buscar itens das maletas
+  // Buscar itens das maletas (filtrado por organização)
   const { data: maletaItems = [] } = useQuery({
-    queryKey: ['maleta-items-reports'],
+    queryKey: ['maleta-items-reports', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('maleta_items')
         .select('*');
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!currentOrganization && isConfigured,
   });
 
-  // Buscar pedidos da loja (WooCommerce)
-  const { data: orders = [] } = useAllOrders();
+  // Buscar pedidos da loja (WooCommerce) - já filtrado por organização
+  const { data: orders = [] } = useWooCommerceFilteredOrders();
 
   // Função para calcular comissão baseada nos tiers
   const calculateCommission = (amount: number, commissionSettings: any) => {

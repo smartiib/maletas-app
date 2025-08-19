@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Package, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -22,9 +21,14 @@ import MaletaCheckoutDialog from '@/components/maletas/MaletaCheckoutDialog';
 import { supabase } from '@/integrations/supabase/client';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
-// Removido import do pdfGenerator - agora usando pdfTemplates
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
+import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
 
 const Maletas = () => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [representativeFilter, setRepresentativeFilter] = useState('');
@@ -42,10 +46,42 @@ const Maletas = () => {
   const [newReturnDate, setNewReturnDate] = useState('');
   const [returnNotes, setReturnNotes] = useState('');
 
-  const { data: allMaletas = [], isLoading, error } = useMaletas();
+  const { data: maletasResponse, isLoading, error } = useMaletas();
+  const allMaletas = maletasResponse?.data || [];
+  
   const { viewMode, toggleViewMode } = useViewMode('maletas');
   const extendDeadline = useExtendMaletaDeadline();
   const processReturn = useProcessMaletaReturn();
+
+  // Verificar se WooCommerce está configurado
+  if (!currentOrganization) {
+    return (
+      <div className="container mx-auto p-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para gerenciar maletas."
+          showConfigButton={false}
+        />
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Gestão de Maletas</h1>
+          <p className="text-muted-foreground">
+            Gerencie suas maletas de consignação - {currentOrganization.name}
+          </p>
+        </div>
+        <EmptyWooCommerceState
+          title="Configure o WooCommerce"
+          description="Configure sua conexão com o WooCommerce para começar a gerenciar maletas de consignação."
+        />
+      </div>
+    );
+  }
 
   // Filter and paginate data
   const filteredMaletas = useMemo(() => {
@@ -109,7 +145,6 @@ const Maletas = () => {
 
   const stats = getTotalStats();
 
-  // Handlers para ações das maletas
   const handleViewDetails = (maleta: any) => {
     setSelectedMaleta(maleta);
     setDetailsDialogOpen(true);
@@ -278,7 +313,7 @@ const Maletas = () => {
         <div>
           <h1 className="text-3xl font-bold">Gestão de Maletas</h1>
           <p className="text-slate-600 dark:text-slate-400">
-            Gerencie suas maletas de consignação
+            Gerencie suas maletas de consignação - {currentOrganization.name}
           </p>
         </div>
         <Button 
@@ -337,7 +372,7 @@ const Maletas = () => {
           <p className="text-muted-foreground">
             {searchTerm || statusFilter 
               ? "Tente ajustar os filtros de busca"
-              : "Crie sua primeira maleta de consignação"}
+              : "Configure o WooCommerce e sincronize os dados para começar a gerenciar maletas"}
           </p>
         </div>
       )}

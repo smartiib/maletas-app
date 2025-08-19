@@ -2,14 +2,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
 export const useWooCommerceFilteredProducts = () => {
   const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-products-filtered', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -26,18 +28,19 @@ export const useWooCommerceFilteredProducts = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
 export const useWooCommerceFilteredOrders = () => {
   const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-orders-filtered', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -54,18 +57,19 @@ export const useWooCommerceFilteredOrders = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
 export const useWooCommerceFilteredCustomers = () => {
   const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-customers-filtered', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -82,18 +86,19 @@ export const useWooCommerceFilteredCustomers = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
 export const useWooCommerceFilteredCategories = () => {
   const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-categories-filtered', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) {
+      if (!currentOrganization || !isConfigured) {
         return [];
       }
 
@@ -110,7 +115,7 @@ export const useWooCommerceFilteredCategories = () => {
 
       return data || [];
     },
-    enabled: !!currentOrganization,
+    enabled: !!currentOrganization && isConfigured,
     staleTime: 10 * 60 * 1000, // 10 minutos
   });
 };

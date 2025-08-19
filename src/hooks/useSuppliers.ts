@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
 // Define types for the suppliers table
 interface Supplier {
@@ -88,9 +90,16 @@ interface ProductSupplierUpdate {
 }
 
 export const useSuppliers = () => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+
   return useQuery({
-    queryKey: ['suppliers'],
+    queryKey: ['suppliers', currentOrganization?.id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('suppliers' as any)
         .select('*')
@@ -99,13 +108,21 @@ export const useSuppliers = () => {
       if (error) throw error;
       return data as unknown as Supplier[];
     },
+    enabled: !!currentOrganization && isConfigured,
   });
 };
 
 export const useSupplier = (id: string) => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+
   return useQuery({
-    queryKey: ['supplier', id],
+    queryKey: ['supplier', currentOrganization?.id, id],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return null;
+      }
+
       const { data, error } = await supabase
         .from('suppliers' as any)
         .select('*')
@@ -115,12 +132,13 @@ export const useSupplier = (id: string) => {
       if (error) throw error;
       return data as unknown as Supplier;
     },
-    enabled: !!id,
+    enabled: !!id && !!currentOrganization && isConfigured,
   });
 };
 
 export const useCreateSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (supplier: SupplierInsert) => {
@@ -134,13 +152,14 @@ export const useCreateSupplier = () => {
       return data as unknown as Supplier;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers', currentOrganization?.id] });
     },
   });
 };
 
 export const useUpdateSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async ({ id, ...supplier }: SupplierUpdate & { id: string }) => {
@@ -155,13 +174,14 @@ export const useUpdateSupplier = () => {
       return data as unknown as Supplier;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers', currentOrganization?.id] });
     },
   });
 };
 
 export const useDeleteSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -173,40 +193,51 @@ export const useDeleteSupplier = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['suppliers'] });
+      queryClient.invalidateQueries({ queryKey: ['suppliers', currentOrganization?.id] });
     },
   });
 };
 
 // Product-Supplier relationships
 export const useProductSuppliers = (productId?: number) => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+
   return useQuery({
-    queryKey: ['product-suppliers', productId],
+    queryKey: ['product-suppliers', currentOrganization?.id, productId],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured || !productId) {
+        return [];
+      }
+
       let query = supabase
         .from('product_suppliers' as any)
         .select(`
           *,
           supplier:suppliers(*)
-        `);
-
-      if (productId) {
-        query = query.eq('product_id', productId);
-      }
+        `)
+        .eq('product_id', productId);
 
       const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       return data as any[];
     },
-    enabled: !!productId,
+    enabled: !!productId && !!currentOrganization && isConfigured,
   });
 };
 
 export const useSupplierProducts = (supplierId?: string) => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+
   return useQuery({
-    queryKey: ['supplier-products', supplierId],
+    queryKey: ['supplier-products', currentOrganization?.id, supplierId],
     queryFn: async () => {
+      if (!currentOrganization || !isConfigured || !supplierId) {
+        return [];
+      }
+
       const { data, error } = await supabase
         .from('product_suppliers' as any)
         .select('*')
@@ -216,12 +247,13 @@ export const useSupplierProducts = (supplierId?: string) => {
       if (error) throw error;
       return data as unknown as ProductSupplier[];
     },
-    enabled: !!supplierId,
+    enabled: !!supplierId && !!currentOrganization && isConfigured,
   });
 };
 
 export const useCreateProductSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (data: ProductSupplierInsert) => {
@@ -235,14 +267,15 @@ export const useCreateProductSupplier = () => {
       return result as unknown as ProductSupplier;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['product-suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-suppliers', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', currentOrganization?.id] });
     },
   });
 };
 
 export const useUpdateProductSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async ({ id, ...data }: ProductSupplierUpdate & { id: string }) => {
@@ -257,14 +290,15 @@ export const useUpdateProductSupplier = () => {
       return result as unknown as ProductSupplier;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['product-suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-suppliers', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', currentOrganization?.id] });
     },
   });
 };
 
 export const useDeleteProductSupplier = () => {
   const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
 
   return useMutation({
     mutationFn: async (id: string) => {
@@ -276,8 +310,8 @@ export const useDeleteProductSupplier = () => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['product-suppliers'] });
-      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
+      queryClient.invalidateQueries({ queryKey: ['product-suppliers', currentOrganization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['supplier-products', currentOrganization?.id] });
     },
   });
 };
