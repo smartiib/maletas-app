@@ -14,6 +14,8 @@ export const useMaletas = (page = 1, status = '', representative_id = '') => {
     queryKey: ['maletas', currentOrganization?.id, page, status, representative_id],
     queryFn: () => maletasAPI.getMaletas(page, status, representative_id),
     enabled: !!currentOrganization && isConfigured,
+    staleTime: 30000, // 30 segundos
+    refetchOnWindowFocus: false,
   });
 };
 
@@ -36,13 +38,14 @@ export const useCreateMaleta = () => {
     mutationFn: (data: CreateMaletaData) => maletasAPI.createMaleta(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maletas', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['products'] }); // Atualizar estoque
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       toast({
         title: "Maleta Criada",
         description: "Maleta foi criada com sucesso e produtos foram reduzidos do estoque!",
       });
     },
     onError: (error) => {
+      console.error('Erro ao criar maleta:', error);
       toast({
         title: "Erro",
         description: "Erro ao criar maleta",
@@ -61,6 +64,18 @@ export const useExtendMaletaDeadline = () => {
       maletasAPI.extendMaletaDeadline(id, new_date),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maletas', currentOrganization?.id] });
+      toast({
+        title: "Prazo Estendido",
+        description: "Prazo da maleta foi estendido com sucesso!",
+      });
+    },
+    onError: (error) => {
+      console.error('Erro ao estender prazo:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao estender prazo da maleta",
+        variant: "destructive",
+      });
     },
   });
 };
@@ -75,7 +90,19 @@ export const useProcessMaletaReturn = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['maletas', currentOrganization?.id] });
       queryClient.invalidateQueries({ queryKey: ['orders'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] }); // Atualizar estoque
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      toast({
+        title: "Devolução Processada",
+        description: "Devolução foi processada com sucesso!",
+      });
+    },
+    onError: (error) => {
+      console.error('Erro ao processar devolução:', error);
+      toast({
+        title: "Erro", 
+        description: "Erro ao processar devolução",
+        variant: "destructive",
+      });
     },
   });
 };
@@ -89,6 +116,7 @@ export const useRepresentatives = (page = 1, search = '') => {
     queryKey: ['representatives', currentOrganization?.id, page, search],
     queryFn: () => maletasAPI.getRepresentatives(page, search),
     enabled: !!currentOrganization && isConfigured,
+    staleTime: 60000, // 1 minuto
   });
 };
 
@@ -103,6 +131,14 @@ export const useCreateRepresentative = () => {
       toast({
         title: "Representante Criado",
         description: "Representante foi cadastrado com sucesso!",
+      });
+    },
+    onError: (error) => {
+      console.error('Erro ao criar representante:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar representante",
+        variant: "destructive",
       });
     },
   });
@@ -120,6 +156,14 @@ export const useUpdateRepresentative = () => {
       toast({
         title: "Representante Atualizado",
         description: "Dados do representante foram atualizados!",
+      });
+    },
+    onError: (error) => {
+      console.error('Erro ao atualizar representante:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar representante",
+        variant: "destructive",
       });
     },
   });

@@ -27,7 +27,7 @@ export interface MaletaItem {
     value: string;
   }>;
   status?: 'consigned' | 'sold' | 'returned';
-  organization_id: string;
+  organization_id?: string;
 }
 
 export interface Maleta {
@@ -118,7 +118,7 @@ class MaletasAPI {
       `, { count: 'exact' })
       .eq('organization_id', organizationId);
 
-    if (status) {
+    if (status && status !== 'all') {
       query = query.eq('status', status);
     }
     
@@ -132,7 +132,10 @@ class MaletasAPI {
 
     const { data, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao buscar maletas:', error);
+      throw error;
+    }
 
     return {
       data: data || [],
@@ -155,7 +158,10 @@ class MaletasAPI {
       .eq('organization_id', organizationId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao buscar maleta:', error);
+      throw error;
+    }
     return data;
   }
 
@@ -176,7 +182,10 @@ class MaletasAPI {
       .select()
       .single();
 
-    if (maletaError) throw maletaError;
+    if (maletaError) {
+      console.error('Erro ao criar maleta:', maletaError);
+      throw maletaError;
+    }
 
     // Insert maleta items
     const items = maletaData.items.map(item => ({
@@ -194,7 +203,10 @@ class MaletasAPI {
       .from('maleta_items')
       .insert(items);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      console.error('Erro ao inserir itens da maleta:', itemsError);
+      throw itemsError;
+    }
 
     return maletaResult;
   }
@@ -210,7 +222,10 @@ class MaletasAPI {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao estender prazo:', error);
+      throw error;
+    }
     return data;
   }
 
@@ -229,7 +244,10 @@ class MaletasAPI {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao processar devolução:', error);
+      throw error;
+    }
 
     // Update maleta status
     await supabase
@@ -260,7 +278,10 @@ class MaletasAPI {
 
     const { data, error, count } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao buscar representantes:', error);
+      throw error;
+    }
 
     return {
       data: data || [],
@@ -283,7 +304,10 @@ class MaletasAPI {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao criar representante:', error);
+      throw error;
+    }
     return result;
   }
 
@@ -298,7 +322,10 @@ class MaletasAPI {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Erro ao atualizar representante:', error);
+      throw error;
+    }
     return result;
   }
 
