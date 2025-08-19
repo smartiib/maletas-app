@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FinancialDashboard } from '@/components/financial/FinancialDashboard';
+import FinancialDashboard from '@/components/financial/FinancialDashboard';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
@@ -25,10 +25,16 @@ const Financeiro = () => {
   }
 
   if (!isConfigured) {
-    return <EmptyWooCommerceState />;
+    return (
+      <EmptyWooCommerceState
+        title="WooCommerce Não Configurado"
+        description="Configure a integração com o WooCommerce para acessar o financeiro."
+      />
+    );
   }
 
   return <FinancialDashboard />;
 };
 
 export default Financeiro;
+

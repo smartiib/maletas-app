@@ -23,7 +23,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
         await createProduct.mutateAsync(data);
         logger.success('Produto Criado', `Produto "${data.name}" foi criado com sucesso`);
       } else if (product) {
-        await updateProduct.mutateAsync({ id: product.id, product: data });
+        await updateProduct.mutateAsync({ id: product.id, data });
         logger.success('Produto Atualizado', `Produto "${data.name}" foi atualizado com sucesso`);
       }
       onOpenChange(false);
@@ -55,3 +55,4 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
 };
 
 export default ProductDialog;
+

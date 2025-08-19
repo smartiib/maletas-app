@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -186,24 +185,33 @@ export const useUpdateProduct = () => {
   });
 };
 
-// Update Stock
+// Update Stock - agora aceita produto simples e variação
 export const useUpdateStock = () => {
   const { config } = useWooCommerceConfig();
   
   return useMutation({
-    mutationFn: async ({ id, stock_quantity }: { id: number; stock_quantity: number }) => {
+    mutationFn: async ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => {
       if (!config) {
         throw new Error('WooCommerce não configurado');
       }
 
+      const baseUrl = config.apiUrl.replace(/\/$/, '');
       const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
-      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/products/${id}`, {
+      const headers = {
+        'Authorization': `Basic ${auth}`,
+        'Content-Type': 'application/json'
+      };
+
+      const body = JSON.stringify({ stock_quantity: newStock, manage_stock: true });
+
+      const url = variationId
+        ? `${baseUrl}/wp-json/wc/v3/products/${productId}/variations/${variationId}`
+        : `${baseUrl}/wp-json/wc/v3/products/${productId}`;
+
+      const response = await fetch(url, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ stock_quantity, manage_stock: true })
+        headers,
+        body,
       });
 
       if (!response.ok) {

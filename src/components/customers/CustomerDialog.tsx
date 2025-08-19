@@ -47,15 +47,15 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
         savedCustomer = await createCustomer.mutateAsync(customerData);
         logger.success('Cliente Criado', `Cliente "${data.first_name} ${data.last_name}" foi criado com sucesso`);
       } else if (customer) {
-        savedCustomer = await updateCustomer.mutateAsync({ id: customer.id, customer: customerData });
+        savedCustomer = await updateCustomer.mutateAsync({ id: customer.id, data: customerData });
         logger.success('Cliente Atualizado', `Cliente "${data.first_name} ${data.last_name}" foi atualizado com sucesso`);
       }
 
-      // Se foi marcado como representante, criar/atualizar na tabela representatives
+      // Se foi marcado como representante, criar/atualizar na tabela representantes
       if (data.is_representative && savedCustomer) {
         try {
           // Verificar se já existe um representante com este email
-          const existingRepresentative = representatives.find(rep => 
+          const existingRepresentative = representatives.find((rep: any) => 
             rep.email === data.email || rep.email === data.billing.email
           );
 
@@ -94,7 +94,7 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
         }
       } else if (!data.is_representative) {
         // Se foi desmarcado como representante, verificar se precisa remover
-        const existingRepresentative = representatives.find(rep => 
+        const existingRepresentative = representatives.find((rep: any) => 
           rep.email === data.email || rep.email === data.billing.email
         );
         
@@ -134,3 +134,4 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
 };
 
 export default CustomerDialog;
+
