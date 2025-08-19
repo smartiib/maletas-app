@@ -25,6 +25,15 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
 
+// Get current organization ID helper
+const getCurrentOrganizationId = () => {
+  const savedOrgId = localStorage.getItem('currentOrganizationId');
+  if (!savedOrgId) {
+    throw new Error('Nenhuma organização selecionada');
+  }
+  return savedOrgId;
+};
+
 const Maletas = () => {
   const { currentOrganization } = useOrganization();
   const { isConfigured } = useWooCommerceConfig();
@@ -228,6 +237,7 @@ const Maletas = () => {
 
       // Processar a devolução automaticamente após criar o pedido
       if (selectedMaleta && soldItems.length > 0) {
+        const organizationId = getCurrentOrganizationId();
         const returnData = {
           items_sold: soldItems.map(item => ({
             item_id: item.id,
@@ -239,7 +249,8 @@ const Maletas = () => {
           commission_amount: 0,
           penalty_amount: 0,
           final_amount: 0,
-          notes: `Pedido #${orderNumber} criado com itens vendidos`
+          notes: `Pedido #${orderNumber} criado com itens vendidos`,
+          organization_id: organizationId
         };
 
         await processReturn.mutateAsync({

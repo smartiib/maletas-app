@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Package, User, Calendar, FileText, Download, Image } from 'lucide-react';
 import { Maleta } from '@/services/maletas';
-// Removido import do pdfGenerator - agora usando pdfTemplates
 import { PdfTemplateService } from '@/services/pdfTemplates';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -91,8 +91,10 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active': return 'bg-success/10 text-success border-success/20';
-      case 'expired': return 'bg-destructive/10 text-destructive border-destructive/20';
-      case 'finalized': return 'bg-muted text-muted-foreground border-border';
+      case 'expired': 
+      case 'overdue': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'finalized':
+      case 'returned': return 'bg-muted text-muted-foreground border-border';
       default: return 'bg-muted text-muted-foreground border-border';
     }
   };
@@ -100,8 +102,10 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'active': return 'Ativa';
-      case 'expired': return 'Expirada';
-      case 'finalized': return 'Finalizada';
+      case 'expired':
+      case 'overdue': return 'Expirada';
+      case 'finalized':
+      case 'returned': return 'Finalizada';
       default: return status;
     }
   };
@@ -201,12 +205,14 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
                 <h3 className="text-lg font-semibold">Prazos</h3>
               </div>
               <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg space-y-2">
-                <div>
-                  <span className="text-sm text-muted-foreground">Data de Saída:</span>
-                  <p className="font-medium">
-                    {new Date(maleta.departure_date).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
+                {maleta.departure_date && (
+                  <div>
+                    <span className="text-sm text-muted-foreground">Data de Saída:</span>
+                    <p className="font-medium">
+                      {new Date(maleta.departure_date).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <span className="text-sm text-muted-foreground">Data de Devolução:</span>
                   <p className="font-medium">
@@ -311,7 +317,7 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
                 <div>
                   <p className="text-sm text-muted-foreground">Valor Total</p>
                   <p className="text-2xl font-bold text-success">
-                    R$ {parseFloat(maleta.total_value).toFixed(2)}
+                    R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
                   </p>
                 </div>
                 <div>
@@ -335,11 +341,11 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
               <div>
                 <span className="text-sm text-muted-foreground">Tipo:</span>
                 <p className="font-medium">
-                  {maleta.commission_settings.use_global ? 'Comissão Global' : 'Comissão Personalizada'}
+                  {maleta.commission_settings?.use_global ? 'Comissão Global' : 'Comissão Personalizada'}
                 </p>
               </div>
               
-              {!maleta.commission_settings.use_global && (
+              {!maleta.commission_settings?.use_global && maleta.commission_percentage && (
                 <div>
                   <span className="text-sm text-muted-foreground">Percentual:</span>
                   <p className="font-medium">{maleta.commission_percentage}%</p>
@@ -348,14 +354,14 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
               
               <div>
                 <span className="text-sm text-muted-foreground">Taxa de Penalidade:</span>
-                <p className="font-medium">{maleta.commission_settings.penalty_rate}% por dia de atraso</p>
+                <p className="font-medium">{maleta.commission_settings?.penalty_rate || 2}% por dia de atraso</p>
               </div>
               
-              {maleta.commission_settings.use_global && (
+              {maleta.commission_settings?.use_global && maleta.commission_settings?.tiers && (
                 <div className="space-y-2">
                   <span className="text-sm text-muted-foreground">Tiers de Comissão:</span>
                   <div className="space-y-1">
-                    {maleta.commission_settings.tiers.map((tier, index) => (
+                    {maleta.commission_settings.tiers.map((tier: any, index: number) => (
                       <div key={index} className="text-xs bg-white dark:bg-slate-700 p-2 rounded border">
                         <span className="font-medium">{tier.label}:</span>
                         <span className="ml-2">
@@ -371,7 +377,7 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
           </div>
 
           {/* Informações do Pedido */}
-          {maleta.status === 'finalized' && (maleta.order_number || maleta.order_url) && (
+          {(maleta.status === 'finalized' || maleta.status === 'returned') && (maleta.order_number || maleta.order_url) && (
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="w-5 h-5 text-primary" />

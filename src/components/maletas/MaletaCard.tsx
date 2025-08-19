@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Calendar, User, Package, CheckCircle, AlertTriangle, Clock, FileText, ShoppingCart, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -5,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Maleta } from '@/services/maletas';
 import { ViewMode } from '@/hooks/useViewMode';
-// Removido import do pdfGenerator - agora usando pdfTemplates
 
 interface MaletaCardProps {
   maleta: Maleta;
@@ -28,7 +28,7 @@ const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails
       
       const daysUntilReturn = Math.ceil((returnDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
-      if (maleta.status === 'finalized') {
+      if (maleta.status === 'finalized' || maleta.status === 'returned') {
         return { label: 'Finalizada', variant: 'default' as const, icon: CheckCircle, color: 'text-success' };
       }
       
@@ -90,7 +90,7 @@ const MaletaCard: React.FC<MaletaCardProps> = ({ maleta, viewMode, onViewDetails
             </div>
             
             {/* Informações do pedido quando a maleta estiver finalizada */}
-            {maleta.status === 'finalized' && (maleta.order_number || maleta.order_url) && (
+            {(maleta.status === 'finalized' || maleta.status === 'returned') && (maleta.order_number || maleta.order_url) && (
               <div className={viewMode === 'grid' ? 'mt-2 space-y-1' : 'mt-2'}>
                 <div className="flex items-center gap-2">
                   <ShoppingCart className="w-4 h-4 text-success" />

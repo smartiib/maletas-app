@@ -26,6 +26,7 @@ export interface MaletaItem {
     name: string;
     value: string;
   }>;
+  status?: 'consigned' | 'sold' | 'returned';
   organization_id: string;
 }
 
@@ -35,11 +36,17 @@ export interface Maleta {
   representative_id: string;
   representative_name: string;
   customer_name?: string;
+  customer_email?: string;
+  departure_date?: string;
   return_date: string;
-  status: 'active' | 'returned' | 'overdue';
-  total_value: number;
+  extended_date?: string;
+  status: 'active' | 'returned' | 'overdue' | 'finalized';
+  total_value: string;
   items: MaletaItem[];
   commission_settings: any;
+  commission_percentage?: number;
+  order_number?: number;
+  order_url?: string;
   notes?: string;
   created_at: string;
   updated_at: string;
