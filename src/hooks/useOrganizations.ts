@@ -24,20 +24,26 @@ export function useOrganizations() {
   const createOrganization = async (data: CreateOrganizationData): Promise<Organization | null> => {
     setLoading(true);
     try {
-      const { data: newOrg, error } = await supabase
-        .from('organizations')
-        .insert({
-          name: data.name,
-          slug: data.slug
-        })
-        .select()
-        .single();
+      // Usar Edge Function para criar e vincular a organização (evita bloqueio do RLS)
+      const { data: result, error } = await supabase.functions.invoke('create-organization', {
+        body: { name: data.name, slug: data.slug }
+      });
 
       if (error) {
-        console.error('Erro ao criar organização:', error);
+        console.error('Erro Edge Function create-organization:', error);
         toast({
           title: 'Erro',
-          description: 'Erro ao criar organização. Verifique se o slug não está em uso.',
+          description: 'Não foi possível criar a organização.',
+          variant: 'destructive',
+        });
+        return null;
+      }
+
+      if (!result?.organization) {
+        console.error('Resposta inesperada da Edge Function:', result);
+        toast({
+          title: 'Erro',
+          description: 'Resposta inesperada ao criar organização.',
           variant: 'destructive',
         });
         return null;
@@ -48,8 +54,8 @@ export function useOrganizations() {
         description: 'Organização criada com sucesso!',
       });
 
-      return newOrg;
-    } catch (error) {
+      return result.organization as Organization;
+    } catch (error: any) {
       console.error('Erro ao criar organização:', error);
       toast({
         title: 'Erro',

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,7 +12,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 
 export const WooCommerceConfig = () => {
-  const { config, testConnection, saveConfig, isConfigured, webhooks, setupWebhook, deleteWebhook } = useWooCommerceConfig();
+  const { config, testConnection, saveConfig, isConfigured, webhooks, setupWebhook } = useWooCommerceConfig();
   
   const [wooSettings, setWooSettings] = useState<WooCommerceConfigType>({
     apiUrl: '',
@@ -39,6 +40,40 @@ export const WooCommerceConfig = () => {
       return;
     }
     saveConfig(wooSettings);
+  };
+
+  // Exclusão de webhook com force=true para evitar erro 501
+  const handleDeleteWebhookForce = async (id?: number | string) => {
+    try {
+      if (!id) return;
+      if (!wooSettings.apiUrl || !wooSettings.consumerKey || !wooSettings.consumerSecret) {
+        toast.error('Configure a URL e as chaves do WooCommerce antes.');
+        return;
+        }
+      const auth = btoa(`${wooSettings.consumerKey}:${wooSettings.consumerSecret}`);
+      const url = `${wooSettings.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks/${id}?force=true`;
+
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error('Erro ao deletar webhook (force=true):', text);
+        toast.error('Falha ao remover webhook. Verifique logs.');
+      } else {
+        toast.success('Webhook removido com sucesso.');
+        // Atualiza a lista
+        webhooks.refetch();
+      }
+    } catch (err: any) {
+      console.error('Erro inesperado ao remover webhook:', err);
+      toast.error('Erro inesperado ao remover webhook.');
+    }
   };
 
   return (
@@ -156,8 +191,7 @@ export const WooCommerceConfig = () => {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => webhook.id && deleteWebhook.mutate(webhook.id)}
-                            disabled={deleteWebhook.isPending}
+                            onClick={() => handleDeleteWebhookForce(webhook.id)}
                           >
                             Remover
                           </Button>
