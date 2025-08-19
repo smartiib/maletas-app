@@ -111,7 +111,8 @@ export const useWooCommerceConfig = () => {
 
       try {
         const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
-        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+        // Buscar mais resultados por segurança
+        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks?per_page=100`, {
           headers: {
             'Authorization': `Basic ${auth}`,
             'Content-Type': 'application/json'
@@ -133,41 +134,114 @@ export const useWooCommerceConfig = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Setup webhook
+  // Setup webhook - idempotente e completo
   const setupWebhook = useMutation({
     mutationFn: async () => {
       if (!config || !currentOrganization) throw new Error('Configuração ou organização não encontrada');
 
-      const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
-      const webhookData = {
-        name: 'Stock Sync Webhook',
-        topic: 'order.updated',
-        delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
-        status: 'active'
-      };
+      const baseUrl = config.apiUrl.replace(/\/$/, '');
+      const deliveryUrl = 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook';
+      const desired: Array<{ name: string; topic: string }> = [
+        { name: 'Stock Sync Webhook', topic: 'order.created' },
+        { name: 'Stock Sync Webhook', topic: 'order.updated' },
+        { name: 'Stock Sync Webhook', topic: 'order.refunded' },
+        { name: 'Stock Sync Webhook', topic: 'product.updated' },
+        { name: 'Customer Webhook - customer.created', topic: 'customer.created' },
+      ];
 
-      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
-        method: 'POST',
+      const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
+
+      const listRes = await fetch(`${baseUrl}/wp-json/wc/v3/webhooks?per_page=100`, {
         headers: {
           'Authorization': `Basic ${auth}`,
           'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(webhookData)
+        }
       });
+      if (!listRes.ok) {
+        const errText = await listRes.text();
+        throw new Error(`Falha ao listar webhooks: ${errText}`);
+      }
+      const existing: Webhook[] = await listRes.json();
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Falha ao criar webhook: ${error}`);
+      const ensureSingleWebhook = async (topic: string, name: string) => {
+        // Webhooks existentes para o mesmo tópico e mesma URL de entrega
+        const matches = existing.filter(w => w.topic === topic && w.delivery_url === deliveryUrl);
+
+        // Se houver mais de um, apagar os extras
+        if (matches.length > 1) {
+          const extras = matches.slice(1);
+          for (const w of extras) {
+            await fetch(`${baseUrl}/wp-json/wc/v3/webhooks/${w.id}?force=true`, {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/json'
+              }
+            });
+          }
+        }
+
+        const current = matches[0];
+
+        // Se não existir, criar
+        if (!current) {
+          const createRes = await fetch(`${baseUrl}/wp-json/wc/v3/webhooks`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name,
+              topic,
+              delivery_url: deliveryUrl,
+              status: 'active'
+            })
+          });
+
+          if (!createRes.ok) {
+            const errText = await createRes.text();
+            throw new Error(`Falha ao criar webhook (${topic}): ${errText}`);
+          }
+          return;
+        }
+
+        // Se existir: garantir status ativo e nome correto
+        const needsUpdate = current.status !== 'active' || current.name !== name;
+        if (needsUpdate) {
+          const updateRes = await fetch(`${baseUrl}/wp-json/wc/v3/webhooks/${current.id}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              name,
+              status: 'active',
+              delivery_url: deliveryUrl
+            })
+          });
+
+          if (!updateRes.ok) {
+            const errText = await updateRes.text();
+            throw new Error(`Falha ao atualizar webhook (${topic}): ${errText}`);
+          }
+        }
+      };
+
+      // Garantir cada tópico desejado
+      for (const d of desired) {
+        await ensureSingleWebhook(d.topic, d.name);
       }
 
-      return response.json();
+      return true;
     },
     onSuccess: () => {
       webhooks.refetch();
-      toast.success('Webhook configurado com sucesso!');
+      toast.success('Webhooks configurados/atualizados com sucesso!');
     },
     onError: (error: any) => {
-      toast.error(`Erro ao configurar webhook: ${error.message}`);
+      toast.error(`Erro ao configurar webhooks: ${error.message}`);
     },
   });
 
