@@ -1,558 +1,155 @@
 
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Plus, Edit, Trash2, User, Mail, Phone, MapPin, AlertCircle, Eye, Crown, Package } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useWooCommerceConfig, useUpdateCustomer } from '@/hooks/useWooCommerce';
-import { useSupabaseAllCustomers } from '@/hooks/useSupabaseSync';
-import { useCreateRepresentative } from '@/hooks/useMaletas';
-import { usePagination } from '@/hooks/usePagination';
-import { useViewMode } from '@/hooks/useViewMode';
-import PaginationControls from '@/components/ui/pagination-controls';
-import ViewModeToggle from '@/components/ui/view-mode-toggle';
-import { Customer } from '@/services/woocommerce';
-import CustomerDialog from '@/components/customers/CustomerDialog';
-import CustomerDetails from '@/components/customers/CustomerDetails';
-import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCustomer';
-import CustomerCard from '@/components/customers/CustomerCard';
-import { MoreHorizontal, RefreshCcw } from 'lucide-react';
-import { toast } from '@/hooks/use-toast';
-import PageHelp from '@/components/ui/page-help';
-import { helpContent } from '@/data/helpContent';
-import SyncHeader from '@/components/sync/SyncHeader';
+import { useState } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { CustomerCard } from "@/components/customers/CustomerCard";
+import { CustomerDialog } from "@/components/customers/CustomerDialog";
+import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
+import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Customers = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'representatives' | 'customers'>('all');
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | undefined>();
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [customerForDetails, setCustomerForDetails] = useState<Customer | null>(null);
-
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
   const { isConfigured } = useWooCommerceConfig();
-  const { data: allCustomersData = [], isLoading: customersLoading } = useSupabaseAllCustomers();
-  
-  // Debug log
-  console.log('🔍 Total customers loaded:', allCustomersData.length);
-  console.log('🔍 Customers loading state:', customersLoading);
-  
-  const pagination = usePagination(allCustomersData.length, 20);
-  const updateCustomer = useUpdateCustomer();
-  const { viewMode, toggleViewMode } = useViewMode('customers');
-  const createRepresentative = useCreateRepresentative();
+  const { currentOrganization, loading: orgLoading } = useOrganization();
 
-  // Filter and paginate data
-  const filteredCustomers = useMemo(() => {
-    return allCustomersData.filter(customer => {
-      const matchesSearch = customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           customer.email?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesFilter = filterType === 'all' || 
-                           (filterType === 'representatives' && isRepresentative(customer as any)) ||
-                           (filterType === 'customers' && !isRepresentative(customer as any));
-      
-      return matchesSearch && matchesFilter;
-    });
-  }, [allCustomersData, searchTerm, filterType]);
+  const filteredCustomers = customers.filter((customer) =>
+    customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Use allCustomersData for calculations
-  const allCustomersForCalculations = useMemo(() => {
-    return allCustomersData.filter((customer: any) => {
-      const matchesFilter = filterType === 'all' || 
-                           (filterType === 'representatives' && isRepresentative(customer)) ||
-                           (filterType === 'customers' && !isRepresentative(customer));
-      
-      return matchesFilter;
-    });
-  }, [allCustomersData, filterType]);
+  if (orgLoading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  // Update pagination to use filtered customers length
-  const paginationWithUpdatedTotal = usePagination(filteredCustomers.length, 20);
-  
-  const paginatedCustomers = useMemo(() => {
-    const start = (paginationWithUpdatedTotal.state.currentPage - 1) * paginationWithUpdatedTotal.state.itemsPerPage;
-    const end = start + paginationWithUpdatedTotal.state.itemsPerPage;
-    return filteredCustomers.slice(start, end);
-  }, [filteredCustomers, paginationWithUpdatedTotal.state.currentPage, paginationWithUpdatedTotal.state.itemsPerPage]);
-
-  const handleCreateCustomer = () => {
-    setSelectedCustomer(undefined);
-    setDialogMode('create');
-    setDialogOpen(true);
-  };
-
-  const handleEditCustomer = (customer: Customer) => {
-    setSelectedCustomer(customer);
-    setDialogMode('edit');
-    setDialogOpen(true);
-  };
-
-  const handleViewCustomer = (customer: Customer) => {
-    setCustomerForDetails(customer);
-    setDetailsOpen(true);
-  };
-
-  const isRepresentative = (customer: Customer) => {
-    return customer.meta_data?.some(meta => meta.key === 'is_representative' && (meta.value === true || meta.value === '1' || meta.value === 1));
-  };
-
-  const toggleRepresentative = async (customer: Customer) => {
-    try {
-      const isCurrentlyRepresentative = isRepresentative(customer);
-      
-      const updatedMetaData = customer.meta_data ? [...customer.meta_data] : [];
-      
-      // Encontrar ou criar o meta_data para is_representative
-      const representativeMetaIndex = updatedMetaData.findIndex(meta => meta.key === 'is_representative');
-      
-      if (representativeMetaIndex >= 0) {
-        updatedMetaData[representativeMetaIndex].value = !isCurrentlyRepresentative;
-      } else {
-        updatedMetaData.push({
-          key: 'is_representative',
-          value: !isCurrentlyRepresentative
-        });
-      }
-      
-      await updateCustomer.mutateAsync({
-        id: customer.id,
-        customer: {
-          meta_data: updatedMetaData
-        }
-      });
-      
-      toast({
-        title: !isCurrentlyRepresentative ? "Representante Adicionado" : "Representante Removido",
-        description: `${customer.first_name} ${customer.last_name} ${!isCurrentlyRepresentative ? 'foi marcado como representante' : 'não é mais representante'}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar status do representante",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const syncRepresentatives = async () => {
-    try {
-      const representatives = allCustomersData.filter((customer: any) => isRepresentative(customer));
-      
-      if (representatives.length === 0) {
-        toast({
-          title: "Nenhum representante encontrado",
-          description: "Marque clientes como representantes antes de sincronizar.",
-        });
-        return;
-      }
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const customer of representatives) {
-        try {
-          const representativeData = {
-            name: `${customer.first_name} ${customer.last_name}`,
-            email: customer.email || (customer.billing as any)?.email,
-            phone: (customer.billing as any)?.phone,
-            commission_settings: {
-              use_global: true,
-              penalty_rate: 1
-            }
-          };
-
-          await createRepresentative.mutateAsync(representativeData);
-          successCount++;
-        } catch (error) {
-          // Ignorar erro se representante já existe
-          if (error.message?.includes('duplicate') || error.message?.includes('unique')) {
-            successCount++;
-          } else {
-            errorCount++;
-          }
-        }
-      }
-
-      toast({
-        title: "Sincronização concluída",
-        description: `${successCount} representantes sincronizados${errorCount > 0 ? `, ${errorCount} erros` : ''}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro na sincronização",
-        description: "Erro ao sincronizar representantes com o sistema de maletas.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const getTotalCustomers = () => allCustomersForCalculations.length;
-  const getTotalRepresentatives = () => allCustomersForCalculations.filter((customer: any) => isRepresentative(customer)).length;
-  const getAverageSpent = () => {
-    if (allCustomersForCalculations.length === 0) return 0;
-    const total = allCustomersForCalculations.reduce((sum: number, customer: any) => {
-      const spent = parseFloat(customer.total_spent || '0');
-      return sum + (isNaN(spent) ? 0 : spent);
-    }, 0);
-    return total / allCustomersForCalculations.length;
-  };
+  if (!currentOrganization) {
+    return (
+      <div className="container mx-auto p-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para ver os clientes."
+          showConfigButton={false}
+        />
+      </div>
+    );
+  }
 
   if (!isConfigured) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="container mx-auto p-6">
+        <EmptyWooCommerceState
+          title="WooCommerce Não Configurado"
+          description="Configure sua conexão com o WooCommerce para começar a gerenciar clientes."
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">
-              Clientes
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400">
-              Gerencie sua base de clientes
+            <h1 className="text-3xl font-bold">Clientes</h1>
+            <p className="text-muted-foreground">
+              Gerencie seus clientes
+            </p>
+          </div>
+          <Button disabled>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (customers.length === 0) {
+    return (
+      <div className="container mx-auto p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-3xl font-bold">Clientes</h1>
+            <p className="text-muted-foreground">
+              Gerencie seus clientes
             </p>
           </div>
         </div>
-
-        <Card>
-          <CardContent className="p-12 text-center">
-            <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold mb-2">WooCommerce não configurado</h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-4">
-              Configure sua integração com WooCommerce nas configurações para começar a gerenciar seus clientes.
-            </p>
-            <Button onClick={() => window.location.href = '/configuracoes'}>
-              Ir para Configurações
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyWooCommerceState
+          title="Nenhum Cliente Encontrado"
+          description="Sincronize seus clientes do WooCommerce ou adicione clientes manualmente."
+        />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Ajuda da Página */}
-      <PageHelp 
-        title={helpContent.clientes.title}
-        description={helpContent.clientes.description}
-        helpContent={helpContent.clientes}
-      />
-
-      {/* Informações de Sincronização */}
-      <SyncHeader syncType="customers" />
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Clientes
-          </h1>
-          <p className="text-slate-600 dark:text-slate-400">
-            Gerencie sua base de clientes
+          <h1 className="text-3xl font-bold">Clientes</h1>
+          <p className="text-muted-foreground">
+            Gerencie seus clientes ({customers.length} clientes)
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button
-            className="bg-gradient-primary hover:opacity-90"
-            onClick={handleCreateCustomer}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Novo Cliente
-          </Button>
-          <Button
-            variant="outline"
-            onClick={syncRepresentatives}
-            disabled={createRepresentative.isPending}
-          >
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            {createRepresentative.isPending ? 'Sincronizando...' : 'Sincronizar Representantes'}
-          </Button>
-        </div>
+        <Button onClick={() => setIsDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Cliente
+        </Button>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total de Clientes
-                </p>
-                <p className="text-2xl font-bold">{getTotalCustomers()}</p>
-              </div>
-              <User className="w-8 h-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Representantes
-                </p>
-                <p className="text-2xl font-bold text-purple-600">{getTotalRepresentatives()}</p>
-              </div>
-              <Crown className="w-8 h-8 text-purple-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Total de Pedidos
-                </p>
-                <p className="text-2xl font-bold text-success-600">
-                  {allCustomersForCalculations.length > 0 ? 'Carregando...' : 0}
-                </p>
-              </div>
-              <Package className="w-8 h-8 text-success-600" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                  Ticket Médio
-                </p>
-                <p className="text-2xl font-bold text-orange-600">
-                  R$ {allCustomersForCalculations.length > 0 ? '0.00' : '0.00'}
-                </p>
-              </div>
-              <Mail className="w-8 h-8 text-orange-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filtros */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-            <div className="flex flex-col lg:flex-row gap-4 flex-1">
-              <div className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Buscar clientes por nome, email ou telefone..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <div className="flex gap-2">
-                <select 
-                  value={filterType} 
-                  onChange={(e) => setFilterType(e.target.value as any)}
-                  className="px-3 py-2 border border-input rounded-md bg-background text-sm"
-                >
-                  <option value="all">Todos</option>
-                  <option value="customers">Clientes</option>
-                  <option value="representatives">Representantes</option>
-                </select>
-                <Button variant="outline" onClick={() => window.location.reload()}>
-                  <Filter className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-            
-            <ViewModeToggle 
-              viewMode={viewMode} 
-              onToggle={toggleViewMode} 
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Clientes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Lista de Clientes ({filteredCustomers.length})
-            {filterType === 'representatives' && ' - Representantes'}
-            {filterType === 'customers' && ' - Apenas Clientes'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {customersLoading ? (
-            <div className="text-center py-8">
-              <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3 animate-spin" />
-              <p className="text-muted-foreground">Carregando clientes...</p>
-            </div>
-          ) : paginatedCustomers.length === 0 ? (
-            <div className="text-center py-8">
-              <User className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhum cliente encontrado</p>
-            </div>
-          ) : viewMode === 'list' ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Localização</TableHead>
-                  <TableHead>Pedidos</TableHead>
-                  <TableHead>Total Gasto</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                 {paginatedCustomers.map((customer: any) => (
-                  <TableRow key={customer.id} className="hover:bg-slate-50 dark:hover:bg-slate-800">
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gradient-primary rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-white" />
-                        </div>
-                        <div>
-                          <div className="font-medium flex items-center gap-2">
-                            {customer.first_name} {customer.last_name}
-                            {isRepresentative(customer) && (
-                              <Crown className="w-4 h-4 text-purple-600" />
-                            )}
-                          </div>
-                          <div className="text-sm text-slate-500">ID: {customer.id}</div>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="w-3 h-3" />
-                          {customer.email}
-                        </div>
-                        {(customer.billing as any)?.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="w-3 h-3" />
-                            {(customer.billing as any)?.phone}
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" />
-                        <span>{(customer.billing as any)?.city}, {(customer.billing as any)?.state}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{customer.orders_count || 0} pedidos</div>
-                        <div className="text-sm text-slate-500">
-                          Cadastrado: {new Date(customer.date_created).toLocaleDateString('pt-BR')}
-                        </div>
-                      </div>
-                    </TableCell>
-                     <TableCell className="font-semibold">
-                       R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
-                     </TableCell>
-                    <TableCell>
-                      {isRepresentative(customer) ? (
-                        <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                          <Crown className="w-3 h-3 mr-1" />
-                          Representante
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Cliente</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewCustomer(customer)}>
-                            <Eye className="w-4 h-4 mr-2" />
-                            Visualizar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditCustomer(customer)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => toggleRepresentative(customer)}>
-                            <Crown className="w-4 h-4 mr-2" />
-                            {isRepresentative(customer) ? 'Remover como Rep.' : 'Tornar Representante'}
-                          </DropdownMenuItem>
-                          {isRepresentative(customer) && (
-                            <DropdownMenuItem asChild>
-                              <CreateMaletaFromCustomer
-                                representativeId={customer.id}
-                                representativeName={`${customer.first_name} ${customer.last_name}`}
-                              />
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-              {paginatedCustomers.map((customer: any) => (
-                <CustomerCard
-                  key={customer.id}
-                  customer={customer}
-                  viewMode={viewMode}
-                  onView={handleViewCustomer}
-                  onEdit={handleEditCustomer}
-                  onToggleRepresentative={toggleRepresentative}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Paginação */}
-      {filteredCustomers.length > 0 && (
-        <PaginationControls
-          info={paginationWithUpdatedTotal.info}
-          actions={paginationWithUpdatedTotal.actions}
-          itemsPerPage={paginationWithUpdatedTotal.state.itemsPerPage}
-          totalItems={paginationWithUpdatedTotal.state.totalItems}
-          currentPage={paginationWithUpdatedTotal.state.currentPage}
-          className="mt-6"
+      <div className="flex gap-4">
+        <Input
+          placeholder="Buscar por nome ou email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredCustomers.map((customer) => (
+          <CustomerCard key={customer.id} customer={customer} />
+        ))}
+      </div>
+
+      {filteredCustomers.length === 0 && searchTerm && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            Nenhum cliente encontrado para "{searchTerm}"
+          </p>
+        </div>
       )}
 
-      {/* Dialogs */}
       <CustomerDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        customer={selectedCustomer}
-        mode={dialogMode}
-      />
-
-      <CustomerDetails
-        open={detailsOpen}
-        onOpenChange={setDetailsOpen}
-        customer={customerForDetails}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
       />
     </div>
   );

@@ -1,99 +1,77 @@
 
-import React from 'react';
-import { Bell, Search, Sun, Moon, User, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
+import { Menu, User, LogOut, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useSidebar } from "@/hooks/useSidebar";
+import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { Link } from "react-router-dom";
 
-interface HeaderProps {
-  onToggleSidebar: () => void;
-  isDarkMode: boolean;
-  onToggleTheme: () => void;
-  hideSidebarToggle?: boolean;
-}
+const Header = () => {
+  const { toggleSidebar } = useSidebar();
+  const { signOut, profile } = useAuth();
+  const { currentOrganization } = useOrganization();
 
-const Header = ({ isDarkMode, onToggleTheme }: HeaderProps) => {
-  const { user, signOut } = useAuth();
-  
-  const handleLogout = () => {
-    signOut();
+  const handleSignOut = async () => {
+    await signOut();
   };
-
-  const getUserDisplayName = () => {
-    if (user?.email === 'douglas@agencia2b.com.br') return 'Douglas (Admin)';
-    return user?.user_metadata?.name || user?.email?.split('@')[0] || 'Usuário';
-  };
-
-  const getUserRole = () => {
-    if (user?.email === 'douglas@agencia2b.com.br') return 'Super Admin';
-    return 'Usuário';
-  };
-
 
   return (
-    <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-6 py-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        {/* Busca */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <Input
-              placeholder="Buscar produtos, pedidos, clientes..."
-              className="pl-10 bg-slate-50 dark:bg-slate-700 border-slate-200 dark:border-slate-600"
-            />
+    <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center justify-between px-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="lg:hidden"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-semibold">
+              {currentOrganization?.name || "Sistema Gestão"}
+            </h1>
+            {currentOrganization && (
+              <span className="text-sm text-muted-foreground">
+                ({currentOrganization.slug})
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center space-x-3">
-          {/* Toggle Theme */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onToggleTheme}
-            className="relative overflow-hidden"
-          >
-            <div className={cn(
-              "flex items-center transition-transform duration-300",
-              isDarkMode ? "transform rotate-180" : ""
-            )}>
-              {isDarkMode ? (
-                <Moon className="w-4 h-4" />
-              ) : (
-                <Sun className="w-4 h-4" />
-              )}
-            </div>
-          </Button>
-
-          {/* Notifications */}
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
-              3
-            </span>
-          </Button>
-
-          {/* User Info - Simplificado */}
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-white" />
-            </div>
-            <div className="hidden md:block text-left">
-              <div className="text-sm font-medium">{getUserDisplayName()}</div>
-              <div className="text-xs text-slate-500 capitalize">
-                {getUserRole()}
+        <div className="flex items-center gap-4">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <User className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <div className="px-2 py-1.5 text-sm font-medium">
+                {profile?.name || "Usuário"}
               </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="text-slate-600 hover:text-red-600"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
+              <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                {profile?.email}
+              </div>
+              <DropdownMenuItem asChild>
+                <Link to="/settings">
+                  <Settings className="mr-2 h-4 w-4" />
+                  Configurações
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
