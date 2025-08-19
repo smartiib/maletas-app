@@ -18,98 +18,88 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Fetch profile if user exists
-        if (session?.user) {
-          try {
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (profileData) {
-              setProfile({
-                id: profileData.id,
-                name: profileData.name || session.user.email || 'Usuário',
-                email: profileData.email || session.user.email || '',
-                role: profileData.role || 'user'
-              });
-            } else {
-              // Create basic profile from user data
-              setProfile({
-                id: session.user.id,
-                name: session.user.email || 'Usuário',
-                email: session.user.email || '',
-                role: 'user'
-              });
-            }
-          } catch (error) {
-            console.error('Error fetching profile:', error);
-            // Fallback profile
-            setProfile({
-              id: session.user.id,
-              name: session.user.email || 'Usuário',
-              email: session.user.email || '',
-              role: 'user'
-            });
-          }
-        } else {
-          setProfile(null);
-        }
-        
-        setLoading(false);
-      }
-    );
+    console.log('[useAuth] initializing auth hook');
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        try {
-          const { data: profileData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          
-          if (profileData) {
-            setProfile({
-              id: profileData.id,
-              name: profileData.name || session.user.email || 'Usuário',
-              email: profileData.email || session.user.email || '',
-              role: profileData.role || 'user'
-            });
-          } else {
-            setProfile({
-              id: session.user.id,
-              name: session.user.email || 'Usuário',
-              email: session.user.email || '',
-              role: 'user'
-            });
-          }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
+    // Função auxiliar para buscar/criar o perfil
+    const fetchProfile = async (userId: string, fallbackEmail?: string) => {
+      console.log('[useAuth] fetchProfile start', userId);
+      try {
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single();
+
+        if (error) {
+          console.warn('[useAuth] profile fetch error (will fallback/create shape):', error);
+        }
+
+        if (profileData) {
           setProfile({
-            id: session.user.id,
-            name: session.user.email || 'Usuário',
-            email: session.user.email || '',
-            role: 'user'
+            id: profileData.user_id,
+            name: profileData.name || fallbackEmail || 'Usuário',
+            email: profileData.email || fallbackEmail || '',
+            role: profileData.role || 'user',
+          });
+        } else {
+          // Fallback profile baseado no usuário da sessão
+          setProfile({
+            id: userId,
+            name: fallbackEmail || 'Usuário',
+            email: fallbackEmail || '',
+            role: 'user',
           });
         }
+      } catch (err) {
+        console.error('[useAuth] unexpected error fetching profile:', err);
+        setProfile({
+          id: userId,
+          name: fallbackEmail || 'Usuário',
+          email: fallbackEmail || '',
+          role: 'user',
+        });
+      } finally {
+        setLoading(false);
+        console.log('[useAuth] fetchProfile end -> loading=false');
       }
-      
-      setLoading(false);
+    };
+
+    // Listener de auth - callback síncrono; não chamar supabase aqui
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log('[useAuth] onAuthStateChange', event, !!newSession);
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+
+      if (newSession?.user) {
+        const uid = newSession.user.id;
+        const email = newSession.user.email ?? undefined;
+        // Deferir a chamada Supabase para evitar deadlock
+        setTimeout(() => fetchProfile(uid, email), 0);
+      } else {
+        setProfile(null);
+        setLoading(false);
+        console.log('[useAuth] no session -> loading=false');
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // Checar sessão existente depois de registrar o listener
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log('[useAuth] getSession -> hasSession?', !!currentSession);
+      setSession(currentSession);
+      setUser(currentSession?.user ?? null);
+
+      if (currentSession?.user) {
+        fetchProfile(currentSession.user.id, currentSession.user.email ?? undefined);
+      } else {
+        setLoading(false);
+        console.log('[useAuth] getSession no session -> loading=false');
+      }
+    });
+
+    return () => {
+      console.log('[useAuth] cleanup subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
