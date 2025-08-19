@@ -18,7 +18,7 @@ export const useWooCommerceFilteredProducts = () => {
       const { data, error } = await supabase
         .from('wc_products')
         .select('*')
-        .or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`)
+        .eq('organization_id', currentOrganization.id) // buscar somente da org atual
         .order('name');
 
       if (error) {
@@ -47,7 +47,7 @@ export const useWooCommerceFilteredOrders = () => {
       const { data, error } = await supabase
         .from('wc_orders')
         .select('*')
-        .or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`)
+        .eq('organization_id', currentOrganization.id) // somente da org atual
         .order('date_created', { ascending: false });
 
       if (error) {
@@ -76,7 +76,7 @@ export const useWooCommerceFilteredCustomers = () => {
       const { data, error } = await supabase
         .from('wc_customers')
         .select('*')
-        .or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`)
+        .eq('organization_id', currentOrganization.id) // somente da org atual
         .order('first_name');
 
       if (error) {
@@ -105,7 +105,7 @@ export const useWooCommerceFilteredCategories = () => {
       const { data, error } = await supabase
         .from('wc_product_categories')
         .select('*')
-        .or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`)
+        .eq('organization_id', currentOrganization.id) // somente da org atual
         .order('name');
 
       if (error) {
