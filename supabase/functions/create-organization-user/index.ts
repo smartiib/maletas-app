@@ -14,6 +14,23 @@ interface CreateUserBody {
   password: string;
 }
 
+async function findUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
+  // Busca por email usando paginação da Admin API (não há endpoint direto por e-mail)
+  const perPage = 200;
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await (admin as any).auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.warn("[create-organization-user] listUsers warning:", error);
+      break;
+    }
+    const users = data?.users || [];
+    const found = users.find((u: any) => (u.email || "").toLowerCase() === email.toLowerCase());
+    if (found) return found;
+    if (users.length < perPage) break; // acabou
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -53,7 +70,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verificar se o usuário tem permissão para a organização
+    // Verificar se o usuário chamador tem permissão para a organização
     const { data: userOrg, error: userOrgError } = await admin
       .from("user_organizations")
       .select("id")
@@ -68,25 +85,79 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verificar se o email já existe
-    const { data: existingUser } = await admin
+    // Verificar se já existe um organization_user com este e-mail (regra atual do app)
+    const { data: existingOrgUser } = await admin
       .from("organization_users")
       .select("id")
       .eq("email", email)
       .maybeSingle();
 
-    if (existingUser) {
+    if (existingOrgUser) {
       return new Response(JSON.stringify({ error: "E-mail já está em uso" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Hash da senha (bcryptjs - compatível com Edge Functions)
+    // 1) Garantir usuário no Supabase Auth
+    // Tentar criar o usuário (com email confirmado para permitir login imediato)
+    let authUserId: string | null = null;
+
+    const { data: createdAuth, error: createAuthError } = await (admin as any).auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { name }
+    });
+
+    if (createAuthError) {
+      // Se já existir, tentar localizar por email
+      console.warn("[create-organization-user] createUser error (tentando localizar por email):", createAuthError?.message);
+      const found = await findUserByEmail(admin, email);
+      if (!found) {
+        return new Response(JSON.stringify({ error: "Falha ao criar/recuperar usuário de autenticação" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      authUserId = found.id;
+    } else {
+      authUserId = createdAuth?.user?.id ?? null;
+    }
+
+    if (!authUserId) {
+      return new Response(JSON.stringify({ error: "Usuário de autenticação inválido" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 2) Vincular usuário à organização (se ainda não vinculado)
+    const { data: existingLink } = await admin
+      .from("user_organizations")
+      .select("id")
+      .eq("user_id", authUserId)
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+
+    if (!existingLink) {
+      const { error: linkError } = await admin
+        .from("user_organizations")
+        .insert({ user_id: authUserId, organization_id: organizationId });
+
+      if (linkError) {
+        console.error("[create-organization-user] Erro ao vincular usuário à organização:", linkError);
+        return new Response(
+          JSON.stringify({ error: "Usuário criado, mas falha ao vincular à organização." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // 3) Hash da senha e criar o registro interno em organization_users
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync(password, salt);
 
-    // Criar usuário da organização
     const { data: newUser, error: createError } = await admin
       .from("organization_users")
       .insert({
@@ -94,20 +165,22 @@ Deno.serve(async (req: Request) => {
         email,
         name,
         password_hash: passwordHash,
+        is_active: true,
       })
       .select()
       .single();
 
     if (createError) {
-      console.error("Erro ao criar usuário:", createError);
+      console.error("[create-organization-user] Erro ao criar organization_user:", createError);
       return new Response(
         JSON.stringify({ error: createError.message || "Falha ao criar usuário" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    // Sucesso
+    return new Response(JSON.stringify({
+      success: true,
       user: {
         id: newUser.id,
         email: newUser.email,
@@ -119,7 +192,7 @@ Deno.serve(async (req: Request) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("Erro geral create-organization-user:", error);
+    console.error("[create-organization-user] Erro geral:", error);
     return new Response(JSON.stringify({ error: error?.message || "Erro interno" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
