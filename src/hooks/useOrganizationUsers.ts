@@ -78,7 +78,7 @@ export function useOrganizationUsers() {
   const loadUsers = async (organizationId: string): Promise<OrganizationUser[]> => {
     try {
       const { data, error } = await supabase
-        .from('organization_users')
+        .from('organization_users' as any)
         .select('*')
         .eq('organization_id', organizationId)
         .order('name');
@@ -88,7 +88,7 @@ export function useOrganizationUsers() {
         return [];
       }
 
-      return data || [];
+      return (data as unknown as OrganizationUser[]) || [];
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
       return [];
@@ -98,7 +98,7 @@ export function useOrganizationUsers() {
   const updateUserStatus = async (userId: string, isActive: boolean): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('organization_users')
+        .from('organization_users' as any)
         .update({ is_active: isActive })
         .eq('id', userId);
 

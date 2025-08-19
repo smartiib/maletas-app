@@ -23,7 +23,7 @@ export function useOrganizationPages(organizationId?: string) {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('organization_pages')
+        .from('organization_pages' as any)
         .select('*')
         .eq('organization_id', organizationId)
         .order('page_key');
@@ -38,7 +38,7 @@ export function useOrganizationPages(organizationId?: string) {
         return;
       }
 
-      setPages(data || []);
+      setPages((data as unknown as OrganizationPage[]) || []);
     } catch (error) {
       console.error('Erro ao carregar páginas:', error);
     } finally {
@@ -51,7 +51,7 @@ export function useOrganizationPages(organizationId?: string) {
 
     try {
       const { error } = await supabase
-        .from('organization_pages')
+        .from('organization_pages' as any)
         .upsert({
           organization_id: organizationId,
           page_key: pageKey,
