@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,7 +11,8 @@ const Index = () => {
   useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        navigate('/');
+        // Redirecionar corretamente para o dashboard para evitar loop em "/"
+        navigate('/dashboard');
       } else {
         navigate('/auth');
       }

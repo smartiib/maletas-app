@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { Link } from 'react-router-dom';
 
 export function OrganizationSelector() {
   const { currentOrganization, organizations, setCurrentOrganization, loading } = useOrganization();
@@ -22,10 +23,16 @@ export function OrganizationSelector() {
   }
 
   if (organizations.length === 0) {
+    // Adiciona CTA para cadastrar organização
     return (
-      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
-        <Building2 className="h-4 w-4" />
-        <span>Nenhuma empresa</span>
+      <div className="flex flex-col gap-1 px-3 py-2">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Building2 className="h-4 w-4" />
+          <span>Nenhuma empresa</span>
+        </div>
+        <Link to="/organizations" className="text-xs text-primary hover:underline">
+          Cadastrar empresa
+        </Link>
       </div>
     );
   }

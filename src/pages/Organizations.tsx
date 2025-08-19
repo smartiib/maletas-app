@@ -118,7 +118,8 @@ export default function Organizations() {
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleDialogClose()}>
+            {/* Removido o onClick que fechava o diálogo, impedindo a abertura */}
+            <Button>
               <Plus className="h-4 w-4 mr-2" />
               Nova Organização
             </Button>
