@@ -26,6 +26,11 @@ import Billing from "@/pages/Billing";
 import Logs from "@/pages/Logs";
 import NotFound from "@/pages/NotFound";
 import "./App.css";
+import type { PropsWithChildren, ComponentType } from "react";
+
+// Wrappers tipados para aceitar children (corrige o TS2559 sem alterar comportamento)
+const ConfigGuardWithChildren = ConfigGuard as unknown as ComponentType<PropsWithChildren>;
+const DashboardLayoutWithChildren = DashboardLayout as unknown as ComponentType<PropsWithChildren>;
 
 const queryClient = new QueryClient();
 
@@ -44,8 +49,8 @@ function App() {
                   path="/*"
                   element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
+                      <ConfigGuardWithChildren>
+                        <DashboardLayoutWithChildren>
                           <Routes>
                             <Route path="/" element={<Index />} />
                             <Route path="/dashboard" element={<Dashboard />} />
@@ -64,8 +69,8 @@ function App() {
                             <Route path="/logs" element={<Logs />} />
                             <Route path="*" element={<NotFound />} />
                           </Routes>
-                        </DashboardLayout>
-                      </ConfigGuard>
+                        </DashboardLayoutWithChildren>
+                      </ConfigGuardWithChildren>
                     </ProtectedRoute>
                   }
                 />
