@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI, Product, Order, Customer, WooCommerceConfig, CreateOrderData, WooCommerceTestResult } from '@/services/woocommerce';
 import { toast } from '@/hooks/use-toast';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 // Products hooks
 export const useProducts = (page = 1, search = '', status = '', category = '') => {
@@ -474,3 +475,179 @@ export const useWooCommerceConfig = () => {
     deleteWebhook,
   };
 };
+
+export function useWooCommerce() {
+  const { currentOrganization } = useOrganization();
+  const [loading, setLoading] = useState(false);
+
+  const syncProducts = async (config: WooCommerceConfig) => {
+    if (!currentOrganization) {
+      toast({
+        title: "Erro",
+        description: "Selecione uma organização antes de sincronizar.",
+        variant: "destructive",
+      });
+      return { success: false, message: "Nenhuma organização selecionada" };
+    }
+
+    setLoading(true);
+    try {
+      console.log('Iniciando sincronização de produtos...', config);
+      
+      const response = await fetch(`${config.apiUrl}/wp-json/wc/v3/products`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const products = await response.json();
+      console.log(`Produtos recebidos: ${products.length}`);
+
+      // Processar produtos em lotes
+      const batchSize = 10;
+      let processedCount = 0;
+      
+      for (let i = 0; i < products.length; i += batchSize) {
+        const batch = products.slice(i, i + batchSize);
+        
+        for (const product of batch) {
+          const productData = {
+            id: product.id,
+            name: product.name,
+            slug: product.slug,
+            type: product.type,
+            status: product.status,
+            featured: product.featured,
+            catalog_visibility: product.catalog_visibility,
+            description: product.description,
+            short_description: product.short_description,
+            sku: product.sku,
+            price: product.price ? parseFloat(product.price) : null,
+            regular_price: product.regular_price ? parseFloat(product.regular_price) : null,
+            sale_price: product.sale_price ? parseFloat(product.sale_price) : null,
+            stock_status: product.stock_status,
+            stock_quantity: product.stock_quantity,
+            manage_stock: product.manage_stock,
+            images: product.images,
+            categories: product.categories,
+            tags: product.tags,
+            attributes: product.attributes,
+            variations: product.variations,
+            organization_id: currentOrganization.id, // Adicionar organization_id
+            synced_at: new Date().toISOString()
+          };
+
+          const { error } = await supabase
+            .from('wc_products')
+            .upsert(productData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            });
+
+          if (error) {
+            console.error('Erro ao salvar produto:', error);
+          } else {
+            processedCount++;
+          }
+        }
+      }
+
+      // Sync categories
+      const categoriesResponse = await fetch(`${config.apiUrl}/wp-json/wc/v3/products/categories`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+        }
+      });
+
+      if (categoriesResponse.ok) {
+        const categories = await categoriesResponse.json();
+        
+        for (const category of categories) {
+          const categoryData = {
+            id: category.id,
+            name: category.name,
+            slug: category.slug,
+            parent: category.parent,
+            description: category.description,
+            display: category.display,
+            image: category.image,
+            menu_order: category.menu_order,
+            count: category.count,
+            organization_id: currentOrganization.id, // Adicionar organization_id
+            synced_at: new Date().toISOString()
+          };
+
+          await supabase
+            .from('wc_product_categories')
+            .upsert(categoryData, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            });
+        }
+      }
+
+      // Sync variations
+      for (const product of products.filter(p => p.type === 'variable')) {
+        const variationsResponse = await fetch(
+          `${config.apiUrl}/wp-json/wc/v3/products/${product.id}/variations`,
+          {
+            headers: {
+              'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+            }
+          }
+        );
+
+        if (variationsResponse.ok) {
+          const variations = await variationsResponse.json();
+          
+          for (const variation of variations) {
+            const variationData = {
+              id: variation.id,
+              parent_id: variation.parent_id,
+              sku: variation.sku,
+              price: variation.price ? parseFloat(variation.price) : null,
+              regular_price: variation.regular_price ? parseFloat(variation.regular_price) : null,
+              sale_price: variation.sale_price ? parseFloat(variation.sale_price) : null,
+              stock_status: variation.stock_status,
+              stock_quantity: variation.stock_quantity,
+              manage_stock: variation.manage_stock,
+              attributes: variation.attributes,
+              image: variation.image,
+              organization_id: currentOrganization.id, // Adicionar organization_id
+              synced_at: new Date().toISOString()
+            };
+
+            await supabase
+              .from('wc_product_variations')
+              .upsert(variationData, { 
+                onConflict: 'id',
+                ignoreDuplicates: false 
+              });
+          }
+        }
+      }
+
+      toast({
+        title: "Sincronização Concluída",
+        description: `${processedCount} produtos sincronizados com sucesso!`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro na Sincronização",
+        description: error instanceof Error ? error.message : "Erro ao sincronizar produtos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    syncProducts,
+    // ... keep existing code (other functions with similar organization_id additions)
+  };
+}

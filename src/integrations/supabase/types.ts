@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -300,6 +300,148 @@ export type Database = {
             columns: ["representative_id"]
             isOneToOne: false
             referencedRelation: "representatives"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          order_id: string
+          price: number
+          product_data: Json | null
+          product_id: number
+          quantity: number
+          sku: string | null
+          total: number
+          variation_data: Json | null
+          variation_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          order_id: string
+          price: number
+          product_data?: Json | null
+          product_id: number
+          quantity: number
+          sku?: string | null
+          total: number
+          variation_data?: Json | null
+          variation_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          order_id?: string
+          price?: number
+          product_data?: Json | null
+          product_id?: number
+          quantity?: number
+          sku?: string | null
+          total?: number
+          variation_data?: Json | null
+          variation_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          billing_address: Json | null
+          created_at: string
+          currency: string
+          customer_email: string | null
+          customer_id: number | null
+          customer_name: string
+          customer_phone: string | null
+          id: string
+          last_sync_attempt: string | null
+          metadata: Json | null
+          notes: string | null
+          order_number: string
+          payment_method: string | null
+          payment_methods: Json | null
+          payment_plan_id: string | null
+          shipping_address: Json | null
+          status: string
+          sync_attempts: number
+          sync_error: string | null
+          sync_status: string
+          synced_at: string | null
+          total_amount: number
+          updated_at: string
+          wc_order_id: number | null
+        }
+        Insert: {
+          billing_address?: Json | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_id?: number | null
+          customer_name: string
+          customer_phone?: string | null
+          id?: string
+          last_sync_attempt?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          order_number: string
+          payment_method?: string | null
+          payment_methods?: Json | null
+          payment_plan_id?: string | null
+          shipping_address?: Json | null
+          status?: string
+          sync_attempts?: number
+          sync_error?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          total_amount: number
+          updated_at?: string
+          wc_order_id?: number | null
+        }
+        Update: {
+          billing_address?: Json | null
+          created_at?: string
+          currency?: string
+          customer_email?: string | null
+          customer_id?: number | null
+          customer_name?: string
+          customer_phone?: string | null
+          id?: string
+          last_sync_attempt?: string | null
+          metadata?: Json | null
+          notes?: string | null
+          order_number?: string
+          payment_method?: string | null
+          payment_methods?: Json | null
+          payment_plan_id?: string | null
+          shipping_address?: Json | null
+          status?: string
+          sync_attempts?: number
+          sync_error?: string | null
+          sync_status?: string
+          synced_at?: string | null
+          total_amount?: number
+          updated_at?: string
+          wc_order_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_payment_plan_id_fkey"
+            columns: ["payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "payment_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -934,6 +1076,7 @@ export type Database = {
           items_processed: number | null
           message: string
           operation: string
+          organization_id: string | null
           status: string
           sync_type: string
           user_id: string | null
@@ -948,6 +1091,7 @@ export type Database = {
           items_processed?: number | null
           message: string
           operation: string
+          organization_id?: string | null
           status?: string
           sync_type: string
           user_id?: string | null
@@ -962,9 +1106,57 @@ export type Database = {
           items_processed?: number | null
           message?: string
           operation?: string
+          organization_id?: string | null
           status?: string
           sync_type?: string
           user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_settings: {
+        Row: {
+          created_at: string
+          id: string
+          max_sync_retries: number
+          orders_sync_delay: number
+          orders_sync_enabled: boolean
+          orders_sync_mode: string
+          orders_sync_schedule: string | null
+          organization_id: string
+          retry_delay: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_sync_retries?: number
+          orders_sync_delay?: number
+          orders_sync_enabled?: boolean
+          orders_sync_mode?: string
+          orders_sync_schedule?: string | null
+          organization_id: string
+          retry_delay?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_sync_retries?: number
+          orders_sync_delay?: number
+          orders_sync_enabled?: boolean
+          orders_sync_mode?: string
+          orders_sync_schedule?: string | null
+          organization_id?: string
+          retry_delay?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1046,6 +1238,7 @@ export type Database = {
           last_name: string | null
           meta_data: Json | null
           orders_count: number | null
+          organization_id: string | null
           role: string | null
           shipping: Json | null
           synced_at: string | null
@@ -1068,6 +1261,7 @@ export type Database = {
           last_name?: string | null
           meta_data?: Json | null
           orders_count?: number | null
+          organization_id?: string | null
           role?: string | null
           shipping?: Json | null
           synced_at?: string | null
@@ -1090,6 +1284,7 @@ export type Database = {
           last_name?: string | null
           meta_data?: Json | null
           orders_count?: number | null
+          organization_id?: string | null
           role?: string | null
           shipping?: Json | null
           synced_at?: string | null
@@ -1097,7 +1292,15 @@ export type Database = {
           updated_at?: string | null
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wc_customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wc_orders: {
         Row: {
@@ -1132,6 +1335,7 @@ export type Database = {
           needs_processing: boolean | null
           number: string | null
           order_key: string | null
+          organization_id: string | null
           parent_id: number | null
           payment_method: string | null
           payment_method_title: string | null
@@ -1183,6 +1387,7 @@ export type Database = {
           needs_processing?: boolean | null
           number?: string | null
           order_key?: string | null
+          organization_id?: string | null
           parent_id?: number | null
           payment_method?: string | null
           payment_method_title?: string | null
@@ -1234,6 +1439,7 @@ export type Database = {
           needs_processing?: boolean | null
           number?: string | null
           order_key?: string | null
+          organization_id?: string | null
           parent_id?: number | null
           payment_method?: string | null
           payment_method_title?: string | null
@@ -1253,7 +1459,15 @@ export type Database = {
           updated_at?: string | null
           version?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wc_orders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wc_product_categories: {
         Row: {
@@ -1265,6 +1479,7 @@ export type Database = {
           image: Json | null
           menu_order: number | null
           name: string
+          organization_id: string | null
           parent: number | null
           slug: string | null
           synced_at: string | null
@@ -1279,6 +1494,7 @@ export type Database = {
           image?: Json | null
           menu_order?: number | null
           name: string
+          organization_id?: string | null
           parent?: number | null
           slug?: string | null
           synced_at?: string | null
@@ -1293,12 +1509,21 @@ export type Database = {
           image?: Json | null
           menu_order?: number | null
           name?: string
+          organization_id?: string | null
           parent?: number | null
           slug?: string | null
           synced_at?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wc_product_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wc_product_variations: {
         Row: {
@@ -1324,6 +1549,7 @@ export type Database = {
           menu_order: number | null
           meta_data: Json | null
           on_sale: boolean | null
+          organization_id: string | null
           parent_id: number
           permalink: string | null
           price: number | null
@@ -1366,6 +1592,7 @@ export type Database = {
           menu_order?: number | null
           meta_data?: Json | null
           on_sale?: boolean | null
+          organization_id?: string | null
           parent_id: number
           permalink?: string | null
           price?: number | null
@@ -1408,6 +1635,7 @@ export type Database = {
           menu_order?: number | null
           meta_data?: Json | null
           on_sale?: boolean | null
+          organization_id?: string | null
           parent_id?: number
           permalink?: string | null
           price?: number | null
@@ -1427,7 +1655,15 @@ export type Database = {
           virtual?: boolean | null
           weight?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wc_product_variations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wc_products: {
         Row: {
@@ -1465,6 +1701,7 @@ export type Database = {
           meta_data: Json | null
           name: string
           on_sale: boolean | null
+          organization_id: string | null
           parent_id: number | null
           permalink: string | null
           post_password: string | null
@@ -1535,6 +1772,7 @@ export type Database = {
           meta_data?: Json | null
           name: string
           on_sale?: boolean | null
+          organization_id?: string | null
           parent_id?: number | null
           permalink?: string | null
           post_password?: string | null
@@ -1605,6 +1843,7 @@ export type Database = {
           meta_data?: Json | null
           name?: string
           on_sale?: boolean | null
+          organization_id?: string | null
           parent_id?: number | null
           permalink?: string | null
           post_password?: string | null
@@ -1640,7 +1879,15 @@ export type Database = {
           virtual?: boolean | null
           weight?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wc_products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_logs: {
         Row: {
@@ -1694,22 +1941,26 @@ export type Database = {
     Functions: {
       add_stock_history_entry: {
         Args: {
-          p_product_id: number
-          p_variation_id?: number
-          p_type?: string
-          p_quantity_change?: number
-          p_previous_stock?: number
+          p_metadata?: Json
           p_new_stock?: number
+          p_previous_stock?: number
+          p_product_id: number
+          p_quantity_change?: number
           p_reason?: string
           p_source?: string
+          p_type?: string
           p_user_id?: string
           p_user_name?: string
+          p_variation_id?: number
           p_wc_order_id?: number
-          p_metadata?: Json
         }
         Returns: string
       }
       generate_maleta_number: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_order_number: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

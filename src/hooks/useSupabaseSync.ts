@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 export interface SyncConfig {
   id?: string;
@@ -544,3 +545,39 @@ export const useSupabaseBirthdayCustomers = (month?: number) => {
     gcTime: 1000 * 60 * 60,
   });
 };
+
+export function useSupabaseSync() {
+  const { currentOrganization } = useOrganization();
+
+  const logSyncOperation = async (
+    syncType: string,
+    operation: string,
+    status: 'success' | 'error',
+    message: string,
+    details?: any,
+    itemsProcessed = 0,
+    itemsFailed = 0,
+    durationMs?: number
+  ) => {
+    try {
+      await supabase.from('sync_logs').insert({
+        sync_type: syncType,
+        operation,
+        status,
+        message,
+        details: details || {},
+        items_processed: itemsProcessed,
+        items_failed: itemsFailed,
+        duration_ms: durationMs,
+        user_id: (await supabase.auth.getUser()).data.user?.id,
+        organization_id: currentOrganization?.id || null,
+      });
+    } catch (error) {
+      console.error('Erro ao salvar log de sincronização:', error);
+    }
+  };
+
+  return {
+    logSyncOperation,
+  };
+}

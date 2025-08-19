@@ -1,191 +1,172 @@
-
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  FileText,
-  CreditCard,
-  BarChart3,
+import {
+  Package,
+  LayoutDashboard,
+  Users,
+  ShoppingBag,
+  ListChecks,
+  FileBarChart,
   Settings,
-  Menu,
-  Briefcase,
-  Warehouse,
-  File,
+  UserPlus,
+  Coins,
+  FileText,
   Building2,
-  DollarSign
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
+  X,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSidebar } from "@/hooks/useSidebar";
+import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
+import { OrganizationSelector } from './OrganizationSelector';
 
-
-interface SidebarProps {
-  collapsed: boolean;
-  onToggle: () => void;
-}
-
-const navigationItems = [
-  { 
-    title: 'Dashboard', 
-    href: '/', 
-    icon: LayoutDashboard,
-    exact: true,
-    permission: 'dashboard'
-  },
-  { 
-    title: 'Produtos', 
-    href: '/produtos', 
-    icon: Package,
-    permission: 'products'
-  },
-  { 
-    title: 'Pedidos', 
-    href: '/pedidos', 
-    icon: ShoppingCart,
-    permission: 'orders'
-  },
-  { 
-    title: 'Clientes', 
-    href: '/clientes', 
-    icon: Users,
-    permission: 'customers'
-  },
-  { 
-    title: 'POS', 
-    href: '/pos', 
-    icon: CreditCard,
-    permission: 'pos'
-  },
-  { 
-    title: 'Maletas', 
-    href: '/maletas', 
-    icon: Briefcase,
-    permission: 'maletas'
-  },
-  { 
-    title: 'Fornecedores', 
-    href: '/fornecedores', 
-    icon: Building2,
-    permission: 'suppliers',
-    isNew: true
-  },
-  { 
-    title: 'Financeiro', 
-    href: '/financeiro', 
-    icon: DollarSign,
-    permission: 'financial',
-    isNew: true
-  },
-  { 
-    title: 'Relatórios', 
-    href: '/relatorios', 
-    icon: BarChart3,
-    permission: 'reports'
-  },
-  // { 
-  //   title: 'Templates PDF', 
-  //   href: '/templates-pdf', 
-  //   icon: File,
-  //   permission: 'templates'
-  // },
-  { 
-    title: 'Logs', 
-    href: '/logs', 
-    icon: FileText,
-    permission: 'logs'
-  },
-  { 
-    title: 'Configurações', 
-    href: '/configuracoes', 
-    icon: Settings,
-    permission: 'settings'
-  },
-];
-
-const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+const Sidebar = () => {
   const location = useLocation();
-  
-  // Para desenvolvimento sem autenticação - mostrar todos os itens
-  const allowedItems = navigationItems;
+  const { isCollapsed, toggleSidebar, setIsCollapsed } = useSidebar();
+  const { profile } = useAuth();
+
+  const sidebarItems = [
+    {
+      title: "Dashboard",
+      url: "/dashboard",
+      icon: LayoutDashboard,
+    },
+    {
+      title: "Produtos",
+      url: "/products",
+      icon: ShoppingBag,
+    },
+    {
+      title: "Clientes",
+      url: "/customers",
+      icon: Users,
+    },
+    {
+      title: "Pedidos",
+      url: "/orders",
+      icon: ShoppingBag,
+    },
+    {
+      title: "POS",
+      url: "/pos",
+      icon: ShoppingBag,
+    },
+    {
+      title: "Maletas",
+      url: "/maletas",
+      icon: ShoppingBag,
+    },
+    {
+      title: "Relatórios",
+      url: "/reports",
+      icon: FileBarChart,
+    },
+    {
+      title: "Configurações",
+      url: "/settings",
+      icon: Settings,
+    },
+    {
+      title: "Fornecedores",
+      url: "/suppliers",
+      icon: UserPlus,
+    },
+    {
+      title: "Financeiro",
+      url: "/financeiro",
+      icon: Coins,
+    },
+    {
+      title: "Templates PDF",
+      url: "/pdf-templates",
+      icon: FileText,
+      roles: ["owner", "admin"] as const,
+    },
+    {
+      title: "Logs",
+      url: "/logs",
+      icon: ListChecks,
+      roles: ["owner", "admin"] as const,
+    },
+  ];
+
+  // Add Organizations to sidebar items after Reports
+  const updatedSidebarItems = [
+    ...sidebarItems.slice(0, 8), // Keep items up to Reports
+    {
+      title: "Organizações",
+      url: "/organizations",
+      icon: Building2,
+      roles: ["owner", "admin"] as const,
+    },
+    ...sidebarItems.slice(8), // Keep remaining items
+  ];
 
   return (
-    <div className={cn(
-      "bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all-smooth shadow-lg",
-      collapsed ? "w-16" : "w-64"
-    )}>
-      {/* Logo e Toggle */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
-        {!collapsed && (
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <ShoppingCart className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg text-foreground">
-              {localStorage.getItem('shop_name') || 'WooAdmin'}
-            </span>
-          </div>
-        )}
-        
-        <button
-          onClick={onToggle}
-          className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-all-smooth"
+    <div
+      className={cn(
+        "fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-card border-r transition-transform duration-300 ease-in-out",
+        isCollapsed ? "-translate-x-full" : "translate-x-0",
+        "lg:translate-x-0"
+      )}
+    >
+      <div className="flex h-16 items-center justify-between px-4 border-b">
+        <div className="flex items-center gap-2">
+          <Package className="h-6 w-6 text-primary" />
+          <span className="font-semibold">Sistema Gestão</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          className="lg:hidden"
         >
-          <Menu className="w-5 h-5" />
-        </button>
+          <X className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Navigation */}
-      <nav className="p-4 space-y-2">
-        {allowedItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = item.exact 
-            ? location.pathname === item.href
-            : location.pathname.startsWith(item.href);
+      {/* Organization Selector */}
+      <div className="px-2 py-2 border-b">
+        <OrganizationSelector />
+      </div>
 
-          return (
-            <NavLink
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center px-3 py-2.5 rounded-lg transition-all-smooth group relative",
-                "hover:bg-slate-100 dark:hover:bg-slate-700",
-                 isActive 
-                  ? "bg-primary text-primary-foreground shadow-lg" 
-                  : "text-slate-600 dark:text-slate-300"
-              )}
-            >
-              <Icon className={cn(
-                "w-5 h-5 transition-all-smooth",
-                collapsed ? "mx-auto" : "mr-3"
-              )} />
-              
-              {!collapsed && (
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{item.title}</span>
-                  {item.isNew && (
-                    <span className="px-1.5 py-0.5 text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300 rounded-full">
-                      novo
-                    </span>
-                  )}
-                </div>
-              )}
+      <ScrollArea className="flex-1 px-2 py-4">
+        <div className="space-y-1">
+          {updatedSidebarItems
+            .filter((item) => 
+              !item.roles || 
+              item.roles.includes(profile?.role as any)
+            )
+            .map((item) => (
+              <Link
+                key={item.url}
+                to={item.url}
+                className={cn(
+                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
+                  location.pathname === item.url
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground"
+                )}
+                onClick={() => setIsCollapsed(true)}
+              >
+                <item.icon className="h-4 w-4" />
+                {item.title}
+              </Link>
+            ))}
+        </div>
+      </ScrollArea>
 
-              {/* Tooltip para sidebar colapsada */}
-              {collapsed && (
-                <div className="absolute left-full ml-2 px-2 py-1 bg-slate-800 text-white text-sm rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                  {item.title}
-                </div>
-              )}
-
-              {/* Indicador ativo */}
-              {isActive && (
-                <div className="absolute right-2 w-2 h-2 bg-white rounded-full animate-pulse-soft" />
-              )}
-            </NavLink>
-          );
-        })}
-      </nav>
+      <div className="p-4 border-t">
+        <div className="mb-2 text-sm font-medium">
+          {profile?.name || "Usuário"}
+        </div>
+        <Link to="/settings">
+          <Button variant="outline" className="w-full">
+            <Settings className="h-4 w-4 mr-2" />
+            Configurações
+          </Button>
+        </Link>
+      </div>
     </div>
   );
 };
