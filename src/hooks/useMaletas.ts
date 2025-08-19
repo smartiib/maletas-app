@@ -4,7 +4,6 @@ import { maletasAPI, Maleta, Representative, CreateMaletaData, MaletaReturn, Com
 import { toast } from '@/hooks/use-toast';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
-import { supabase } from '@/integrations/supabase/client';
 
 // Maletas hooks with organization filtering
 export const useMaletas = (page = 1, status = '', representative_id = '') => {
@@ -13,47 +12,7 @@ export const useMaletas = (page = 1, status = '', representative_id = '') => {
 
   return useQuery({
     queryKey: ['maletas', currentOrganization?.id, page, status, representative_id],
-    queryFn: async () => {
-      if (!currentOrganization || !isConfigured) {
-        return { data: [], total: 0, pages: 0 };
-      }
-
-      // Use direct Supabase query with organization filtering
-      let query = supabase
-        .from('maletas')
-        .select(`
-          *,
-          representative:representatives(*)
-        `, { count: 'exact' })
-        .eq('organization_id', currentOrganization.id);
-
-      // Apply filters
-      if (status) {
-        query = query.eq('status', status);
-      }
-      
-      if (representative_id) {
-        query = query.eq('representative_id', representative_id);
-      }
-
-      // Apply pagination
-      const from = (page - 1) * 20;
-      const to = from + 19;
-      query = query.range(from, to).order('created_at', { ascending: false });
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('Erro ao buscar maletas:', error);
-        throw error;
-      }
-
-      return {
-        data: data || [],
-        total: count || 0,
-        pages: Math.ceil((count || 0) / 20)
-      };
-    },
+    queryFn: () => maletasAPI.getMaletas(page, status, representative_id),
     enabled: !!currentOrganization && isConfigured,
   });
 };
@@ -128,39 +87,7 @@ export const useRepresentatives = (page = 1, search = '') => {
 
   return useQuery({
     queryKey: ['representatives', currentOrganization?.id, page, search],
-    queryFn: async () => {
-      if (!currentOrganization || !isConfigured) {
-        return { data: [], total: 0, pages: 0 };
-      }
-
-      // Use direct Supabase query with organization filtering
-      let query = supabase
-        .from('representatives')
-        .select('*', { count: 'exact' })
-        .eq('organization_id', currentOrganization.id);
-
-      if (search) {
-        query = query.ilike('name', `%${search}%`);
-      }
-
-      // Apply pagination
-      const from = (page - 1) * 20;
-      const to = from + 19;
-      query = query.range(from, to).order('name');
-
-      const { data, error, count } = await query;
-
-      if (error) {
-        console.error('Erro ao buscar representantes:', error);
-        throw error;
-      }
-
-      return {
-        data: data || [],
-        total: count || 0,
-        pages: Math.ceil((count || 0) / 20)
-      };
-    },
+    queryFn: () => maletasAPI.getRepresentatives(page, search),
     enabled: !!currentOrganization && isConfigured,
   });
 };

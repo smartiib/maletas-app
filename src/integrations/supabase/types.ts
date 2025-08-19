@@ -252,6 +252,7 @@ export type Database = {
           number: string
           order_number: number | null
           order_url: string | null
+          organization_id: string | null
           representative_id: string
           return_date: string
           status: string
@@ -270,6 +271,7 @@ export type Database = {
           number: string
           order_number?: number | null
           order_url?: string | null
+          organization_id?: string | null
           representative_id: string
           return_date: string
           status?: string
@@ -288,6 +290,7 @@ export type Database = {
           number?: string
           order_number?: number | null
           order_url?: string | null
+          organization_id?: string | null
           representative_id?: string
           return_date?: string
           status?: string
@@ -295,6 +298,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "maletas_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "maletas_representative_id_fkey"
             columns: ["representative_id"]
@@ -861,6 +871,7 @@ export type Database = {
           email: string
           id: string
           name: string
+          organization_id: string | null
           phone: string | null
           referrer_id: string | null
           total_sales: number | null
@@ -872,6 +883,7 @@ export type Database = {
           email: string
           id?: string
           name: string
+          organization_id?: string | null
           phone?: string | null
           referrer_id?: string | null
           total_sales?: number | null
@@ -883,12 +895,20 @@ export type Database = {
           email?: string
           id?: string
           name?: string
+          organization_id?: string | null
           phone?: string | null
           referrer_id?: string | null
           total_sales?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "representatives_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "representatives_referrer_id_fkey"
             columns: ["referrer_id"]
