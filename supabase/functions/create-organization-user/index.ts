@@ -1,6 +1,6 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.2";
-import { hash } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import bcrypt from "npm:bcryptjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
       .select("id")
       .eq("user_id", authData.user.id)
       .eq("organization_id", organizationId)
-      .single();
+      .maybeSingle();
 
     if (userOrgError || !userOrg) {
       return new Response(JSON.stringify({ error: "Sem permissão para esta organização" }), {
@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
       .from("organization_users")
       .select("id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
 
     if (existingUser) {
       return new Response(JSON.stringify({ error: "E-mail já está em uso" }), {
@@ -82,8 +82,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Hash da senha
-    const passwordHash = await hash(password);
+    // Hash da senha (bcryptjs - compatível com Edge Functions)
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
 
     // Criar usuário da organização
     const { data: newUser, error: createError } = await admin
