@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import CustomerDialog from "@/components/customers/CustomerDialog";
 import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // ensure named import
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 
@@ -19,9 +18,9 @@ const Customers = () => {
   // Get organization first so we can pass its id to the hook
   const { currentOrganization, loading: orgLoading } = useOrganization();
 
-  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers(currentOrganization?.id ?? "");
+  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
   const { isConfigured } = useWooCommerceConfig();
-  const { viewMode } = useViewMode();
+  const { viewMode } = useViewMode('customers');
 
   const filteredCustomers = customers.filter((customer) =>
     customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -162,4 +161,3 @@ const Customers = () => {
 };
 
 export default Customers;
-

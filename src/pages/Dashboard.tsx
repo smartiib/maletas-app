@@ -1,4 +1,3 @@
-
 import KPICard from "@/components/dashboard/KPICard";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentActivity from "@/components/dashboard/RecentActivity";
@@ -10,7 +9,7 @@ import {
 } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState"; // fixed: named import
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 
@@ -18,10 +17,10 @@ const Dashboard = () => {
   // Get organization first so we can pass its id to the hooks
   const { currentOrganization, loading: orgLoading } = useOrganization();
 
-  // Pass organizationId expected by filtered hooks (fallback to empty string to satisfy types)
-  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts(currentOrganization?.id ?? "");
-  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders(currentOrganization?.id ?? "");
-  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers(currentOrganization?.id ?? "");
+  // These hooks use the organization context internally, no need to pass organizationId
+  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
+  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders();
+  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers();
 
   const { isConfigured } = useWooCommerceConfig();
   
@@ -129,4 +128,3 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
-
