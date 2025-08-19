@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +17,24 @@ import { ptBR } from 'date-fns/locale';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 
+// Type interfaces for type safety
+interface RepresentativeWithStats {
+  id: string;
+  name: string;
+  maletas: number;
+  returns: number;
+  totalValue: number;
+  commission: number;
+  orders: number;
+}
+
+interface PeriodData {
+  period: string;
+  sales: number;
+  commission: number;
+  returns: number;
+}
+
 const Reports = () => {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -28,7 +47,7 @@ const Reports = () => {
   const filteredMaletas = useMemo(() => {
     if (!dateFrom && !dateTo) return maletas;
     
-    return maletas.filter(maleta => {
+    return maletas.filter((maleta: any) => {
       const maletaDate = new Date(maleta.created_at);
       const fromDate = dateFrom ? new Date(dateFrom) : new Date('2000-01-01');
       const toDate = dateTo ? new Date(dateTo) : new Date();
@@ -40,7 +59,7 @@ const Reports = () => {
   const filteredReturns = useMemo(() => {
     if (!dateFrom && !dateTo) return returns;
     
-    return returns.filter(returnItem => {
+    return returns.filter((returnItem: any) => {
       const returnDate = new Date(returnItem.return_date);
       const fromDate = dateFrom ? new Date(dateFrom) : new Date('2000-01-01');
       const toDate = dateTo ? new Date(dateTo) : new Date();
@@ -51,7 +70,7 @@ const Reports = () => {
 
   // Análise de status das maletas
   const maletasStatusAnalysis = useMemo(() => {
-    const statusCount = filteredMaletas.reduce((acc, maleta) => {
+    const statusCount = filteredMaletas.reduce((acc: any, maleta: any) => {
       acc[maleta.status] = (acc[maleta.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -67,20 +86,20 @@ const Reports = () => {
 
   // Análise por representante (incluindo pedidos)
   const representativeAnalysis = useMemo(() => {
-    const repMap = representatives.reduce((acc, rep) => {
+    const repMap = representatives.reduce((acc: any, rep: any) => {
       acc[rep.id] = { ...rep, maletas: 0, returns: 0, totalValue: 0, commission: 0, orders: 0 };
       return acc;
     }, {} as Record<string, any>);
 
-    filteredMaletas.forEach(maleta => {
+    filteredMaletas.forEach((maleta: any) => {
       if (repMap[maleta.representative_id]) {
         repMap[maleta.representative_id].maletas += 1;
         repMap[maleta.representative_id].totalValue += Number(maleta.total_value) || 0;
       }
     });
 
-    filteredReturns.forEach(returnItem => {
-      const maleta = maletas.find(m => m.id === returnItem.maleta_id);
+    filteredReturns.forEach((returnItem: any) => {
+      const maleta = maletas.find((m: any) => m.id === returnItem.maleta_id);
       if (maleta && repMap[maleta.representative_id]) {
         repMap[maleta.representative_id].returns += 1;
         repMap[maleta.representative_id].commission += Number(returnItem.commission_amount) || 0;
@@ -92,12 +111,12 @@ const Reports = () => {
     // Para isso, seria necessário mapear pedidos aos representantes
     // Por ora, vamos focar nos dados das maletas
 
-    return Object.values(repMap).sort((a: any, b: any) => b.totalValue - a.totalValue);
+    return Object.values(repMap).sort((a: any, b: any) => b.totalValue - a.totalValue) as RepresentativeWithStats[];
   }, [representatives, filteredMaletas, filteredReturns, maletas]);
 
   // Análise de vendas por período
   const salesByPeriod = useMemo(() => {
-    const periodMap = filteredReturns.reduce((acc, returnItem) => {
+    const periodMap = filteredReturns.reduce((acc: any, returnItem: any) => {
       const date = new Date(returnItem.return_date);
       let key = '';
       
@@ -133,15 +152,15 @@ const Reports = () => {
 
     return Object.values(periodMap).sort((a: any, b: any) => 
       new Date(b.period).getTime() - new Date(a.period).getTime()
-    );
+    ) as PeriodData[];
   }, [filteredReturns, selectedPeriod]);
 
   // Métricas principais (incluindo pedidos WooCommerce)
-  const totalSalesFromReturns = filteredReturns.reduce((sum, returnItem) => sum + (Number(returnItem.final_amount) || 0), 0);
+  const totalSalesFromReturns = filteredReturns.reduce((sum: number, returnItem: any) => sum + (Number(returnItem.final_amount) || 0), 0);
   const totalSalesFromOrders = (orders || []).reduce((sum: number, order: any) => sum + (parseFloat(order.total || '0') || 0), 0);
   const totalSales = totalSalesFromReturns + totalSalesFromOrders;
   
-  const totalCommission = filteredReturns.reduce((sum, returnItem) => sum + (Number(returnItem.commission_amount) || 0), 0);
+  const totalCommission = filteredReturns.reduce((sum: number, returnItem: any) => sum + (Number(returnItem.commission_amount) || 0), 0);
   const totalTransactions = filteredReturns.length + (orders || []).length;
   const averageTicket = totalTransactions > 0 ? totalSales / totalTransactions : 0;
   const conversionRate = filteredMaletas.length > 0 ? (filteredReturns.length / filteredMaletas.length) * 100 : 0;
@@ -270,7 +289,7 @@ const Reports = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  {representatives.map(rep => (
+                  {representatives.map((rep: any) => (
                     <SelectItem key={rep.id} value={rep.id}>
                       {rep.name}
                     </SelectItem>
