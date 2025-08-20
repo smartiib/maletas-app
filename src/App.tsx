@@ -4,8 +4,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { OrganizationProvider } from '@/contexts/OrganizationContext';
 import { OrganizationAuthProvider } from '@/contexts/OrganizationAuthContext';
+import { OrganizationProvider } from '@/contexts/OrganizationContext';
 import ConfigGuard from '@/components/auth/ConfigGuard';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
@@ -115,9 +115,9 @@ function App() {
                     </ConfigGuard>
                   } />
                   <Route path="/settings" element={
-                    <ConfigGuard>
+                    <ProtectedRoute>
                       <DashboardLayout><Settings /></DashboardLayout>
-                    </ConfigGuard>
+                    </ProtectedRoute>
                   } />
                   <Route path="/logs" element={
                     <ConfigGuard>
