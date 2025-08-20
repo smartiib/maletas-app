@@ -27,7 +27,7 @@ interface OrganizationProviderProps {
 
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const { user } = useAuth();
-  const { isOrganizationAuthenticated } = useOrganizationAuthContext();
+  const { isOrganizationAuthenticated, organizationUser } = useOrganizationAuthContext();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +36,45 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
 
   const refreshOrganizations = async () => {
+    // Para usuários organizacionais, carregar apenas a organização deles
+    if (isOrganizationAuthenticated && organizationUser) {
+      console.log('Carregando organização para usuário organizacional...');
+      
+      try {
+        const { data, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', organizationUser.organization_id)
+          .single();
+
+        if (error) {
+          console.error('Erro ao buscar organização do usuário:', error);
+          setOrganizations([]);
+          setCurrentOrganization(null);
+          return;
+        }
+
+        console.log('Organização do usuário carregada:', data);
+        const userOrganization = {
+          id: data.id,
+          name: data.name,
+          slug: data.slug,
+          asaas_customer_id: data.asaas_customer_id
+        };
+        
+        setOrganizations([userOrganization]);
+        setCurrentOrganization(userOrganization);
+        
+      } catch (error) {
+        console.error('Erro ao buscar organização do usuário:', error);
+        setOrganizations([]);
+        setCurrentOrganization(null);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     // Apenas carregar organizações para super admin
     if (!user || !isSuperAdmin || isOrganizationAuthenticated) {
       setOrganizations([]);
@@ -77,8 +116,11 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   };
 
   useEffect(() => {
-    if (user && isSuperAdmin && !isOrganizationAuthenticated) {
-      // Tentar restaurar organização do localStorage primeiro
+    if (isOrganizationAuthenticated && organizationUser) {
+      // Para usuários organizacionais, carregar automaticamente sua organização
+      refreshOrganizations();
+    } else if (user && isSuperAdmin && !isOrganizationAuthenticated) {
+      // Tentar restaurar organização do localStorage primeiro para super admin
       const savedOrgId = localStorage.getItem('currentOrganizationId');
       
       if (savedOrgId) {
@@ -96,12 +138,12 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       
       refreshOrganizations();
     } else {
-      // Limpar dados para usuários organizacionais ou não autenticados
+      // Limpar dados para usuários não autenticados
       setOrganizations([]);
       setCurrentOrganization(null);
       setLoading(false);
     }
-  }, [user, isSuperAdmin, isOrganizationAuthenticated]);
+  }, [user, isSuperAdmin, isOrganizationAuthenticated, organizationUser]);
 
   const handleSetCurrentOrganization = (org: Organization) => {
     // Apenas super admin pode trocar organização
