@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -9,6 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
+  const { isOrganizationAuthenticated } = useOrganizationAuthContext();
 
   if (loading) {
     return (
@@ -18,7 +21,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  // Permitir acesso se está autenticado via Supabase OU via organização
+  if (!isAuthenticated && !isOrganizationAuthenticated) {
     return <Navigate to="/auth" replace />;
   }
 

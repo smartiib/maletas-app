@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 interface LoginData {
   email: string;
@@ -21,56 +20,46 @@ interface OrganizationUser {
 
 export function useOrganizationAuth() {
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const loginOrganizationUser = async (loginData: LoginData): Promise<OrganizationUser | null> => {
     setLoading(true);
     try {
+      console.log('[useOrganizationAuth] Tentando login com:', loginData.email);
+
       // Usar Edge Function para autenticar usuário da organização
       const { data: result, error } = await supabase.functions.invoke('authenticate-organization-user', {
         body: loginData
       });
 
+      console.log('[useOrganizationAuth] Resultado da Edge Function:', { result, error });
+
       if (error) {
-        console.error('Erro ao autenticar:', error);
-        toast({
-          title: 'Erro',
-          description: 'Falha na autenticação.',
-          variant: 'destructive',
-        });
+        console.error('[useOrganizationAuth] Erro na Edge Function:', error);
         return null;
       }
 
       if (!result?.success) {
-        toast({
-          title: 'Erro',
-          description: result?.error || 'Credenciais inválidas.',
-          variant: 'destructive',
-        });
+        console.log('[useOrganizationAuth] Login falhou:', result?.error || 'Credenciais inválidas');
         return null;
       }
 
       // Atualizar last_login
       if (result.user) {
-        await supabase
+        console.log('[useOrganizationAuth] Atualizando last_login para usuário:', result.user.id);
+        const { error: updateError } = await supabase
           .from('organization_users')
           .update({ last_login: new Date().toISOString() })
           .eq('id', result.user.id);
+
+        if (updateError) {
+          console.warn('[useOrganizationAuth] Erro ao atualizar last_login:', updateError);
+        }
       }
 
-      toast({
-        title: 'Sucesso',
-        description: 'Login realizado com sucesso!',
-      });
-
+      console.log('[useOrganizationAuth] Login bem-sucedido:', result.user);
       return result.user;
     } catch (error: any) {
-      console.error('Erro no login:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro inesperado no login.',
-        variant: 'destructive',
-      });
+      console.error('[useOrganizationAuth] Erro inesperado:', error);
       return null;
     } finally {
       setLoading(false);

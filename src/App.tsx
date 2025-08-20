@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
+import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OrganizationProvider } from '@/contexts/OrganizationContext';
+import { OrganizationAuthProvider } from '@/contexts/OrganizationAuthContext';
 import ConfigGuard from '@/components/auth/ConfigGuard';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
+// Import pages with default exports
 import Index from '@/pages/Index';
 import Auth from '@/pages/Auth';
 import Dashboard from '@/pages/Dashboard';
@@ -25,208 +26,117 @@ import Billing from '@/pages/Billing';
 import Settings from '@/pages/Settings';
 import Logs from '@/pages/Logs';
 import PdfTemplates from '@/pages/PdfTemplates';
+import Stock from '@/pages/Stock';
 import NotFound from '@/pages/NotFound';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import Stock from './pages/Stock';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 1,
+    },
+  },
+});
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <OrganizationProvider>
-          <Router>
-            <div className="min-h-screen bg-background">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route
-                  path="/dashboard"
-                  element={
+        <OrganizationAuthProvider>
+          <OrganizationProvider>
+            <Router>
+              <div className="min-h-screen bg-background">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<Auth />} />
+                  
+                  {/* Protected routes that need authentication but not necessarily config guard */}
+                  <Route path="/dashboard" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Dashboard />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Dashboard /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/products"
-                  element={
+                  } />
+                  <Route path="/products" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Products />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Products /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/stock"
-                  element={
+                  } />
+                  <Route path="/orders" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Stock />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Orders /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/orders"
-                  element={
+                  } />
+                  <Route path="/customers" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Orders />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Customers /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/customers"
-                  element={
+                  } />
+                  <Route path="/pos" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Customers />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><POS /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/pos"
-                  element={
+                  } />
+                  <Route path="/maletas" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <POS />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Maletas /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/maletas"
-                  element={
+                  } />
+                  <Route path="/financeiro" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Maletas />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Financeiro /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/financeiro"
-                  element={
+                  } />
+                  <Route path="/suppliers" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Financeiro />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Suppliers /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/suppliers"
-                  element={
+                  } />
+                  <Route path="/reports" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Suppliers />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Reports /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
+                  } />
+                  <Route path="/stock" element={
                     <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Reports />
-                        </DashboardLayout>
-                      </ConfigGuard>
+                      <DashboardLayout><Stock /></DashboardLayout>
                     </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/organizations"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Organizations />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/billing"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Billing />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Settings />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/logs"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Logs />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/pdf-templates"
-                  element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <PdfTemplates />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <Toaster />
-            </div>
-          </Router>
-        </OrganizationProvider>
+                  } />
+                  
+                  {/* Config-protected routes (only super admin) */}
+                  <Route path="/organizations" element={
+                    <ConfigGuard>
+                      <DashboardLayout><Organizations /></DashboardLayout>
+                    </ConfigGuard>
+                  } />
+                  <Route path="/billing" element={
+                    <ConfigGuard>
+                      <DashboardLayout><Billing /></DashboardLayout>
+                    </ConfigGuard>
+                  } />
+                  <Route path="/settings" element={
+                    <ConfigGuard>
+                      <DashboardLayout><Settings /></DashboardLayout>
+                    </ConfigGuard>
+                  } />
+                  <Route path="/logs" element={
+                    <ConfigGuard>
+                      <DashboardLayout><Logs /></DashboardLayout>
+                    </ConfigGuard>
+                  } />
+                  <Route path="/pdf-templates" element={
+                    <ConfigGuard>
+                      <DashboardLayout><PdfTemplates /></DashboardLayout>
+                    </ConfigGuard>
+                  } />
+                  
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+                <Toaster />
+              </div>
+            </Router>
+          </OrganizationProvider>
+        </OrganizationAuthProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

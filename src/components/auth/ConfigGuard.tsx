@@ -2,10 +2,11 @@
 import React from 'react';
 import { useMasterAuth } from '@/hooks/useMasterAuth';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertCircle, LogIn } from 'lucide-react';
+import { Shield, AlertCircle, LogIn, Building2 } from 'lucide-react';
 
 interface ConfigGuardProps {
   children: React.ReactNode;
@@ -13,15 +14,17 @@ interface ConfigGuardProps {
 
 const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
   const { isMasterAuthenticated, isLoading, loginMaster } = useMasterAuth();
-  // ADIÇÃO: incluir logout para permitir troca de conta
   const { user, isAuthenticated, loading, logout } = useAuth();
+  const { organizationUser, isOrganizationAuthenticated, logoutOrganization } = useOrganizationAuthContext();
 
   console.log('[ConfigGuard] Estado atual:', {
     isAuthenticated,
     loading,
     user: user?.email,
     isMasterAuthenticated,
-    isLoading
+    isLoading,
+    organizationUser: organizationUser?.email,
+    isOrganizationAuthenticated
   });
 
   // Se ainda está carregando a autenticação base, mostrar loading
@@ -34,8 +37,14 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
-  // Se não está autenticado no sistema base, redirecionar para login
-  if (!isAuthenticated || !user) {
+  // Verificar se é usuário organizacional autenticado
+  if (isOrganizationAuthenticated && organizationUser) {
+    console.log('[ConfigGuard] Usuário organizacional autenticado:', organizationUser.email);
+    return <>{children}</>;
+  }
+
+  // Se não está autenticado no sistema base E não é usuário organizacional, redirecionar para login
+  if (!isAuthenticated && !isOrganizationAuthenticated) {
     console.log('[ConfigGuard] Usuário não autenticado, redirecionando...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
@@ -83,9 +92,9 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     isMasterAuthenticated 
   });
 
-  // Se não é super admin, negar acesso
-  if (!isSuperAdmin) {
-    console.log('[ConfigGuard] Usuário não é super admin');
+  // Se é usuário Supabase mas não é super admin, negar acesso às configurações
+  if (isAuthenticated && !isSuperAdmin) {
+    console.log('[ConfigGuard] Usuário Supabase não é super admin');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
         <Card className="w-full max-w-md">
@@ -103,17 +112,28 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
                 Apenas o super administrador pode acessar as configurações do sistema.
               </AlertDescription>
             </Alert>
-            <div className="mt-4 text-center">
+            <div className="mt-4 space-y-2">
               <Button 
                 variant="outline"
-                // ALTERAÇÃO: forçar logout antes de ir para /auth para permitir troca de conta
                 onClick={async () => {
                   console.log('[ConfigGuard] Forçando logout para trocar de conta autorizada...');
                   await logout();
                   window.location.href = '/auth';
                 }}
+                className="w-full"
               >
                 Fazer Login com Conta Autorizada
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  console.log('[ConfigGuard] Redirecionando para login organizacional...');
+                  window.location.href = '/auth';
+                }}
+                className="w-full"
+              >
+                <Building2 className="mr-2 h-4 w-4" />
+                Login Organizacional
               </Button>
             </div>
           </CardContent>
@@ -123,7 +143,7 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
   }
 
   // Se é super admin mas não ativou o modo master, mostrar opção para ativar
-  if (!isMasterAuthenticated) {
+  if (isSuperAdmin && !isMasterAuthenticated) {
     console.log('[ConfigGuard] Super admin não ativou modo master');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
@@ -153,8 +173,8 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
-  // Se chegou até aqui, usuário está autenticado como super admin e ativou o modo master
-  console.log('[ConfigGuard] Acesso liberado para super admin');
+  // Se chegou até aqui, usuário tem acesso (super admin com modo master OU usuário organizacional)
+  console.log('[ConfigGuard] Acesso liberado');
   return <>{children}</>;
 };
 
