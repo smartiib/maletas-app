@@ -6,7 +6,7 @@ import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertCircle, LogIn, Building2 } from 'lucide-react';
+import { Shield, AlertCircle, LogIn } from 'lucide-react';
 
 interface ConfigGuardProps {
   children: React.ReactNode;
@@ -15,7 +15,7 @@ interface ConfigGuardProps {
 const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
   const { isMasterAuthenticated, isLoading, loginMaster } = useMasterAuth();
   const { user, isAuthenticated, loading, logout } = useAuth();
-  const { organizationUser, isOrganizationAuthenticated, logoutOrganization } = useOrganizationAuthContext();
+  const { organizationUser, isOrganizationAuthenticated } = useOrganizationAuthContext();
 
   console.log('[ConfigGuard] Estado atual:', {
     isAuthenticated,
@@ -37,10 +37,38 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
-  // Verificar se é usuário organizacional autenticado
+  // Verificar se é usuário organizacional autenticado - permitir acesso completo exceto às páginas de configuração
   if (isOrganizationAuthenticated && organizationUser) {
     console.log('[ConfigGuard] Usuário organizacional autenticado:', organizationUser.email);
-    return <>{children}</>;
+    // Usuários organizacionais NÃO podem acessar páginas de configuração (Organizations, Billing, Settings, Logs, PdfTemplates)
+    // Estas páginas são protegidas por este guard, então bloquear o acesso
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Shield className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <CardTitle>Acesso Restrito</CardTitle>
+            <CardDescription>
+              Esta área é restrita ao super administrador
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Apenas o super administrador pode acessar as configurações do sistema.
+              </AlertDescription>
+            </Alert>
+            <Button 
+              onClick={() => window.location.href = '/dashboard'} 
+              className="w-full mt-4"
+            >
+              Voltar ao Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Se não está autenticado no sistema base E não é usuário organizacional, redirecionar para login
@@ -112,30 +140,17 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
                 Apenas o super administrador pode acessar as configurações do sistema.
               </AlertDescription>
             </Alert>
-            <div className="mt-4 space-y-2">
-              <Button 
-                variant="outline"
-                onClick={async () => {
-                  console.log('[ConfigGuard] Forçando logout para trocar de conta autorizada...');
-                  await logout();
-                  window.location.href = '/auth';
-                }}
-                className="w-full"
-              >
-                Fazer Login com Conta Autorizada
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  console.log('[ConfigGuard] Redirecionando para login organizacional...');
-                  window.location.href = '/auth';
-                }}
-                className="w-full"
-              >
-                <Building2 className="mr-2 h-4 w-4" />
-                Login Organizacional
-              </Button>
-            </div>
+            <Button 
+              variant="outline"
+              onClick={async () => {
+                console.log('[ConfigGuard] Forçando logout para trocar de conta autorizada...');
+                await logout();
+                window.location.href = '/auth';
+              }}
+              className="w-full mt-4"
+            >
+              Fazer Login com Conta Autorizada
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -173,7 +188,7 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
-  // Se chegou até aqui, usuário tem acesso (super admin com modo master OU usuário organizacional)
+  // Se chegou até aqui, usuário tem acesso (super admin com modo master)
   console.log('[ConfigGuard] Acesso liberado');
   return <>{children}</>;
 };
