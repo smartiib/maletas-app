@@ -65,25 +65,8 @@ const Header = () => {
             <Menu className="h-4 w-4" />
           </Button>
           
-          {/* Logo e nome da organização */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-base">
-                {organizationName.charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-foreground">
-                {organizationName}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Painel Administrativo
-              </p>
-            </div>
-          </div>
-
           {/* Saudação simples - sem duplicar informações */}
-          <div className="hidden md:block ml-8">
+          <div className="hidden md:block">
             <h2 className="text-lg font-medium text-foreground">
               {getGreeting()}, {userName}! 👋
             </h2>
