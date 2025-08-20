@@ -51,8 +51,8 @@ const Header = () => {
   };
 
   return (
-    <header className="h-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-20 items-center justify-between px-6">
+    <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center justify-between px-6">
         <div className="flex items-center gap-6">
           <Button
             variant="ghost"
@@ -63,28 +63,28 @@ const Header = () => {
             <Menu className="h-4 w-4" />
           </Button>
           
-          {/* Logo e informações da organização */}
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-yellow-400 rounded-lg flex items-center justify-center">
-              <span className="text-black font-bold text-lg">A</span>
+          {/* Logo e nome da organização */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-sm">A</span>
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-foreground">
+              <h1 className="text-base font-semibold text-foreground">
                 {organizationName}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Painel Administrativo
               </p>
             </div>
           </div>
 
           {/* Saudação */}
-          <div className="hidden md:block">
-            <h2 className="text-xl font-medium text-foreground">
+          <div className="hidden md:block ml-8">
+            <h2 className="text-lg font-medium text-foreground">
               {getGreeting()}, {userName}! 👋
             </h2>
             <p className="text-sm text-muted-foreground">
-              Boa tarde, aqui está o resumo do seu negócio hoje
+              Aqui está o resumo do seu negócio hoje
             </p>
           </div>
         </div>
@@ -107,20 +107,20 @@ const Header = () => {
 
           {/* Toggle tema (se necessário) */}
           <Button variant="ghost" size="icon">
-            <div className="h-4 w-4 rounded-full bg-yellow-400"></div>
+            <div className="h-4 w-4 rounded-full bg-blue-600"></div>
           </Button>
 
           {/* Menu do usuário */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="flex items-center gap-2 px-3">
-                <div className="w-8 h-8 bg-yellow-400 rounded-full flex items-center justify-center">
-                  <span className="text-black font-medium text-sm">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-medium text-sm">
                     {userName.substring(0, 2).toUpperCase()}
                   </span>
                 </div>
                 <span className="hidden md:block font-medium">
-                  {userName.substring(0, 2).toUpperCase()}
+                  {userName.split(' ')[0]}
                 </span>
               </Button>
             </DropdownMenuTrigger>

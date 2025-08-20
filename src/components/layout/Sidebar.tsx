@@ -104,12 +104,12 @@ const Sidebar = () => {
       {/* Header com logo e nome da organização */}
       <div className="p-6 border-b">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
-            <span className="text-black font-bold">A</span>
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold">A</span>
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold truncate">
-              Agência2ub
+              {organizationName}
             </h2>
             <p className="text-sm text-muted-foreground">
               Painel Administrativo
@@ -128,7 +128,7 @@ const Sidebar = () => {
               className={cn(
                 "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
                 isActive(item.path)
-                  ? "bg-yellow-400 text-black font-medium"
+                  ? "bg-blue-600 text-white font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
@@ -152,7 +152,7 @@ const Sidebar = () => {
                   className={cn(
                     "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
                     isActive(item.path)
-                      ? "bg-yellow-400 text-black font-medium"
+                      ? "bg-blue-600 text-white font-medium"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -176,8 +176,8 @@ const Sidebar = () => {
         
         {/* Informações do usuário */}
         <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
-          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
-            <span className="text-black font-medium text-sm">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+            <span className="text-white font-medium text-sm">
               {userName.substring(0, 2).toUpperCase()}
             </span>
           </div>
