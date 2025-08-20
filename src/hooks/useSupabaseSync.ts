@@ -115,7 +115,7 @@ export const useSupabaseCategories = () => {
   });
 };
 
-// Hook para configurações de sincronização filtradas por organização
+// Hook para configurações de sincronização - agora funciona sem autenticação
 export const useSyncConfig = () => {
   const { currentOrganization } = useOrganization();
 
@@ -124,12 +124,43 @@ export const useSyncConfig = () => {
     queryFn: async () => {
       if (!currentOrganization) return [];
 
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Retornar configuração padrão do localStorage se não houver usuário
+        const localKey = `sync_config_${currentOrganization.id}`;
+        const localConfig = localStorage.getItem(localKey);
+        if (localConfig) {
+          try {
+            return JSON.parse(localConfig);
+          } catch (e) {
+            console.warn('Erro ao ler configuração de sync do localStorage:', e);
+          }
+        }
+        
+        // Configuração padrão
+        return [{
+          sync_type: 'products',
+          is_active: true,
+          sync_interval: 'manual',
+          auto_sync_enabled: false,
+          sync_on_startup: false,
+          config_data: {}
+        }];
+      }
+
       const { data, error } = await supabase
         .from('sync_config')
         .select('*')
+        .eq('user_id', user.id)
         .order('sync_type');
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar configuração de sync:', error);
+        return [];
+      }
+      
       return data || [];
     },
     enabled: !!currentOrganization
@@ -145,11 +176,40 @@ export const useSaveSyncConfig = () => {
     mutationFn: async (config: SyncConfig) => {
       if (!currentOrganization) throw new Error('Nenhuma organização selecionada');
 
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Salvar no localStorage se não houver usuário
+        const localKey = `sync_config_${currentOrganization.id}`;
+        const existingConfigs = localStorage.getItem(localKey);
+        let configs = [];
+        
+        if (existingConfigs) {
+          try {
+            configs = JSON.parse(existingConfigs);
+          } catch (e) {
+            configs = [];
+          }
+        }
+        
+        // Atualizar ou adicionar configuração
+        const existingIndex = configs.findIndex((c: any) => c.sync_type === config.sync_type);
+        if (existingIndex >= 0) {
+          configs[existingIndex] = config;
+        } else {
+          configs.push(config);
+        }
+        
+        localStorage.setItem(localKey, JSON.stringify(configs));
+        return config;
+      }
+
       const { data, error } = await supabase
         .from('sync_config')
         .upsert({
           ...config,
-          user_id: (await supabase.auth.getUser()).data.user?.id
+          user_id: user.id
         }, {
           onConflict: 'user_id,sync_type'
         })
@@ -169,7 +229,7 @@ export const useSaveSyncConfig = () => {
   });
 };
 
-// Hook para logs de sincronização filtrados por organização
+// Hook para logs de sincronização - funciona sem autenticação
 export const useSyncLogs = (syncType?: string, limit = 50) => {
   const { currentOrganization } = useOrganization();
 
@@ -177,6 +237,27 @@ export const useSyncLogs = (syncType?: string, limit = 50) => {
     queryKey: ['sync-logs', currentOrganization?.id, syncType, limit],
     queryFn: async () => {
       if (!currentOrganization) return [];
+
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        // Retornar logs do localStorage se disponível
+        const localKey = `sync_logs_${currentOrganization.id}`;
+        const localLogs = localStorage.getItem(localKey);
+        if (localLogs) {
+          try {
+            let logs = JSON.parse(localLogs);
+            if (syncType) {
+              logs = logs.filter((log: any) => log.sync_type === syncType);
+            }
+            return logs.slice(0, limit);
+          } catch (e) {
+            console.warn('Erro ao ler logs do localStorage:', e);
+          }
+        }
+        return [];
+      }
 
       let query = supabase
         .from('sync_logs')
@@ -191,7 +272,11 @@ export const useSyncLogs = (syncType?: string, limit = 50) => {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error && error.code !== 'PGRST116') {
+        console.error('Erro ao buscar logs:', error);
+        return [];
+      }
+      
       return data || [];
     },
     enabled: !!currentOrganization
@@ -217,7 +302,17 @@ export const useManualSync = () => {
       if (!currentOrganization) throw new Error('Nenhuma organização selecionada');
 
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Usuário não autenticado');
+      if (!session) {
+        // Para usuários não autenticados, simular uma sincronização
+        const mockResult = {
+          success: false,
+          message: 'Sincronização requer autenticação. Configure o WooCommerce e faça login para usar esta funcionalidade.',
+          items_processed: 0,
+          items_failed: 0,
+          duration_ms: 0
+        };
+        throw new Error(mockResult.message);
+      }
 
       const response = await supabase.functions.invoke('wc-sync', {
         body: {
@@ -236,41 +331,16 @@ export const useManualSync = () => {
       return response.data;
     },
     onSuccess: (data) => {
-      // Invalidar TODAS as queries relacionadas para forçar atualização
-      queryClient.invalidateQueries({ 
-        queryKey: ['supabase-products'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['supabase-categories'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['supabase-orders'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['supabase-customers'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['sync-logs'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['sync-config'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['sync-stats'],
-        refetchType: 'all'
-      });
-      queryClient.invalidateQueries({ 
-        queryKey: ['sync-status'],
-        refetchType: 'all'
-      });
+      // Invalidar queries relacionadas
+      queryClient.invalidateQueries({ queryKey: ['supabase-products'] });
+      queryClient.invalidateQueries({ queryKey: ['supabase-categories'] });
+      queryClient.invalidateQueries({ queryKey: ['supabase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['supabase-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-config'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['sync-status'] });
 
-      // Aguardar um pouco antes de mostrar a mensagem para garantir que as queries foram atualizadas
       setTimeout(() => {
         if (data.success) {
           toast.success(`Sincronização concluída! ${data.items_processed} itens processados`);
@@ -285,7 +355,7 @@ export const useManualSync = () => {
   });
 };
 
-// Hook para obter estatísticas de sincronização filtradas por organização
+// Hook para obter estatísticas de sincronização
 export const useSyncStats = () => {
   const { currentOrganization } = useOrganization();
 
@@ -304,67 +374,72 @@ export const useSyncStats = () => {
         };
       }
 
-      // Buscar contagem de produtos
-      const { count: productsCount } = await supabase
-        .from('wc_products')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', currentOrganization.id);
+      try {
+        // Buscar contagem de produtos
+        const { count: productsCount } = await supabase
+          .from('wc_products')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
 
-      // Buscar contagem de categorias
-      const { count: categoriesCount } = await supabase
-        .from('wc_product_categories')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', currentOrganization.id);
+        // Buscar contagem de categorias
+        const { count: categoriesCount } = await supabase
+          .from('wc_product_categories')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
 
-      // Buscar contagem de pedidos
-      const { count: ordersCount } = await supabase
-        .from('wc_orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', currentOrganization.id);
+        // Buscar contagem de pedidos
+        const { count: ordersCount } = await supabase
+          .from('wc_orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
 
-      // Buscar contagem de clientes
-      const { count: customersCount } = await supabase
-        .from('wc_customers')
-        .select('*', { count: 'exact', head: true })
-        .eq('organization_id', currentOrganization.id);
+        // Buscar contagem de clientes
+        const { count: customersCount } = await supabase
+          .from('wc_customers')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
 
-      // Buscar última sincronização (pode não existir -> usar maybeSingle para evitar 406)
-      const { data: lastSync, error: lastSyncError } = await supabase
-        .from('sync_logs')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('operation', 'sync_completed')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        // Buscar última sincronização
+        const { data: lastSync } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .eq('organization_id', currentOrganization.id)
+          .eq('operation', 'sync_completed')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (lastSyncError) {
-        console.warn('[useSyncStats] lastSync maybeSingle error:', lastSyncError);
+        // Buscar configurações ativas
+        const { data: activeConfigs } = await supabase
+          .from('sync_config')
+          .select('*')
+          .eq('is_active', true);
+
+        return {
+          products_count: productsCount || 0,
+          categories_count: categoriesCount || 0,
+          orders_count: ordersCount || 0,
+          customers_count: customersCount || 0,
+          last_sync: lastSync || null,
+          active_configs: activeConfigs || [],
+          last_sync_time: lastSync?.created_at ? new Date(lastSync.created_at) : null
+        };
+      } catch (error) {
+        console.error('Erro ao buscar estatísticas:', error);
+        return {
+          products_count: 0,
+          categories_count: 0,
+          orders_count: 0,
+          customers_count: 0,
+          last_sync: null,
+          active_configs: [],
+          last_sync_time: null
+        };
       }
-
-      // Buscar configurações ativas
-      const { data: activeConfigs, error: activeConfigsError } = await supabase
-        .from('sync_config')
-        .select('*')
-        .eq('is_active', true);
-
-      if (activeConfigsError) {
-        console.warn('[useSyncStats] activeConfigs error:', activeConfigsError);
-      }
-
-      return {
-        products_count: productsCount || 0,
-        categories_count: categoriesCount || 0,
-        orders_count: ordersCount || 0,
-        customers_count: customersCount || 0,
-        last_sync: lastSync || null,
-        active_configs: activeConfigs || [],
-        last_sync_time: lastSync?.created_at ? new Date(lastSync.created_at) : null
-      };
     },
     enabled: !!currentOrganization,
-    staleTime: 0, // Sempre buscar dados frescos
-    gcTime: 0 // Não manter em cache
+    staleTime: 0,
+    gcTime: 0
   });
 };
 
@@ -379,47 +454,43 @@ export const useSyncStatus = () => {
         return { is_syncing: false };
       }
 
-      // Pode não haver sync_started -> usar maybeSingle para evitar 406
-      const { data, error } = await supabase
-        .from('sync_logs')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('operation', 'sync_started')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      try {
+        const { data } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .eq('organization_id', currentOrganization.id)
+          .eq('operation', 'sync_started')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (error) {
-        console.warn('[useSyncStatus] sync_started maybeSingle error:', error);
-      }
+        if (!data) {
+          return { is_syncing: false };
+        }
 
-      if (!data) {
+        // Verificar se há um sync_completed correspondente
+        const { data: completed } = await supabase
+          .from('sync_logs')
+          .select('*')
+          .eq('organization_id', currentOrganization.id)
+          .eq('sync_type', data.sync_type)
+          .in('operation', ['sync_completed', 'sync_error'])
+          .gte('created_at', data.created_at)
+          .limit(1)
+          .maybeSingle();
+
+        return {
+          is_syncing: !completed,
+          current_sync: data,
+          started_at: data.created_at
+        };
+      } catch (error) {
+        console.error('Erro ao verificar status de sync:', error);
         return { is_syncing: false };
       }
-
-      // Verificar se há um sync_completed correspondente (pode não existir ainda)
-      const { data: completed, error: completedError } = await supabase
-        .from('sync_logs')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
-        .eq('sync_type', data.sync_type)
-        .in('operation', ['sync_completed', 'sync_error'])
-        .gte('created_at', data.created_at)
-        .limit(1)
-        .maybeSingle();
-
-      if (completedError) {
-        console.warn('[useSyncStatus] completed maybeSingle error:', completedError);
-      }
-
-      return {
-        is_syncing: !completed,
-        current_sync: data,
-        started_at: data.created_at
-      };
     },
     enabled: !!currentOrganization,
-    refetchInterval: 5000 // Verificar a cada 5 segundos
+    refetchInterval: 5000
   });
 };
 
@@ -709,6 +780,43 @@ export function useSupabaseSync() {
     if (!currentOrganization) return;
 
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        // Salvar log no localStorage se não houver usuário
+        const localKey = `sync_logs_${currentOrganization.id}`;
+        const existingLogs = localStorage.getItem(localKey);
+        let logs = [];
+        
+        if (existingLogs) {
+          try {
+            logs = JSON.parse(existingLogs);
+          } catch (e) {
+            logs = [];
+          }
+        }
+        
+        logs.unshift({
+          id: Date.now().toString(),
+          sync_type: syncType,
+          operation,
+          status,
+          message,
+          details: details || {},
+          items_processed: itemsProcessed,
+          items_failed: itemsFailed,
+          duration_ms: durationMs,
+          created_at: new Date().toISOString()
+        });
+        
+        // Manter apenas os últimos 50 logs
+        if (logs.length > 50) {
+          logs = logs.slice(0, 50);
+        }
+        
+        localStorage.setItem(localKey, JSON.stringify(logs));
+        return;
+      }
+
       await supabase.from('sync_logs').insert({
         sync_type: syncType,
         operation,
@@ -718,7 +826,7 @@ export function useSupabaseSync() {
         items_processed: itemsProcessed,
         items_failed: itemsFailed,
         duration_ms: durationMs,
-        user_id: (await supabase.auth.getUser()).data.user?.id,
+        user_id: user.id,
         organization_id: currentOrganization.id,
       });
     } catch (error) {
