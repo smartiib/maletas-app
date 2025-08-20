@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, User, Mail, Calendar } from 'lucide-react';
+import { Plus, User, Mail, Calendar, Edit, Trash2, Key } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -15,6 +15,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useForm } from 'react-hook-form';
 
@@ -36,18 +47,36 @@ interface CreateUserFormData {
   confirmPassword: string;
 }
 
+interface EditUserFormData {
+  name: string;
+  email: string;
+}
+
+interface ChangePasswordFormData {
+  newPassword: string;
+  confirmPassword: string;
+}
+
 interface OrganizationUsersManagerProps {
   organizationId: string;
 }
 
 export function OrganizationUsersManager({ organizationId }: OrganizationUsersManagerProps) {
   const [users, setUsers] = useState<OrganizationUser[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<OrganizationUser | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const { createUser, loadUsers, updateUserStatus, loading } = useOrganizationUsers();
+  
+  const { createUser, updateUser, changePassword, deleteUser, loadUsers, updateUserStatus, loading } = useOrganizationUsers();
 
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<CreateUserFormData>();
-  const password = watch('password');
+  const { register: registerCreate, handleSubmit: handleCreateSubmit, formState: { errors: createErrors }, reset: resetCreate, watch: watchCreate } = useForm<CreateUserFormData>();
+  const { register: registerEdit, handleSubmit: handleEditSubmit, formState: { errors: editErrors }, reset: resetEdit, setValue: setEditValue } = useForm<EditUserFormData>();
+  const { register: registerPassword, handleSubmit: handlePasswordSubmit, formState: { errors: passwordErrors }, reset: resetPassword, watch: watchPassword } = useForm<ChangePasswordFormData>();
+
+  const createPassword = watchCreate('password');
+  const newPassword = watchPassword('newPassword');
 
   const loadOrganizationUsers = async () => {
     setLoadingUsers(true);
@@ -62,7 +91,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
     }
   }, [organizationId]);
 
-  const onSubmit = async (data: CreateUserFormData) => {
+  const onCreateSubmit = async (data: CreateUserFormData) => {
     if (data.password !== data.confirmPassword) {
       return;
     }
@@ -74,8 +103,59 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
     });
 
     if (success) {
-      setIsDialogOpen(false);
-      reset();
+      setIsCreateDialogOpen(false);
+      resetCreate();
+      await loadOrganizationUsers();
+    }
+  };
+
+  const onEditSubmit = async (data: EditUserFormData) => {
+    if (!editingUser) return;
+
+    const success = await updateUser(editingUser.id, {
+      name: data.name,
+      email: data.email,
+    });
+
+    if (success) {
+      setIsEditDialogOpen(false);
+      setEditingUser(null);
+      resetEdit();
+      await loadOrganizationUsers();
+    }
+  };
+
+  const onPasswordSubmit = async (data: ChangePasswordFormData) => {
+    if (!editingUser) return;
+    if (data.newPassword !== data.confirmPassword) return;
+
+    const success = await changePassword({
+      userId: editingUser.id,
+      newPassword: data.newPassword,
+    });
+
+    if (success) {
+      setIsPasswordDialogOpen(false);
+      setEditingUser(null);
+      resetPassword();
+    }
+  };
+
+  const handleEditUser = (user: OrganizationUser) => {
+    setEditingUser(user);
+    setEditValue('name', user.name);
+    setEditValue('email', user.email);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleChangePassword = (user: OrganizationUser) => {
+    setEditingUser(user);
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handleDeleteUser = async (user: OrganizationUser) => {
+    const success = await deleteUser(user.id);
+    if (success) {
       await loadOrganizationUsers();
     }
   };
@@ -97,7 +177,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
               Gerencie os usuários que podem acessar esta organização
             </CardDescription>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4 mr-2" />
@@ -111,16 +191,16 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                   Crie um novo usuário para esta organização
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={handleCreateSubmit(onCreateSubmit)} className="space-y-4">
                 <div>
                   <Label htmlFor="name">Nome Completo</Label>
                   <Input
                     id="name"
-                    {...register('name', { required: 'Nome é obrigatório' })}
+                    {...registerCreate('name', { required: 'Nome é obrigatório' })}
                     placeholder="João Silva"
                   />
-                  {errors.name && (
-                    <p className="text-sm text-destructive mt-1">{errors.name.message}</p>
+                  {createErrors.name && (
+                    <p className="text-sm text-destructive mt-1">{createErrors.name.message}</p>
                   )}
                 </div>
 
@@ -129,7 +209,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                   <Input
                     id="email"
                     type="email"
-                    {...register('email', { 
+                    {...registerCreate('email', { 
                       required: 'E-mail é obrigatório',
                       pattern: {
                         value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
@@ -138,8 +218,8 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                     })}
                     placeholder="joao@exemplo.com"
                   />
-                  {errors.email && (
-                    <p className="text-sm text-destructive mt-1">{errors.email.message}</p>
+                  {createErrors.email && (
+                    <p className="text-sm text-destructive mt-1">{createErrors.email.message}</p>
                   )}
                 </div>
 
@@ -148,7 +228,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                   <Input
                     id="password"
                     type="password"
-                    {...register('password', { 
+                    {...registerCreate('password', { 
                       required: 'Senha é obrigatória',
                       minLength: {
                         value: 6,
@@ -157,8 +237,8 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                     })}
                     placeholder="••••••••"
                   />
-                  {errors.password && (
-                    <p className="text-sm text-destructive mt-1">{errors.password.message}</p>
+                  {createErrors.password && (
+                    <p className="text-sm text-destructive mt-1">{createErrors.password.message}</p>
                   )}
                 </div>
 
@@ -167,19 +247,19 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                   <Input
                     id="confirmPassword"
                     type="password"
-                    {...register('confirmPassword', { 
+                    {...registerCreate('confirmPassword', { 
                       required: 'Confirmação de senha é obrigatória',
-                      validate: (value) => value === password || 'Senhas não coincidem'
+                      validate: (value) => value === createPassword || 'Senhas não coincidem'
                     })}
                     placeholder="••••••••"
                   />
-                  {errors.confirmPassword && (
-                    <p className="text-sm text-destructive mt-1">{errors.confirmPassword.message}</p>
+                  {createErrors.confirmPassword && (
+                    <p className="text-sm text-destructive mt-1">{createErrors.confirmPassword.message}</p>
                   )}
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                     Cancelar
                   </Button>
                   <Button type="submit" disabled={loading}>
@@ -191,6 +271,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
           </Dialog>
         </div>
       </CardHeader>
+      
       <CardContent>
         {loadingUsers ? (
           <div className="space-y-4">
@@ -231,15 +312,177 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                     </div>
                   </div>
                 </div>
-                <Switch
-                  checked={user.is_active}
-                  onCheckedChange={(checked) => handleUserStatusToggle(user.id, checked)}
-                />
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleEditUser(user)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleChangePassword(user)}
+                  >
+                    <Key className="h-4 w-4" />
+                  </Button>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tem certeza que deseja excluir o usuário "{user.name}"? Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDeleteUser(user)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
+                  <Switch
+                    checked={user.is_active}
+                    onCheckedChange={(checked) => handleUserStatusToggle(user.id, checked)}
+                  />
+                </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      {/* Dialog para Editar Usuário */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Edite as informações do usuário
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Nome Completo</Label>
+              <Input
+                id="edit-name"
+                {...registerEdit('name', { required: 'Nome é obrigatório' })}
+                placeholder="João Silva"
+              />
+              {editErrors.name && (
+                <p className="text-sm text-destructive mt-1">{editErrors.name.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="edit-email">E-mail</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                {...registerEdit('email', { 
+                  required: 'E-mail é obrigatório',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'E-mail inválido'
+                  }
+                })}
+                placeholder="joao@exemplo.com"
+              />
+              {editErrors.email && (
+                <p className="text-sm text-destructive mt-1">{editErrors.email.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => {
+                setIsEditDialogOpen(false);
+                setEditingUser(null);
+                resetEdit();
+              }}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Alterar Senha */}
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Alterar Senha</DialogTitle>
+            <DialogDescription>
+              Defina uma nova senha para o usuário "{editingUser?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handlePasswordSubmit(onPasswordSubmit)} className="space-y-4">
+            <div>
+              <Label htmlFor="newPassword">Nova Senha</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                {...registerPassword('newPassword', { 
+                  required: 'Nova senha é obrigatória',
+                  minLength: {
+                    value: 6,
+                    message: 'Senha deve ter pelo menos 6 caracteres'
+                  }
+                })}
+                placeholder="••••••••"
+              />
+              {passwordErrors.newPassword && (
+                <p className="text-sm text-destructive mt-1">{passwordErrors.newPassword.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
+              <Input
+                id="confirmNewPassword"
+                type="password"
+                {...registerPassword('confirmPassword', { 
+                  required: 'Confirmação de senha é obrigatória',
+                  validate: (value) => value === newPassword || 'Senhas não coincidem'
+                })}
+                placeholder="••••••••"
+              />
+              {passwordErrors.confirmPassword && (
+                <p className="text-sm text-destructive mt-1">{passwordErrors.confirmPassword.message}</p>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => {
+                setIsPasswordDialogOpen(false);
+                setEditingUser(null);
+                resetPassword();
+              }}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? 'Alterando...' : 'Alterar Senha'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

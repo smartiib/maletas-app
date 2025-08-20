@@ -20,6 +20,17 @@ interface CreateOrganizationUserData {
   password: string;
 }
 
+interface UpdateOrganizationUserData {
+  email?: string;
+  name?: string;
+  is_active?: boolean;
+}
+
+interface ChangePasswordData {
+  userId: string;
+  newPassword: string;
+}
+
 export function useOrganizationUsers() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -27,7 +38,6 @@ export function useOrganizationUsers() {
   const createUser = async (organizationId: string, userData: CreateOrganizationUserData): Promise<boolean> => {
     setLoading(true);
     try {
-      // Usar Edge Function para criar usuário com hash da senha
       const { data: result, error } = await supabase.functions.invoke('create-organization-user', {
         body: {
           organizationId,
@@ -75,10 +85,138 @@ export function useOrganizationUsers() {
     }
   };
 
+  const updateUser = async (userId: string, userData: UpdateOrganizationUserData): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('organization_users')
+        .update(userData)
+        .eq('id', userId);
+
+      if (error) {
+        console.error('Erro ao atualizar usuário:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao atualizar usuário.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário atualizado com sucesso!',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao atualizar usuário:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro inesperado ao atualizar usuário.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const changePassword = async (data: ChangePasswordData): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const { data: result, error } = await supabase.functions.invoke('change-organization-user-password', {
+        body: data
+      });
+
+      if (error) {
+        console.error('Erro ao alterar senha:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao alterar senha.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      if (!result?.success) {
+        toast({
+          title: 'Erro',
+          description: result?.error || 'Erro ao alterar senha.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Senha alterada com sucesso!',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao alterar senha:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro inesperado ao alterar senha.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    setLoading(true);
+    try {
+      // Usar Edge Function para deletar usuário (evita problemas com RLS)
+      const { data: result, error } = await supabase.functions.invoke('delete-organization-user', {
+        body: { userId }
+      });
+
+      if (error) {
+        console.error('Erro ao excluir usuário:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao excluir usuário.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      if (!result?.success) {
+        toast({
+          title: 'Erro',
+          description: result?.error || 'Erro ao excluir usuário.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: 'Usuário excluído com sucesso!',
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Erro ao excluir usuário:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro inesperado ao excluir usuário.',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadUsers = async (organizationId: string): Promise<OrganizationUser[]> => {
     try {
       const { data, error } = await supabase
-        .from('organization_users' as any)
+        .from('organization_users')
         .select('*')
         .eq('organization_id', organizationId)
         .order('name');
@@ -98,7 +236,7 @@ export function useOrganizationUsers() {
   const updateUserStatus = async (userId: string, isActive: boolean): Promise<boolean> => {
     try {
       const { error } = await supabase
-        .from('organization_users' as any)
+        .from('organization_users')
         .update({ is_active: isActive })
         .eq('id', userId);
 
@@ -126,6 +264,9 @@ export function useOrganizationUsers() {
 
   return {
     createUser,
+    updateUser,
+    changePassword,
+    deleteUser,
     loadUsers,
     updateUserStatus,
     loading,
