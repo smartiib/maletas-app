@@ -1,171 +1,118 @@
-
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useOrganizationPages } from '@/hooks/useOrganizationPages';
 import {
-  Package,
   LayoutDashboard,
+  Package,
+  ShoppingCart,
   Users,
-  ShoppingBag,
-  ListChecks,
-  FileBarChart,
-  Settings,
-  UserPlus,
-  Coins,
-  FileText,
+  CreditCard,
+  Briefcase,
+  DollarSign,
+  Truck,
+  BarChart3,
   Building2,
-  X,
-} from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSidebar } from "@/hooks/useSidebar";
-import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
-import { OrganizationSelector } from './OrganizationSelector';
+  Settings,
+  FileText,
+  FileImage,
+  Package2
+} from 'lucide-react';
+import { OrganizationSelector } from '@/components/organization/OrganizationSelector';
 
 const Sidebar = () => {
   const location = useLocation();
-  const { isCollapsed, toggleSidebar, setIsCollapsed } = useSidebar();
-  const { profile } = useAuth();
-
-  const sidebarItems = [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: LayoutDashboard,
-    },
-    {
-      title: "Produtos",
-      url: "/products",
-      icon: ShoppingBag,
-    },
-    {
-      title: "Clientes",
-      url: "/customers",
-      icon: Users,
-    },
-    {
-      title: "Pedidos",
-      url: "/orders",
-      icon: ShoppingBag,
-    },
-    {
-      title: "POS",
-      url: "/pos",
-      icon: ShoppingBag,
-    },
-    {
-      title: "Maletas",
-      url: "/maletas",
-      icon: ShoppingBag,
-    },
-    {
-      title: "Relatórios",
-      url: "/reports",
-      icon: FileBarChart,
-    },
-    {
-      title: "Configurações",
-      url: "/settings",
-      icon: Settings,
-    },
-    {
-      title: "Fornecedores",
-      url: "/suppliers",
-      icon: UserPlus,
-    },
-    {
-      title: "Financeiro",
-      url: "/financeiro",
-      icon: Coins,
-    },
-    {
-      title: "Templates PDF",
-      url: "/pdf-templates",
-      icon: FileText,
-      roles: ["owner", "admin"] as const,
-    },
-    {
-      title: "Logs",
-      url: "/logs",
-      icon: ListChecks,
-      roles: ["owner", "admin"] as const,
-    },
+  const { currentOrganization } = useOrganization();
+  const { enabledPages } = useOrganizationPages();
+  
+  const isActive = (path: string) => location.pathname === path;
+  
+  const menuItems = [
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard' },
+    { path: '/products', label: 'Produtos', icon: Package, key: 'products' },
+    { path: '/stock', label: 'Estoque', icon: Package2, key: 'stock' },
+    { path: '/orders', label: 'Pedidos', icon: ShoppingCart, key: 'orders' },
+    { path: '/customers', label: 'Clientes', icon: Users, key: 'customers' },
+    { path: '/pos', label: 'PDV', icon: CreditCard, key: 'pos' },
+    { path: '/maletas', label: 'Maletas', icon: Briefcase, key: 'maletas' },
+    { path: '/financeiro', label: 'Financeiro', icon: DollarSign, key: 'financeiro' },
+    { path: '/suppliers', label: 'Fornecedores', icon: Truck, key: 'suppliers' },
+    { path: '/reports', label: 'Relatórios', icon: BarChart3, key: 'reports' },
   ];
 
-  // Add Organizations to sidebar items after Reports
-  const updatedSidebarItems = [
-    ...sidebarItems.slice(0, 8), // Keep items up to Reports
-    {
-      title: "Organizações",
-      url: "/organizations",
-      icon: Building2,
-      roles: ["owner", "admin"] as const,
-    },
-    ...sidebarItems.slice(8), // Keep remaining items
+  const adminMenuItems = [
+    { path: '/organizations', label: 'Organizações', icon: Building2, key: 'organizations' },
+    { path: '/billing', label: 'Faturamento', icon: CreditCard, key: 'billing' },
+    { path: '/settings', label: 'Configurações', icon: Settings, key: 'settings' },
+    { path: '/logs', label: 'Logs', icon: FileText, key: 'logs' },
+    { path: '/pdf-templates', label: 'Templates PDF', icon: FileImage, key: 'pdf_templates' },
   ];
+
+  const filteredMenuItems = menuItems.filter(item => enabledPages.includes(item.key));
 
   return (
-    <div
-      className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 flex flex-col bg-card border-r transition-transform duration-300 ease-in-out",
-        isCollapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0"
-      )}
-    >
-      <div className="flex h-16 items-center justify-between px-4 border-b">
-        <div className="flex items-center gap-2">
-          <Package className="h-6 w-6 text-primary" />
-          <span className="font-semibold">Sistema Gestão</span>
+    <div className="hidden lg:flex h-full w-64 flex-col fixed left-0 top-0 z-50 bg-background border-r">
+      {/* Header with organization name */}
+      <div className="p-6 border-b">
+        <div className="flex items-center space-x-2">
+          <Package className="w-8 h-8 text-primary" />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold truncate">
+              {currentOrganization?.name || 'Sistema'}
+            </h2>
+          </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-          className="lg:hidden"
-        >
-          <X className="h-4 w-4" />
-        </Button>
       </div>
 
-      {/* Organization Selector */}
-      <div className="px-2 py-2 border-b">
-        <OrganizationSelector />
-      </div>
+      {/* Navigation */}
+      <nav className="flex-1 overflow-auto p-4">
+        <div className="space-y-2">
+          {filteredMenuItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={cn(
+                "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
+                isActive(item.path)
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+              )}
+            >
+              <item.icon className="w-5 h-5" />
+              <span className="truncate">{item.label}</span>
+            </Link>
+          ))}
+        </div>
 
-      <ScrollArea className="flex-1 px-2 py-4">
-        <div className="space-y-1">
-          {updatedSidebarItems
-            .filter((item) => 
-              !item.roles || 
-              item.roles.includes(profile?.role as any)
-            )
-            .map((item) => (
+        {/* Admin section */}
+        <div className="mt-8">
+          <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            Administração
+          </div>
+          <div className="space-y-1 mt-2">
+            {adminMenuItems.map((item) => (
               <Link
-                key={item.url}
-                to={item.url}
+                key={item.path}
+                to={item.path}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground",
-                  location.pathname === item.url
+                  "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
+                  isActive(item.path)
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
                 )}
-                onClick={() => setIsCollapsed(true)}
               >
-                <item.icon className="h-4 w-4" />
-                {item.title}
+                <item.icon className="w-5 h-5" />
+                <span className="truncate">{item.label}</span>
               </Link>
             ))}
+          </div>
         </div>
-      </ScrollArea>
+      </nav>
 
+      {/* Footer */}
       <div className="p-4 border-t">
-        <div className="mb-2 text-sm font-medium">
-          {profile?.name || "Usuário"}
-        </div>
-        <Link to="/settings">
-          <Button variant="outline" className="w-full">
-            <Settings className="h-4 w-4 mr-2" />
-            Configurações
-          </Button>
-        </Link>
+        <OrganizationSelector />
       </div>
     </div>
   );
