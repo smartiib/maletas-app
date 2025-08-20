@@ -28,11 +28,20 @@ export const useWooCommerceConfig = () => {
     queryFn: async () => {
       if (!currentOrganization) return null;
 
+      // Verificar se há usuário autenticado
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('Nenhum usuário autenticado encontrado');
+        return null;
+      }
+
+      console.log('Buscando configuração WooCommerce para usuário:', user.id);
+
       const { data, error } = await supabase
         .from('user_configurations')
         .select('config_data')
         .eq('config_type', 'woocommerce')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .eq('user_id', user.id)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -40,6 +49,7 @@ export const useWooCommerceConfig = () => {
         return null;
       }
 
+      console.log('Configuração encontrada:', data);
       return data?.config_data as WooCommerceConfig | null;
     },
     enabled: !!currentOrganization,
@@ -80,13 +90,18 @@ export const useWooCommerceConfig = () => {
     }
 
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error('Usuário não autenticado');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Usuário não autenticado');
+        return;
+      }
+
+      console.log('Salvando configuração WooCommerce para usuário:', user.id);
 
       const { error } = await supabase
         .from('user_configurations')
         .upsert({
-          user_id: user.user.id,
+          user_id: user.id,
           config_type: 'woocommerce',
           config_data: newConfig,
           is_active: true
@@ -94,20 +109,28 @@ export const useWooCommerceConfig = () => {
           onConflict: 'user_id,config_type'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao salvar configuração:', error);
+        throw error;
+      }
 
+      console.log('Configuração salva com sucesso');
       queryClient.invalidateQueries({ queryKey: ['woocommerce-config', currentOrganization.id] });
       toast.success('Configuração salva com sucesso!');
     } catch (error: any) {
+      console.error('Erro completo ao salvar configuração:', error);
       toast.error(`Erro ao salvar configuração: ${error.message}`);
     }
   };
 
   // Buscar webhooks
   const webhooks = useQuery({
-    queryKey: ['woocommerce-webhooks', currentOrganization?.id],
+    queryKey: ['woocommerce-webhooks', currentOrganization?.id, config],
     queryFn: async (): Promise<Webhook[]> => {
-      if (!config || !currentOrganization) return [];
+      if (!config || !currentOrganization) {
+        console.log('Config ou organização não disponível para buscar webhooks');
+        return [];
+      }
 
       try {
         const auth = btoa(`${config.consumerKey}:${config.consumerSecret}`);
@@ -119,17 +142,19 @@ export const useWooCommerceConfig = () => {
         });
 
         if (!response.ok) {
+          console.error('Erro ao buscar webhooks:', response.status);
           throw new Error('Falha ao buscar webhooks');
         }
 
         const data = await response.json();
+        console.log('Webhooks encontrados:', data);
         return data as Webhook[];
       } catch (error) {
         console.error('Erro ao buscar webhooks:', error);
         return [];
       }
     },
-    enabled: !!config && !!currentOrganization,
+    enabled: !!config && !!currentOrganization && !!config.apiUrl && !!config.consumerKey && !!config.consumerSecret,
     staleTime: 5 * 60 * 1000,
   });
 
