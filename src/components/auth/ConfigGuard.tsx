@@ -13,7 +13,8 @@ interface ConfigGuardProps {
 
 const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
   const { isMasterAuthenticated, isLoading, loginMaster } = useMasterAuth();
-  const { user, isAuthenticated, loading } = useAuth();
+  // ADIÇÃO: incluir logout para permitir troca de conta
+  const { user, isAuthenticated, loading, logout } = useAuth();
 
   console.log('[ConfigGuard] Estado atual:', {
     isAuthenticated,
@@ -104,8 +105,13 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
             </Alert>
             <div className="mt-4 text-center">
               <Button 
-                variant="outline" 
-                onClick={() => window.location.href = '/auth'}
+                variant="outline"
+                // ALTERAÇÃO: forçar logout antes de ir para /auth para permitir troca de conta
+                onClick={async () => {
+                  console.log('[ConfigGuard] Forçando logout para trocar de conta autorizada...');
+                  await logout();
+                  window.location.href = '/auth';
+                }}
               >
                 Fazer Login com Conta Autorizada
               </Button>
