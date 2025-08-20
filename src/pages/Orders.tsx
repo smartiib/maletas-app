@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
+import ViewModeToggle from "@/components/ui/view-mode-toggle";
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,7 +20,7 @@ const Orders = () => {
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
   const { isConfigured } = useWooCommerceConfig();
-  const { viewMode } = useViewMode('orders');
+  const { viewMode, toggleViewMode } = useViewMode('orders');
 
   const filteredOrders = orders.filter((order) =>
     order.number?.toString().includes(searchTerm) ||
@@ -29,7 +31,7 @@ const Orders = () => {
 
   if (orgLoading) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -48,26 +50,30 @@ const Orders = () => {
 
   if (!currentOrganization) {
     return (
-      <EmptyWooCommerceState
-        title="Nenhuma Organização Selecionada"
-        description="Selecione uma organização para ver os pedidos."
-        showConfigButton={false}
-      />
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para ver os pedidos."
+          showConfigButton={false}
+        />
+      </div>
     );
   }
 
   if (!isConfigured) {
     return (
-      <EmptyWooCommerceState
-        title="WooCommerce Não Configurado"
-        description="Configure sua conexão com o WooCommerce para começar a gerenciar pedidos."
-      />
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="WooCommerce Não Configurado"
+          description="Configure sua conexão com o WooCommerce para começar a gerenciar pedidos."
+        />
+      </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
@@ -91,7 +97,7 @@ const Orders = () => {
 
   if (orders.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
@@ -102,7 +108,7 @@ const Orders = () => {
         </div>
         <EmptyWooCommerceState
           title="Nenhum Pedido Encontrado"
-          description="Sincronize seus pedidos do WooCommerce ou crie pedidos manualmente."
+          description="Sincronize seus pedidos do WooCommerce ou adicione pedidos manualmente."
           showConfigButton={false}
         />
       </div>
@@ -110,7 +116,7 @@ const Orders = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
@@ -124,16 +130,24 @@ const Orders = () => {
         </Button>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <Input
-          placeholder="Buscar por número do pedido ou cliente..."
+          placeholder="Buscar por número, cliente ou email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:max-w-sm"
         />
+        <ViewModeToggle 
+          viewMode={viewMode} 
+          onToggle={toggleViewMode}
+          className="w-full sm:w-auto"
+        />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className={viewMode === 'grid' 
+        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+        : "space-y-4"
+      }>
         {filteredOrders.map((order) => (
           <OrderCard key={order.id} order={order} viewMode={viewMode} />
         ))}

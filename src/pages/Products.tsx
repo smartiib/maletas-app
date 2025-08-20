@@ -11,6 +11,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
+import ViewModeToggle from "@/components/ui/view-mode-toggle";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,7 +20,7 @@ const Products = () => {
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
   const { isConfigured } = useWooCommerceConfig();
-  const { viewMode } = useViewMode('products');
+  const { viewMode, toggleViewMode } = useViewMode('products');
 
   const filteredProducts = products.filter((product) =>
     product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -28,7 +29,7 @@ const Products = () => {
 
   if (orgLoading) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -47,26 +48,30 @@ const Products = () => {
 
   if (!currentOrganization) {
     return (
-      <EmptyWooCommerceState
-        title="Nenhuma Organização Selecionada"
-        description="Selecione uma organização para ver os produtos."
-        showConfigButton={false}
-      />
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para ver os produtos."
+          showConfigButton={false}
+        />
+      </div>
     );
   }
 
   if (!isConfigured) {
     return (
-      <EmptyWooCommerceState
-        title="WooCommerce Não Configurado"
-        description="Configure sua conexão com o WooCommerce para começar a gerenciar produtos."
-      />
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="WooCommerce Não Configurado"
+          description="Configure sua conexão com o WooCommerce para começar a gerenciar produtos."
+        />
+      </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
@@ -90,7 +95,7 @@ const Products = () => {
 
   if (products.length === 0) {
     return (
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
@@ -109,7 +114,7 @@ const Products = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
@@ -123,16 +128,24 @@ const Products = () => {
         </Button>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <Input
           placeholder="Buscar por nome ou SKU..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:max-w-sm"
         />
+        <ViewModeToggle 
+          viewMode={viewMode} 
+          onToggle={toggleViewMode}
+          className="w-full sm:w-auto"
+        />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className={viewMode === 'grid' 
+        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+        : "space-y-4"
+      }>
         {filteredProducts.map((product) => (
           <ProductCard key={product.id} product={product} viewMode={viewMode} />
         ))}
