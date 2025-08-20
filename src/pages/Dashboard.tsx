@@ -1,3 +1,4 @@
+
 import KPICard from "@/components/dashboard/KPICard";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentActivity from "@/components/dashboard/RecentActivity";
@@ -34,7 +35,7 @@ const Dashboard = () => {
 
   if (orgLoading) {
     return (
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="w-full p-6 space-y-6">
         <div>
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-64" />
@@ -54,7 +55,7 @@ const Dashboard = () => {
 
   if (!currentOrganization) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="w-full p-6">
         <EmptyWooCommerceState
           title="Nenhuma Organização Selecionada"
           description="Selecione uma organização para ver o dashboard."
@@ -66,7 +67,7 @@ const Dashboard = () => {
 
   if (!isConfigured) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="w-full p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
@@ -82,7 +83,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="w-full p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
