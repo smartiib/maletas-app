@@ -23,7 +23,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
   const { data: configs } = useSyncConfig();
   const saveSyncConfig = useSaveSyncConfig();
   const manualSync = useManualSync();
-  const { config: wooConfig } = useWooCommerceConfig();
+  const { config: wooConfig, isConfigured } = useWooCommerceConfig();
 
   const [selectedConfig, setSelectedConfig] = useState<any>(null);
 
@@ -42,10 +42,12 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
   };
 
   const handleManualSync = (syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full') => {
-    if (!wooConfig?.apiUrl || !wooConfig?.consumerKey || !wooConfig?.consumerSecret) {
-      toast.error('Configure as credenciais do WooCommerce antes de sincronizar');
+    if (!isConfigured) {
+      toast.error('Configure as credenciais do WooCommerce na aba WooCommerce antes de sincronizar');
       return;
     }
+
+    console.log('Iniciando sincronização:', syncType, 'com config:', wooConfig);
 
     manualSync.mutate({
       sync_type: syncType,
@@ -59,8 +61,25 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
     });
   };
 
+  const isSyncDisabled = !isConfigured || manualSync.isPending || syncStatus?.is_syncing;
+
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Alert quando WooCommerce não está configurado */}
+      {!isConfigured && (
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-yellow-600" />
+            <span className="text-yellow-800 font-medium">
+              WooCommerce não configurado
+            </span>
+          </div>
+          <p className="text-yellow-700 text-sm mt-1">
+            Configure as credenciais do WooCommerce na aba "WooCommerce" para habilitar as sincronizações.
+          </p>
+        </div>
+      )}
+
       {/* Header com Estatísticas */}
       <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
         <Card>
@@ -162,7 +181,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                 <div className="grid grid-cols-1 gap-2">
                   <Button
                     onClick={() => handleManualSync('products')}
-                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    disabled={isSyncDisabled}
                     className="flex items-center gap-2"
                   >
                     <Database className="h-4 w-4" />
@@ -171,7 +190,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
 
                   <Button
                     onClick={() => handleManualSync('categories')}
-                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    disabled={isSyncDisabled}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
@@ -183,7 +202,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                 <div className="grid grid-cols-1 gap-2">
                   <Button
                     onClick={() => handleManualSync('orders')}
-                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    disabled={isSyncDisabled}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
@@ -193,7 +212,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
 
                   <Button
                     onClick={() => handleManualSync('customers')}
-                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    disabled={isSyncDisabled}
                     variant="outline"
                     className="flex items-center gap-2"
                   >
@@ -205,7 +224,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                 <div className="grid grid-cols-1 gap-2">
                   <Button
                     onClick={() => handleManualSync('full')}
-                    disabled={manualSync.isPending || syncStatus?.is_syncing}
+                    disabled={isSyncDisabled}
                     variant="secondary"
                     className="flex items-center gap-2"
                   >

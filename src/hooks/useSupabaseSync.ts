@@ -304,14 +304,8 @@ export const useManualSync = () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         // Para usuários não autenticados, simular uma sincronização
-        const mockResult = {
-          success: false,
-          message: 'Sincronização requer autenticação. Configure o WooCommerce e faça login para usar esta funcionalidade.',
-          items_processed: 0,
-          items_failed: 0,
-          duration_ms: 0
-        };
-        throw new Error(mockResult.message);
+        toast.error('Sincronização requer autenticação. Configure o WooCommerce e faça login para usar esta funcionalidade.');
+        throw new Error('Sincronização requer autenticação. Configure o WooCommerce e faça login para usar esta funcionalidade.');
       }
 
       const response = await supabase.functions.invoke('wc-sync', {
@@ -342,7 +336,7 @@ export const useManualSync = () => {
       queryClient.invalidateQueries({ queryKey: ['sync-status'] });
 
       setTimeout(() => {
-        if (data.success) {
+        if (data && data.success) {
           toast.success(`Sincronização concluída! ${data.items_processed} itens processados`);
         } else {
           toast.error(`Sincronização com falhas: ${data.message}`);
