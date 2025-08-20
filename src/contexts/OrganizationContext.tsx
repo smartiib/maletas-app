@@ -36,42 +36,20 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
 
   const refreshOrganizations = async () => {
-    // Para usuários organizacionais, carregar apenas a organização deles
+    // Para usuários organizacionais, carregar apenas a organização deles SEM consultar o Supabase (não há sessão para RLS)
     if (isOrganizationAuthenticated && organizationUser) {
-      console.log('Carregando organização para usuário organizacional...');
+      console.log('Carregando organização para usuário organizacional (sem consulta ao Supabase)...', organizationUser);
       
-      try {
-        const { data, error } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', organizationUser.organization_id)
-          .single();
+      const userOrganization: Organization = {
+        id: organizationUser.organization_id,
+        name: organizationUser.organization_name,
+        slug: organizationUser.organization_slug,
+        // asaas_customer_id não vem do organizationUser; pode ser carregado depois se necessário
+      };
 
-        if (error) {
-          console.error('Erro ao buscar organização do usuário:', error);
-          setOrganizations([]);
-          setCurrentOrganization(null);
-          return;
-        }
-
-        console.log('Organização do usuário carregada:', data);
-        const userOrganization = {
-          id: data.id,
-          name: data.name,
-          slug: data.slug,
-          asaas_customer_id: data.asaas_customer_id
-        };
-        
-        setOrganizations([userOrganization]);
-        setCurrentOrganization(userOrganization);
-        
-      } catch (error) {
-        console.error('Erro ao buscar organização do usuário:', error);
-        setOrganizations([]);
-        setCurrentOrganization(null);
-      } finally {
-        setLoading(false);
-      }
+      setOrganizations([userOrganization]);
+      setCurrentOrganization(userOrganization);
+      setLoading(false);
       return;
     }
 
