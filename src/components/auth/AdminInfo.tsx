@@ -1,12 +1,18 @@
+
 import React from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Info } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 
 const AdminInfo = () => {
   const { user } = useAuth();
+  const { isOrganizationAuthenticated } = useOrganizationAuthContext();
 
-  if (!user || user.email !== 'douglas@agencia2b.com.br') {
+  // Só mostrar para super admin do Supabase, não para usuários organizacionais
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br' && !isOrganizationAuthenticated;
+
+  if (!isSuperAdmin) {
     return null;
   }
 
