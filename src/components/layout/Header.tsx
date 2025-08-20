@@ -51,8 +51,8 @@ const Header = () => {
   };
 
   return (
-    <header className="h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="flex h-16 items-center justify-between px-6">
+    <header className="h-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-20 items-center justify-between px-6">
         <div className="flex items-center gap-6">
           <Button
             variant="ghost"
@@ -65,14 +65,16 @@ const Header = () => {
           
           {/* Logo e nome da organização */}
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">A</span>
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-base">
+                {organizationName.charAt(0).toUpperCase()}
+              </span>
             </div>
             <div>
-              <h1 className="text-base font-semibold text-foreground">
+              <h1 className="text-lg font-semibold text-foreground">
                 {organizationName}
               </h1>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Painel Administrativo
               </p>
             </div>
