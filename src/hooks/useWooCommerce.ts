@@ -22,7 +22,7 @@ export const useWooCommerceConfig = () => {
   const { currentOrganization } = useOrganization();
   const queryClient = useQueryClient();
 
-  // Buscar configuração específica da organização
+  // Buscar configuração específica da organização/usuário
   const { data: config, isLoading: configLoading } = useQuery({
     queryKey: ['woocommerce-config', currentOrganization?.id],
     queryFn: async () => {
@@ -31,8 +31,18 @@ export const useWooCommerceConfig = () => {
       // Verificar se há usuário autenticado
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('Nenhum usuário autenticado encontrado');
-        return null;
+        console.log('Nenhum usuário autenticado encontrado - usando fallback localStorage');
+        const localKey = `woocommerce_config_${currentOrganization.id}`;
+        const raw = localStorage.getItem(localKey);
+        if (!raw) return null;
+        try {
+          const parsed = JSON.parse(raw) as WooCommerceConfig | null;
+          console.log('Configuração (localStorage) encontrada:', parsed);
+          return parsed;
+        } catch (e) {
+          console.warn('Falha ao ler configuração do localStorage:', e);
+          return null;
+        }
       }
 
       console.log('Buscando configuração WooCommerce para usuário:', user.id);
@@ -82,20 +92,27 @@ export const useWooCommerceConfig = () => {
     },
   });
 
-  // Salvar configuração específica da organização
+  // Salvar configuração específica da organização/usuário
   const saveConfig = async (newConfig: WooCommerceConfig) => {
     if (!currentOrganization) {
       toast.error('Nenhuma organização selecionada');
       return;
     }
 
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('Usuário não autenticado');
-        return;
-      }
+    // Tenta usar Supabase se houver sessão; caso contrário salva no localStorage (por organização)
+    const { data: { user } } = await supabase.auth.getUser();
 
+    if (!user) {
+      const localKey = `woocommerce_config_${currentOrganization.id}`;
+      localStorage.setItem(localKey, JSON.stringify(newConfig));
+      // Atualiza cache para refletir na UI e liberar a seção de webhooks
+      queryClient.setQueryData(['woocommerce-config', currentOrganization.id], newConfig);
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-webhooks', currentOrganization.id] });
+      toast.success('Configuração salva localmente para esta organização!');
+      return;
+    }
+
+    try {
       console.log('Salvando configuração WooCommerce para usuário:', user.id);
 
       const { error } = await supabase
