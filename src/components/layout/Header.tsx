@@ -27,16 +27,18 @@ const Header = () => {
   // Determinar se é super admin
   const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
 
-  // Determinar nome da organização e usuário
+  // Determinar nome da organização e usuário baseado no contexto
   let organizationName = 'Sistema Gestão';
   let userName = 'Usuário';
   let userRole = 'Usuário';
 
   if (isOrganizationAuthenticated && organizationUser) {
+    // Para usuário organizacional, sempre mostrar "Loja" como nome da organização
     organizationName = 'Loja';
     userName = organizationUser.name || 'Usuário';
     userRole = 'Administrador da Loja';
   } else if (isSuperAdmin) {
+    // Para super admin, mostrar o nome da organização selecionada ou padrão
     organizationName = currentOrganization?.name || 'Sistema Gestão';
     userName = profile?.name || user?.email?.split('@')[0] || 'douglas';
     userRole = 'Super Admin';
@@ -80,7 +82,7 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Saudação */}
+          {/* Saudação - SEM duplicar o nome da organização */}
           <div className="hidden md:block ml-8">
             <h2 className="text-lg font-medium text-foreground">
               {getGreeting()}, {userName}! 👋
