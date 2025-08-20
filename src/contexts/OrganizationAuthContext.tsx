@@ -21,7 +21,7 @@ interface OrganizationAuthContextValue {
 const OrganizationAuthContext = createContext<OrganizationAuthContextValue | undefined>(undefined);
 
 export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [organizationUser, setOrganizationUser] = useState<OrganizationUser | null>(null);
+  const [organizationUser, setOrganizationUserState] = useState<OrganizationUser | null>(null);
 
   useEffect(() => {
     // Verificar se há usuário organizacional no localStorage
@@ -30,7 +30,9 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     
     if (storedUser && isAuthenticated) {
       try {
-        setOrganizationUser(JSON.parse(storedUser));
+        const user = JSON.parse(storedUser);
+        console.log('[OrganizationAuthContext] Carregando usuário do localStorage:', user);
+        setOrganizationUserState(user);
       } catch (error) {
         console.error('Erro ao carregar usuário organizacional:', error);
         localStorage.removeItem('organization_user');
@@ -39,8 +41,22 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, []);
 
+  const setOrganizationUser = (user: OrganizationUser | null) => {
+    console.log('[OrganizationAuthContext] Definindo usuário organizacional:', user);
+    setOrganizationUserState(user);
+    
+    if (user) {
+      localStorage.setItem('organization_user', JSON.stringify(user));
+      localStorage.setItem('organization_user_authenticated', 'true');
+    } else {
+      localStorage.removeItem('organization_user');
+      localStorage.removeItem('organization_user_authenticated');
+    }
+  };
+
   const logoutOrganization = () => {
-    setOrganizationUser(null);
+    console.log('[OrganizationAuthContext] Fazendo logout organizacional');
+    setOrganizationUserState(null);
     localStorage.removeItem('organization_user');
     localStorage.removeItem('organization_user_authenticated');
   };

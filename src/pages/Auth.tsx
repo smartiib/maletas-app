@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrganizationAuth } from '@/hooks/useOrganizationAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { Loader2, Lock, Mail } from 'lucide-react';
 
 const Auth = () => {
@@ -18,11 +19,13 @@ const Auth = () => {
   
   const { signIn, isAuthenticated, loading } = useAuth();
   const { loginOrganizationUser } = useOrganizationAuth();
+  const { setOrganizationUser } = useOrganizationAuthContext();
   const navigate = useNavigate();
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && !loading) {
+      console.log('[Auth] Usuário já autenticado, redirecionando para dashboard');
       navigate('/dashboard');
     }
   }, [isAuthenticated, loading, navigate]);
@@ -61,10 +64,13 @@ const Auth = () => {
         
         if (orgUser) {
           console.log('[Auth] Login organizacional bem-sucedido');
-          // Salvar dados do usuário organizacional no localStorage
-          localStorage.setItem('organization_user', JSON.stringify(orgUser));
-          localStorage.setItem('organization_user_authenticated', 'true');
-          navigate('/dashboard');
+          // Atualizar contexto imediatamente
+          setOrganizationUser(orgUser);
+          // Aguardar um pouco para garantir que o contexto foi atualizado
+          setTimeout(() => {
+            console.log('[Auth] Redirecionando para dashboard');
+            navigate('/dashboard');
+          }, 100);
           return;
         } else {
           console.log('[Auth] Erro no login organizacional');

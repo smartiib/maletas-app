@@ -2,17 +2,23 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { Loader2 } from 'lucide-react';
 
 const Index = () => {
   const { isAuthenticated, loading } = useAuth();
+  const { isOrganizationAuthenticated } = useOrganizationAuthContext();
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('[Index] Estado da autenticação:', { isAuthenticated, loading });
+    console.log('[Index] Estado da autenticação:', { 
+      isAuthenticated, 
+      isOrganizationAuthenticated, 
+      loading 
+    });
     
     if (!loading) {
-      if (isAuthenticated) {
+      if (isAuthenticated || isOrganizationAuthenticated) {
         // Redirecionar para o dashboard imediatamente
         console.log('[Index] Usuário autenticado, redirecionando para dashboard');
         navigate('/dashboard', { replace: true });
@@ -21,7 +27,7 @@ const Index = () => {
         navigate('/auth', { replace: true });
       }
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, isOrganizationAuthenticated, loading, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
