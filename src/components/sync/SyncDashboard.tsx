@@ -10,6 +10,8 @@ import { AlertCircle, CheckCircle, Clock, Database, RefreshCw, Settings, Trendin
 import { useSyncStats, useSyncStatus, useTimeSinceLastSync, useSyncLogs, useSyncConfig, useSaveSyncConfig, useManualSync } from '@/hooks/useSupabaseSync';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { toast } from 'sonner';
+import { SyncProgressDialog } from './SyncProgressDialog';
+import { useSyncProgress } from '@/hooks/useSyncProgress';
 
 interface SyncDashboardProps {
   className?: string;
@@ -24,6 +26,8 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
   const saveSyncConfig = useSaveSyncConfig();
   const manualSync = useManualSync();
   const { config: wooConfig, isConfigured } = useWooCommerceConfig();
+  
+  const { progressState, startSync, updateProgress, completeSync, closeProgress } = useSyncProgress();
 
   const [selectedConfig, setSelectedConfig] = useState<any>(null);
 
@@ -41,7 +45,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
     saveSyncConfig.mutate(newConfig);
   };
 
-  const handleManualSync = (syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full') => {
+  const handleManualSync = async (syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full') => {
     if (!isConfigured) {
       toast.error('Configure as credenciais do WooCommerce na aba WooCommerce antes de sincronizar');
       return;
@@ -49,16 +53,75 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
 
     console.log('Iniciando sincronização:', syncType, 'com config:', wooConfig);
 
-    manualSync.mutate({
-      sync_type: syncType,
-      config: {
-        url: wooConfig.apiUrl,
-        consumer_key: wooConfig.consumerKey,
-        consumer_secret: wooConfig.consumerSecret
-      },
-      batch_size: 50,
-      force_full_sync: false
-    });
+    // Iniciar o progresso visual
+    startSync(syncType);
+    
+    try {
+      // Simular progresso inicial
+      updateProgress({
+        progress: 10,
+        currentStep: 'Conectando com WooCommerce...'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      updateProgress({
+        progress: 20,
+        currentStep: 'Validando credenciais...'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      updateProgress({
+        progress: 30,
+        currentStep: `Iniciando sincronização de ${syncType}...`
+      });
+
+      const result = await manualSync.mutateAsync({
+        sync_type: syncType,
+        config: {
+          url: wooConfig.apiUrl,
+          consumer_key: wooConfig.consumerKey,
+          consumer_secret: wooConfig.consumerSecret
+        },
+        batch_size: 50,
+        force_full_sync: false
+      });
+
+      // Simular progresso durante a sincronização
+      for (let i = 40; i <= 90; i += 10) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        updateProgress({
+          progress: i,
+          currentStep: `Processando ${syncType}...`,
+          itemsProcessed: Math.floor((i - 30) / 60 * 100),
+          totalItems: 100
+        });
+      }
+
+      updateProgress({
+        progress: 100,
+        currentStep: 'Finalizando sincronização...'
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      completeSync(true);
+      
+      setTimeout(() => {
+        closeProgress();
+        toast.success(`Sincronização de ${syncType} concluída com sucesso!`);
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Erro na sincronização:', error);
+      completeSync(false, error.message);
+      
+      setTimeout(() => {
+        closeProgress();
+        toast.error(`Erro na sincronização: ${error.message}`);
+      }, 3000);
+    }
   };
 
   const isSyncDisabled = !isConfigured || manualSync.isPending || syncStatus?.is_syncing;
@@ -185,7 +248,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <Database className="h-4 w-4" />
-                    {manualSync.isPending ? 'Sincronizando...' : 'Sincronizar Produtos'}
+                    {progressState.isOpen && progressState.syncType === 'products' ? 'Sincronizando...' : 'Sincronizar Produtos'}
                   </Button>
 
                   <Button
@@ -195,7 +258,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
-                    Sincronizar Categorias
+                    {progressState.isOpen && progressState.syncType === 'categories' ? 'Sincronizando...' : 'Sincronizar Categorias'}
                   </Button>
                 </div>
 
@@ -207,7 +270,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <Database className="h-4 w-4" />
-                    Sincronizar Pedidos
+                    {progressState.isOpen && progressState.syncType === 'orders' ? 'Sincronizando...' : 'Sincronizar Pedidos'}
                   </Button>
 
                   <Button
@@ -217,7 +280,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
-                    Sincronizar Clientes
+                    {progressState.isOpen && progressState.syncType === 'customers' ? 'Sincronizando...' : 'Sincronizar Clientes'}
                   </Button>
                 </div>
 
@@ -229,7 +292,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Sincronização Completa
+                    {progressState.isOpen && progressState.syncType === 'full' ? 'Sincronizando...' : 'Sincronização Completa'}
                   </Button>
                 </div>
               </div>
@@ -386,6 +449,19 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Progresso */}
+      <SyncProgressDialog
+        isOpen={progressState.isOpen}
+        onClose={closeProgress}
+        syncType={progressState.syncType}
+        status={progressState.status}
+        progress={progressState.progress}
+        currentStep={progressState.currentStep}
+        itemsProcessed={progressState.itemsProcessed}
+        totalItems={progressState.totalItems}
+        errorMessage={progressState.errorMessage}
+      />
     </div>
   );
 };
