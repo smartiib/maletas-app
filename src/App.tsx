@@ -1,36 +1,39 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider } from '@/contexts/AuthContext';
 import { OrganizationProvider } from '@/contexts/OrganizationContext';
-import { ConfigGuard } from '@/guards/ConfigGuard';
-import { ProtectedRoute } from '@/guards/ProtectedRoute';
+import ConfigGuard from '@/components/auth/ConfigGuard';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
-import { Index } from '@/pages/Index';
-import { Auth } from '@/pages/Auth';
-import { Dashboard } from '@/pages/Dashboard';
-import { Products } from '@/pages/Products';
-import { Orders } from '@/pages/Orders';
-import { Customers } from '@/pages/Customers';
-import { POS } from '@/pages/POS';
-import { Maletas } from '@/pages/Maletas';
-import { Financeiro } from '@/pages/Financeiro';
-import { Suppliers } from '@/pages/Suppliers';
-import { Reports } from '@/pages/Reports';
-import { Organizations } from '@/pages/Organizations';
-import { Billing } from '@/pages/Billing';
-import { Settings } from '@/pages/Settings';
-import { Logs } from '@/pages/Logs';
-import { PdfTemplates } from '@/pages/PdfTemplates';
-import { NotFound } from '@/pages/NotFound';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import Index from '@/pages/Index';
+import Auth from '@/pages/Auth';
+import Dashboard from '@/pages/Dashboard';
+import Products from '@/pages/Products';
+import Orders from '@/pages/Orders';
+import Customers from '@/pages/Customers';
+import POS from '@/pages/POS';
+import Maletas from '@/pages/Maletas';
+import Financeiro from '@/pages/Financeiro';
+import Suppliers from '@/pages/Suppliers';
+import Reports from '@/pages/Reports';
+import Organizations from '@/pages/Organizations';
+import Billing from '@/pages/Billing';
+import Settings from '@/pages/Settings';
+import Logs from '@/pages/Logs';
+import PdfTemplates from '@/pages/PdfTemplates';
+import NotFound from '@/pages/NotFound';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import Stock from './pages/Stock';
+
+const queryClient = new QueryClient();
 
 function App() {
   return (
-    <QueryClient>
+    <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <OrganizationProvider>
           <Router>
@@ -225,7 +228,7 @@ function App() {
           </Router>
         </OrganizationProvider>
       </AuthProvider>
-    </QueryClient>
+    </QueryClientProvider>
   );
 }
 

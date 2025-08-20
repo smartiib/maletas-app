@@ -87,10 +87,14 @@ export function useOrganizationPages(organizationId?: string) {
     loadPages();
   }, [organizationId]);
 
+  // adicionar lista de chaves habilitadas para consumo direto no layout
+  const enabledPages = pages.filter(p => p.is_enabled).map(p => p.page_key);
+
   return {
     pages,
     loading,
     loadPages,
     updatePageStatus,
+    enabledPages,
   };
 }

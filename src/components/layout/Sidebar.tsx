@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,7 @@ import {
   FileImage,
   Package2
 } from 'lucide-react';
-import { OrganizationSelector } from '@/components/organization/OrganizationSelector';
+import { OrganizationSelector } from '@/components/layout/OrganizationSelector';
 
 const Sidebar = () => {
   const location = useLocation();
