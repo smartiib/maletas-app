@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Plus, Building2, Edit2, Users, Settings, Eye } from 'lucide-react';
+import { Plus, Building2, Edit2, Users, Settings, Eye, Power } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { OrganizationForm } from '@/components/organizations/OrganizationForm';
 import { OrganizationPagesManager } from '@/components/organizations/OrganizationPagesManager';
 import { OrganizationUsersManager } from '@/components/organizations/OrganizationUsersManager';
+import { useToast } from '@/hooks/use-toast';
 
 interface Organization {
   id: string;
@@ -43,9 +44,11 @@ export default function Organizations() {
   const [editingOrg, setEditingOrg] = useState<Organization | null>(null);
   const [viewingOrg, setViewingOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [toggleLoading, setToggleLoading] = useState<string | null>(null);
 
   const { createOrganization, updateOrganization, loading: actionLoading } = useOrganizations();
   const { refreshOrganizations } = useOrganization();
+  const { toast } = useToast();
 
   const loadOrganizations = async () => {
     try {
@@ -101,6 +104,44 @@ export default function Organizations() {
   const handleDialogClose = () => {
     setIsDialogOpen(false);
     setEditingOrg(null);
+  };
+
+  const toggleOrganizationStatus = async (org: Organization) => {
+    setToggleLoading(org.id);
+    try {
+      const newStatus = !org.is_active;
+      const { error } = await supabase
+        .from('organizations')
+        .update({ is_active: newStatus })
+        .eq('id', org.id);
+
+      if (error) {
+        console.error('Erro ao alterar status da organização:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível alterar o status da organização.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      toast({
+        title: 'Sucesso',
+        description: `Organização ${newStatus ? 'ativada' : 'desativada'} com sucesso!`,
+      });
+
+      await loadOrganizations();
+      await refreshOrganizations();
+    } catch (error) {
+      console.error('Erro ao alterar status:', error);
+      toast({
+        title: 'Erro',
+        description: 'Erro inesperado ao alterar status da organização.',
+        variant: 'destructive',
+      });
+    } finally {
+      setToggleLoading(null);
+    }
   };
 
   if (loading) {
@@ -221,6 +262,15 @@ export default function Organizations() {
                     onClick={() => handleEdit(org)}
                   >
                     <Edit2 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleOrganizationStatus(org)}
+                    disabled={toggleLoading === org.id}
+                    className={org.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
+                  >
+                    <Power className="h-4 w-4" />
                   </Button>
                 </div>
                 
