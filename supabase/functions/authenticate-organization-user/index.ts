@@ -33,10 +33,17 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Buscar usuário por email
-    const { data: user, error: userError } = await supabase
+    // Buscar usuário por email com o nome da organização
+    const { data: userWithOrg, error: userError } = await supabase
       .from("organization_users")
-      .select("*")
+      .select(`
+        *,
+        organizations!inner(
+          id,
+          name,
+          slug
+        )
+      `)
       .eq("email", email)
       .eq("is_active", true)
       .maybeSingle();
@@ -49,7 +56,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    if (!user) {
+    if (!userWithOrg) {
       return new Response(JSON.stringify({ 
         success: false, 
         error: "Credenciais inválidas" 
@@ -60,7 +67,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Verificar senha
-    const isValidPassword = bcrypt.compareSync(password, user.password_hash);
+    const isValidPassword = bcrypt.compareSync(password, userWithOrg.password_hash);
 
     if (!isValidPassword) {
       return new Response(JSON.stringify({ 
@@ -72,12 +79,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Sucesso - remover password_hash da resposta
-    const { password_hash, ...userWithoutPassword } = user;
+    // Sucesso - remover password_hash da resposta e incluir dados da organização
+    const { password_hash, organizations, ...userWithoutPassword } = userWithOrg;
+    
+    const userResponse = {
+      ...userWithoutPassword,
+      organization_name: organizations.name,
+      organization_slug: organizations.slug
+    };
 
     return new Response(JSON.stringify({
       success: true,
-      user: userWithoutPassword
+      user: userResponse
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

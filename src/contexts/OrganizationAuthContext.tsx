@@ -7,6 +7,8 @@ interface OrganizationUser {
   email: string;
   name: string;
   is_active: boolean;
+  organization_name: string;
+  organization_slug: string;
 }
 
 interface OrganizationAuthContextValue {

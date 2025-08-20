@@ -33,10 +33,10 @@ const Header = () => {
   let userRole = 'Usuário';
 
   if (isOrganizationAuthenticated && organizationUser) {
-    // Para usuário organizacional, sempre mostrar "Loja" como nome da organização
-    organizationName = 'Loja';
+    // Para usuário organizacional, usar o nome real da organização
+    organizationName = organizationUser.organization_name || 'Organização';
     userName = organizationUser.name || 'Usuário';
-    userRole = 'Administrador da Loja';
+    userRole = 'Administrador';
   } else if (isSuperAdmin) {
     // Para super admin, mostrar o nome da organização selecionada ou padrão
     organizationName = currentOrganization?.name || 'Sistema Gestão';
@@ -82,7 +82,7 @@ const Header = () => {
             </div>
           </div>
 
-          {/* Saudação - SEM duplicar o nome da organização */}
+          {/* Saudação simples - sem duplicar informações */}
           <div className="hidden md:block ml-8">
             <h2 className="text-lg font-medium text-foreground">
               {getGreeting()}, {userName}! 👋

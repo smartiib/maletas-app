@@ -81,10 +81,10 @@ const Sidebar = () => {
   let userRole = 'Usuário';
 
   if (isOrganizationAuthenticated && organizationUser) {
-    // Usuário organizacional - apenas menu de loja
+    // Usuário organizacional - usar nome real da organização
     menuItems = storeMenuItems;
     showAdminSection = false;
-    organizationName = 'Loja';
+    organizationName = organizationUser.organization_name || 'Organização';
     userName = organizationUser.name || 'Usuário';
     userRole = 'Administrador';
   } else if (isSuperAdmin) {
@@ -105,7 +105,9 @@ const Sidebar = () => {
       <div className="p-6 border-b">
         <div className="flex items-center space-x-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold">A</span>
+            <span className="text-white font-bold">
+              {organizationName.charAt(0).toUpperCase()}
+            </span>
           </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold truncate">
