@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface OrganizationUser {
   id: string;
@@ -23,14 +24,17 @@ const OrganizationAuthContext = createContext<OrganizationAuthContextValue | und
 export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [organizationUser, setOrganizationUserState] = useState<OrganizationUser | null>(null);
 
+  // Consome o estado do Supabase Auth para criar a "ponte" de sessão
+  const { isAuthenticated, loading: authLoading, login, logout } = useAuth();
+
   useEffect(() => {
     // Verificar se há usuário organizacional no localStorage
     const storedUser = localStorage.getItem('organization_user');
-    const isAuthenticated = localStorage.getItem('organization_user_authenticated') === 'true';
+    const isAuthenticatedOrg = localStorage.getItem('organization_user_authenticated') === 'true';
     
-    if (storedUser && isAuthenticated) {
+    if (storedUser && isAuthenticatedOrg) {
       try {
-        const user = JSON.parse(storedUser);
+        const user = JSON.parse(storedUser) as OrganizationUser;
         console.log('[OrganizationAuthContext] Carregando usuário do localStorage:', user);
         setOrganizationUserState(user);
       } catch (error) {
@@ -41,6 +45,15 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, []);
 
+  // Bridge login: se há usuário organizacional e ainda não há sessão Supabase, efetua login técnico
+  useEffect(() => {
+    if (!authLoading && organizationUser && !isAuthenticated) {
+      console.log('[OrganizationAuthContext] Bridge login: garantindo sessão Supabase para usuário organizacional');
+      // Não aguardamos bloqueando a UI; se falhar, o AuthContext já exibe toast
+      login();
+    }
+  }, [organizationUser, isAuthenticated, authLoading, login]);
+
   const setOrganizationUser = (user: OrganizationUser | null) => {
     console.log('[OrganizationAuthContext] Definindo usuário organizacional:', user);
     setOrganizationUserState(user);
@@ -48,6 +61,12 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     if (user) {
       localStorage.setItem('organization_user', JSON.stringify(user));
       localStorage.setItem('organization_user_authenticated', 'true');
+
+      // Bridge login imediato após autenticar organizacional
+      if (!isAuthenticated) {
+        console.log('[OrganizationAuthContext] Bridge login após autenticação organizacional');
+        login();
+      }
     } else {
       localStorage.removeItem('organization_user');
       localStorage.removeItem('organization_user_authenticated');
@@ -59,6 +78,9 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     setOrganizationUserState(null);
     localStorage.removeItem('organization_user');
     localStorage.removeItem('organization_user_authenticated');
+
+    // Desloga também do Supabase para não deixar sessão técnica ativa
+    logout();
   };
 
   const value = {
@@ -82,3 +104,4 @@ export const useOrganizationAuthContext = () => {
   }
   return context;
 };
+

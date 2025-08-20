@@ -17,7 +17,8 @@ const Auth = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const { signIn, isAuthenticated, loading } = useAuth();
+  // Adiciona 'login' para o bridge login técnico no Supabase
+  const { signIn, isAuthenticated, loading, login } = useAuth();
   const { loginOrganizationUser } = useOrganizationAuth();
   const { setOrganizationUser } = useOrganizationAuthContext();
   const navigate = useNavigate();
@@ -66,11 +67,14 @@ const Auth = () => {
           console.log('[Auth] Login organizacional bem-sucedido');
           // Atualizar contexto imediatamente
           setOrganizationUser(orgUser);
-          // Aguardar um pouco para garantir que o contexto foi atualizado
-          setTimeout(() => {
-            console.log('[Auth] Redirecionando para dashboard');
-            navigate('/dashboard');
-          }, 100);
+
+          // Bridge login técnico no Supabase (não bloqueia fluxo, mas tenta garantir sessão JWT)
+          console.log('[Auth] Executando bridge login técnico no Supabase');
+          await login();
+
+          // Redirecionar depois
+          console.log('[Auth] Redirecionando para dashboard');
+          navigate('/dashboard');
           return;
         } else {
           console.log('[Auth] Erro no login organizacional');
@@ -167,3 +171,4 @@ const Auth = () => {
 };
 
 export default Auth;
+
