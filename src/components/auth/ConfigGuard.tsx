@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useMasterAuth } from '@/hooks/useMasterAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,19 @@ interface ConfigGuardProps {
 
 const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
   const { isMasterAuthenticated, isLoading, loginMaster } = useMasterAuth();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
 
-  if (isLoading) {
+  console.log('[ConfigGuard] Estado atual:', {
+    isAuthenticated,
+    loading,
+    user: user?.email,
+    isMasterAuthenticated,
+    isLoading
+  });
+
+  // Se ainda está carregando a autenticação base, mostrar loading
+  if (loading) {
+    console.log('[ConfigGuard] Carregando autenticação base...');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -23,7 +33,9 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
-  if (!isAuthenticated) {
+  // Se não está autenticado no sistema base, redirecionar para login
+  if (!isAuthenticated || !user) {
+    console.log('[ConfigGuard] Usuário não autenticado, redirecionando...');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
         <Card className="w-full max-w-md">
@@ -41,39 +53,72 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
                 Faça login na sua conta para acessar o sistema.
               </AlertDescription>
             </Alert>
+            <Button 
+              onClick={() => window.location.href = '/auth'} 
+              className="w-full mt-4"
+            >
+              Ir para Login
+            </Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  // Se ainda está carregando o estado master, mostrar loading
+  if (isLoading) {
+    console.log('[ConfigGuard] Carregando estado master...');
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
+  console.log('[ConfigGuard] Verificação super admin:', { 
+    userEmail: user?.email, 
+    isSuperAdmin,
+    isMasterAuthenticated 
+  });
+
+  // Se não é super admin, negar acesso
+  if (!isSuperAdmin) {
+    console.log('[ConfigGuard] Usuário não é super admin');
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Shield className="h-12 w-12 mx-auto text-destructive mb-4" />
+            <CardTitle>Acesso Negado</CardTitle>
+            <CardDescription>
+              Você não tem permissão para acessar esta área
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Apenas o super administrador pode acessar as configurações do sistema.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4 text-center">
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.href = '/auth'}
+              >
+                Fazer Login com Conta Autorizada
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Se é super admin mas não ativou o modo master, mostrar opção para ativar
   if (!isMasterAuthenticated) {
-    const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
-
-    if (!isSuperAdmin) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="text-center">
-              <Shield className="h-12 w-12 mx-auto text-destructive mb-4" />
-              <CardTitle>Acesso Negado</CardTitle>
-              <CardDescription>
-                Você não tem permissão para acessar esta área
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  Apenas o super administrador pode acessar as configurações do sistema.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </div>
-      );
-    }
-
+    console.log('[ConfigGuard] Super admin não ativou modo master');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/20 to-secondary/20 p-4">
         <Card className="w-full max-w-md">
@@ -102,6 +147,8 @@ const ConfigGuard: React.FC<ConfigGuardProps> = ({ children }) => {
     );
   }
 
+  // Se chegou até aqui, usuário está autenticado como super admin e ativou o modo master
+  console.log('[ConfigGuard] Acesso liberado para super admin');
   return <>{children}</>;
 };
 
