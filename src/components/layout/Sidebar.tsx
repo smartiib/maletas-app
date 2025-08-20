@@ -113,9 +113,6 @@ const Sidebar = () => {
             <h2 className="text-lg font-semibold truncate">
               {organizationName}
             </h2>
-            <p className="text-sm text-muted-foreground">
-              Painel Administrativo
-            </p>
           </div>
         </div>
       </div>
