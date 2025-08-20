@@ -25,15 +25,6 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
 
-// Get current organization ID helper
-const getCurrentOrganizationId = () => {
-  const savedOrgId = localStorage.getItem('currentOrganizationId');
-  if (!savedOrgId) {
-    throw new Error('Nenhuma organização selecionada');
-  }
-  return savedOrgId;
-};
-
 const Maletas = () => {
   const { currentOrganization } = useOrganization();
   const { isConfigured } = useWooCommerceConfig();
@@ -57,6 +48,8 @@ const Maletas = () => {
 
   const { data: maletasResponse, isLoading, error } = useMaletas();
   const allMaletas = maletasResponse?.data || [];
+  
+  console.log('Maletas carregadas:', allMaletas.length);
   
   const { viewMode, toggleViewMode } = useViewMode('maletas');
   const extendDeadline = useExtendMaletaDeadline();
@@ -237,7 +230,11 @@ const Maletas = () => {
 
       // Processar a devolução automaticamente após criar o pedido
       if (selectedMaleta && soldItems.length > 0) {
-        const organizationId = getCurrentOrganizationId();
+        const organizationId = localStorage.getItem('currentOrganizationId');
+        if (!organizationId) {
+          throw new Error('Nenhuma organização selecionada');
+        }
+
         const returnData = {
           items_sold: soldItems.map(item => ({
             item_id: item.id,
@@ -379,11 +376,13 @@ const Maletas = () => {
       {paginatedMaletas.length === 0 && !isLoading && (
         <div className="text-center py-12">
           <Package className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Nenhuma maleta encontrada</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            {allMaletas.length === 0 ? 'Nenhuma maleta encontrada' : 'Nenhuma maleta corresponde aos filtros'}
+          </h3>
           <p className="text-muted-foreground">
-            {searchTerm || statusFilter 
-              ? "Tente ajustar os filtros de busca"
-              : "Configure o WooCommerce e sincronize os dados para começar a gerenciar maletas"}
+            {allMaletas.length === 0 
+              ? "Crie sua primeira maleta clicando no botão 'Nova Maleta' acima"
+              : "Tente ajustar os filtros de busca para encontrar suas maletas"}
           </p>
         </div>
       )}

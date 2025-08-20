@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Representative {
@@ -110,6 +109,8 @@ class MaletasAPI {
   async getMaletas(page = 1, status = '', representative_id = '') {
     const organizationId = getCurrentOrganizationId();
     
+    console.log('Buscando maletas para organização:', organizationId);
+    
     let query = supabase
       .from('maletas')
       .select(`
@@ -136,6 +137,8 @@ class MaletasAPI {
       console.error('Erro ao buscar maletas:', error);
       throw error;
     }
+
+    console.log('Maletas encontradas:', data?.length || 0, 'de', count || 0);
 
     return {
       data: data || [],
