@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -84,52 +85,40 @@ const InstallmentManager = () => {
 
   return (
     <div className="space-y-6">
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-blue-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Total a Receber</p>
-                <p className="text-xl font-bold">R$ {totalPendingAmount.toFixed(2)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-8 h-8 text-red-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Parcelas Vencidas</p>
-                <p className="text-xl font-bold text-red-600">{overdueCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-yellow-600" />
-              <div>
-                <p className="text-sm text-muted-foreground">Parcelas Pendentes</p>
-                <p className="text-xl font-bold text-yellow-600">{pendingCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabela de Parcelas */}
+      {/* Card de Parcelas com Estatísticas */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
             Controle de Parcelas ({installmentsWithStatus.length} total)
           </CardTitle>
+          
+          {/* Estatísticas das Parcelas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <DollarSign className="w-8 h-8 text-blue-600" />
+              <div>
+                <p className="text-sm text-blue-700 dark:text-blue-300">Total a Receber</p>
+                <p className="text-xl font-bold text-blue-800 dark:text-blue-200">R$ {totalPendingAmount.toFixed(2)}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+              <AlertTriangle className="w-8 h-8 text-red-600" />
+              <div>
+                <p className="text-sm text-red-700 dark:text-red-300">Parcelas Vencidas</p>
+                <p className="text-xl font-bold text-red-600">{overdueCount}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+              <Calendar className="w-8 h-8 text-yellow-600" />
+              <div>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300">Parcelas Pendentes</p>
+                <p className="text-xl font-bold text-yellow-600">{pendingCount}</p>
+              </div>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {installmentsWithStatus.length === 0 ? (

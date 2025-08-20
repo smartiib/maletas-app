@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import FinancialDashboard from '@/components/financial/FinancialDashboard';
 import TransactionsList from '@/components/financial/TransactionsList';
 import InstallmentManager from '@/components/financial/InstallmentManager';
-import QuickActions from '@/components/financial/QuickActions';
 import TransactionForm from '@/components/financial/TransactionForm';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
@@ -39,11 +38,6 @@ const Financeiro = () => {
     );
   }
 
-  const handleNewTransaction = (type: 'entrada' | 'saida') => {
-    setInitialType(type);
-    setTransactionFormOpen(true);
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -55,12 +49,6 @@ const Financeiro = () => {
           </p>
         </div>
       </div>
-
-      {/* Ações Rápidas no Topo */}
-      <QuickActions
-        onNewEntry={() => handleNewTransaction('entrada')}
-        onNewExit={() => handleNewTransaction('saida')}
-      />
 
       {/* Cards com Parâmetros Principais */}
       <FinancialDashboard />
