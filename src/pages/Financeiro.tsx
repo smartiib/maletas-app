@@ -4,6 +4,7 @@ import FinancialDashboard from '@/components/financial/FinancialDashboard';
 import TransactionsList from '@/components/financial/TransactionsList';
 import InstallmentManager from '@/components/financial/InstallmentManager';
 import TransactionForm from '@/components/financial/TransactionForm';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
@@ -53,18 +54,21 @@ const Financeiro = () => {
       {/* Cards com Parâmetros Principais */}
       <FinancialDashboard />
 
-      {/* Duas Colunas: Transações e Parcelas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Coluna 1: Transações */}
-        <div className="space-y-4">
+      {/* Tabs para Transações e Parcelas */}
+      <Tabs defaultValue="transactions" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="transactions">Histórico de Transações</TabsTrigger>
+          <TabsTrigger value="installments">Controle de Parcelas</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="transactions" className="space-y-4">
           <TransactionsList />
-        </div>
-
-        {/* Coluna 2: Parcelas */}
-        <div className="space-y-4">
+        </TabsContent>
+        
+        <TabsContent value="installments" className="space-y-4">
           <InstallmentManager />
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Transaction Form Dialog */}
       <TransactionForm
