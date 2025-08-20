@@ -26,7 +26,7 @@ import { OrganizationSelector } from '@/components/layout/OrganizationSelector';
 
 const Sidebar = () => {
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { currentOrganization } = useOrganization();
   const { organizationUser, isOrganizationAuthenticated } = useOrganizationAuthContext();
   const { enabledPages } = useOrganizationPages();
@@ -77,12 +77,16 @@ const Sidebar = () => {
   let menuItems = [];
   let showAdminSection = false;
   let organizationName = 'Sistema';
+  let userName = 'Usuário';
+  let userRole = 'Usuário';
 
   if (isOrganizationAuthenticated && organizationUser) {
     // Usuário organizacional - apenas menu de loja
     menuItems = storeMenuItems;
     showAdminSection = false;
-    organizationName = organizationUser.name || 'Loja';
+    organizationName = 'Loja';
+    userName = organizationUser.name || 'Usuário';
+    userRole = 'Administrador';
   } else if (isSuperAdmin) {
     // Super admin - menu completo
     const filteredMenuItems = enabledPages.length > 0 
@@ -91,18 +95,25 @@ const Sidebar = () => {
     menuItems = filteredMenuItems;
     showAdminSection = true;
     organizationName = currentOrganization?.name || 'Sistema';
+    userName = profile?.name || user?.email?.split('@')[0] || 'douglas';
+    userRole = 'Super Admin';
   }
 
   return (
     <div className="hidden lg:flex h-full w-64 flex-col fixed left-0 top-0 z-50 bg-background border-r">
-      {/* Header with organization name */}
+      {/* Header com logo e nome da organização */}
       <div className="p-6 border-b">
-        <div className="flex items-center space-x-2">
-          <Package className="w-8 h-8 text-primary" />
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
+            <span className="text-black font-bold">A</span>
+          </div>
           <div className="flex-1 min-w-0">
             <h2 className="text-lg font-semibold truncate">
-              {organizationName}
+              Agência2ub
             </h2>
+            <p className="text-sm text-muted-foreground">
+              Painel Administrativo
+            </p>
           </div>
         </div>
       </div>
@@ -117,7 +128,7 @@ const Sidebar = () => {
               className={cn(
                 "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
                 isActive(item.path)
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-yellow-400 text-black font-medium"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
@@ -141,7 +152,7 @@ const Sidebar = () => {
                   className={cn(
                     "flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors",
                     isActive(item.path)
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-yellow-400 text-black font-medium"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
@@ -154,12 +165,32 @@ const Sidebar = () => {
         )}
       </nav>
 
-      {/* Footer - apenas para super admin */}
-      {showAdminSection && (
-        <div className="p-4 border-t">
-          <OrganizationSelector />
+      {/* Footer com informações do usuário */}
+      <div className="p-4 border-t">
+        {/* Organization Selector apenas para super admin */}
+        {showAdminSection && (
+          <div className="mb-4">
+            <OrganizationSelector />
+          </div>
+        )}
+        
+        {/* Informações do usuário */}
+        <div className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
+          <div className="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center">
+            <span className="text-black font-medium text-sm">
+              {userName.substring(0, 2).toUpperCase()}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {userName}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {userRole}
+            </p>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
