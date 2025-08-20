@@ -13,6 +13,8 @@ interface OrganizationUser {
   email: string;
   name: string;
   is_active: boolean;
+  organization_name: string;
+  organization_slug: string;
   last_login?: string;
   created_at: string;
   updated_at: string;
@@ -57,7 +59,7 @@ export function useOrganizationAuth() {
       }
 
       console.log('[useOrganizationAuth] Login bem-sucedido:', result.user);
-      return result.user;
+      return result.user as OrganizationUser;
     } catch (error: any) {
       console.error('[useOrganizationAuth] Erro inesperado:', error);
       return null;
