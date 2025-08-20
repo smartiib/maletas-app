@@ -16,7 +16,7 @@ const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children })
         <Header />
 
         <main className={`flex-1 w-full ${isMobile ? 'pb-20' : ''}`}>
-          <div className="w-full min-w-0 animate-fade-in">
+          <div className="w-full min-w-0 animate-fade-in p-6">
             {children}
           </div>
         </main>
