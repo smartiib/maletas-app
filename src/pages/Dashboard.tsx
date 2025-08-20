@@ -9,14 +9,20 @@ import {
   useWooCommerceFilteredCustomers 
 } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
+import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrganizationAuthContext } from "@/contexts/OrganizationAuthContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 
 const Dashboard = () => {
-  // Get organization first so we can pass its id to the hooks
+  const { user } = useAuth();
   const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { organizationUser, isOrganizationAuthenticated } = useOrganizationAuthContext();
+
+  // Determinar se é super admin
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
 
   // These hooks use the organization context internally, no need to pass organizationId
   const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
@@ -32,6 +38,18 @@ const Dashboard = () => {
   const lowStockProducts = products.filter(product => 
     product.manage_stock && (product.stock_quantity || 0) < 10
   ).length;
+
+  // Determinar nome da organização baseado no tipo de usuário
+  let organizationName = 'Sistema';
+  let welcomeMessage = 'Visão geral do seu negócio';
+
+  if (isOrganizationAuthenticated && organizationUser) {
+    organizationName = 'Loja';
+    welcomeMessage = 'Painel administrativo da loja';
+  } else if (isSuperAdmin && currentOrganization) {
+    organizationName = currentOrganization.name;
+    welcomeMessage = 'Visão geral do seu negócio';
+  }
 
   if (orgLoading) {
     return (
@@ -53,7 +71,8 @@ const Dashboard = () => {
     );
   }
 
-  if (!currentOrganization) {
+  // Para usuários organizacionais, não verificar currentOrganization
+  if (isSuperAdmin && !currentOrganization) {
     return (
       <div className="container mx-auto px-4 py-6">
         <EmptyWooCommerceState
@@ -71,7 +90,7 @@ const Dashboard = () => {
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">
-            Bem-vindo à {currentOrganization.name}
+            Bem-vindo à {organizationName}
           </p>
         </div>
         <EmptyWooCommerceState
@@ -87,7 +106,7 @@ const Dashboard = () => {
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">
-          Bem-vindo à {currentOrganization.name} - Visão geral do seu negócio
+          Bem-vindo à {organizationName} - {welcomeMessage}
         </p>
       </div>
 

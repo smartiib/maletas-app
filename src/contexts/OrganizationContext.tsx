@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useOrganizationAuthContext } from '@/contexts/OrganizationAuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Organization {
@@ -26,19 +27,24 @@ interface OrganizationProviderProps {
 
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const { user } = useAuth();
+  const { isOrganizationAuthenticated } = useOrganizationAuthContext();
   const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Verificar se é super admin
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
+
   const refreshOrganizations = async () => {
-    if (!user) {
+    // Apenas carregar organizações para super admin
+    if (!user || !isSuperAdmin || isOrganizationAuthenticated) {
       setOrganizations([]);
       setCurrentOrganization(null);
       setLoading(false);
       return;
     }
 
-    console.log('Carregando organizações...');
+    console.log('Carregando organizações para super admin...');
     
     try {
       const { data, error } = await supabase
@@ -71,7 +77,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && isSuperAdmin && !isOrganizationAuthenticated) {
       // Tentar restaurar organização do localStorage primeiro
       const savedOrgId = localStorage.getItem('currentOrganizationId');
       
@@ -90,15 +96,19 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       
       refreshOrganizations();
     } else {
+      // Limpar dados para usuários organizacionais ou não autenticados
       setOrganizations([]);
       setCurrentOrganization(null);
       setLoading(false);
     }
-  }, [user]);
+  }, [user, isSuperAdmin, isOrganizationAuthenticated]);
 
   const handleSetCurrentOrganization = (org: Organization) => {
-    setCurrentOrganization(org);
-    localStorage.setItem('currentOrganizationId', org.id);
+    // Apenas super admin pode trocar organização
+    if (isSuperAdmin && !isOrganizationAuthenticated) {
+      setCurrentOrganization(org);
+      localStorage.setItem('currentOrganizationId', org.id);
+    }
   };
 
   return (
