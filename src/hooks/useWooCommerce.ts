@@ -11,7 +11,8 @@ export const useWooCommerceProducts = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getProducts({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getProducts(perPage),
     enabled: !!currentOrganization,
   });
 };
@@ -22,7 +23,8 @@ export const useWooCommerceFilteredProducts = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getProducts({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getProducts(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
     refetchOnWindowFocus: false,
@@ -55,7 +57,8 @@ export const useWooCommerceOrders = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getOrders({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getOrders(perPage),
     enabled: !!currentOrganization,
   });
 };
@@ -66,7 +69,8 @@ export const useWooCommerceFilteredOrders = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getOrders({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getOrders(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
     refetchOnWindowFocus: false,
@@ -79,7 +83,8 @@ export const useWooCommerceCustomers = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getCustomers({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getCustomers(perPage),
     enabled: !!currentOrganization,
   });
 };
@@ -90,7 +95,8 @@ export const useWooCommerceFilteredCustomers = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
-    queryFn: () => wooCommerceAPI.getCustomers({ page, per_page: perPage }),
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getCustomers(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
     refetchOnWindowFocus: false,
@@ -355,7 +361,8 @@ export const useRepresentantes = () => {
   
   return useQuery({
     queryKey: ['woocommerce-representantes', currentOrganization?.id],
-    queryFn: () => wooCommerceAPI.getCustomers({ role: 'representative' }),
+    // Ajuste: remover objeto, serviço espera number; usar um limite razoável
+    queryFn: () => wooCommerceAPI.getCustomers(100),
     enabled: !!currentOrganization,
   });
 };
