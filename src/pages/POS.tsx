@@ -110,12 +110,12 @@ const POS = () => {
   // Busca dinâmica local - sem debounce, filtra em tempo real
 
   // Ordenar categorias por quantidade de produtos (mais produtos primeiro)
-  const categoriesWithCounts = categoriesData.map(cat => ({
-    ...cat,
-    productCount: products.filter(p => p.categories?.some(c => c.id === cat.id)).length
+  const categoriesWithCounts = categoriesData.map(categoryName => ({
+    name: categoryName,
+    productCount: products.filter(p => p.categories?.some(c => c.name === categoryName)).length
   })).sort((a, b) => b.productCount - a.productCount);
 
-  const categories = ['Todos', ...Array.from(new Set(categoriesWithCounts.map(cat => cat.name)))];
+  const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
 
   // Debug para verificar se o filtro está sendo recalculado
   console.log('Recalculando filtro:', { searchTerm, selectedCategory, productsLength: products.length });
@@ -699,7 +699,7 @@ const POS = () => {
                               <img 
                                 src={item.images[0].src} 
                                 alt={item.name}
-                                className="w-full h-full object-cover"
+                                className="w-full h-full object-cover rounded-lg"
                               />
                             ) : (
                               <Package className="w-5 h-5 text-slate-400" />
