@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +6,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Minus, ChevronDown, ChevronRight, History, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
-import { stockHistoryService } from './StockHistoryService';
+import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
-import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface StockRowProps {
   product: any;
@@ -28,53 +26,31 @@ export const StockRow: React.FC<StockRowProps> = ({
 }) => {
   const updateStockMutation = useUpdateStock();
   const [tempStock, setTempStock] = useState<{ [key: string]: string }>({});
-
-  // Buscar variações do Supabase por parent_id
-  const { data: dbVariations } = useProductVariations(product?.id);
-
-  // Fallback: quando product.variations vem como lista de IDs, buscar por IDs
-  const variationIdsFromProduct = React.useMemo(() => {
-    const raw = Array.isArray(product?.variations) ? product.variations : [];
-    return raw
-      .filter((v: any) => typeof v === 'number' || (typeof v === 'string' && /^\d+$/.test(v)))
-      .map((v: any) => Number(v));
-  }, [product?.variations]);
-
-  const { data: dbVariationsByIds } = useProductVariationsByIds(
-    variationIdsFromProduct.length > 0 ? variationIdsFromProduct : undefined
-  );
-
-  // Preferir variações do banco; se não houver, tentar pelos IDs; se ainda não houver, usar as do produto se forem objetos
-  const displayVariations = React.useMemo(() => {
-    if (Array.isArray(dbVariations) && dbVariations.length > 0) return dbVariations;
-    if (Array.isArray(dbVariationsByIds) && dbVariationsByIds.length > 0) return dbVariationsByIds;
-    const pv = Array.isArray(product?.variations) ? product.variations : [];
-    if (pv.length > 0 && typeof pv[0] === 'object') return pv;
-    return [];
-  }, [dbVariations, dbVariationsByIds, product?.variations]);
-
   const totalStock = getTotalStock(product);
   const stockStatus = getStockStatus(totalStock, product.stock_status);
-  const hasVariations = product.type === 'variable' && displayVariations.length > 0;
-
-  const getCurrentStock = (variationId: number | null) => {
-    if (variationId !== null) {
-      const v = displayVariations.find((vv: any) => Number(vv?.id) === Number(variationId));
-      return Number(v?.stock_quantity) || 0;
-    }
-    return Number(product?.stock_quantity) || 0;
-  };
+  const hasVariations = product.type === 'variable' && product.variations?.length > 0;
 
   const updateStock = async (productId: number, variationId: number | null, change: number, reason: string) => {
     const isVariation = variationId !== null;
-    const currentStock = getCurrentStock(variationId);
+    const currentStock = isVariation 
+      ? product.variations?.find((v: any) => v.id === variationId)?.stock_quantity || 0
+      : product.stock_quantity || 0;
+    
     const newStock = Math.max(0, currentStock + change);
-
-    // Atualização otimista: não mutar product.variations (pode ser array de IDs)
-    const key = isVariation ? `${productId}-${variationId}` : `${productId}`;
-    setTempStock(prev => ({ ...prev, [key]: String(newStock) }));
-
-    // Registrar histórico local
+    
+    // Atualizar visualmente primeiro (otimistic update)
+    if (isVariation) {
+      // Atualizar variação no produto
+      const variationIndex = product.variations?.findIndex((v: any) => v.id === variationId);
+      if (variationIndex !== -1 && product.variations) {
+        product.variations[variationIndex].stock_quantity = newStock;
+      }
+    } else {
+      // Atualizar produto principal
+      product.stock_quantity = newStock;
+    }
+    
+    // Adicionar ao histórico
     stockHistoryService.addEntry({
       productId,
       variationId: variationId || undefined,
@@ -83,7 +59,7 @@ export const StockRow: React.FC<StockRowProps> = ({
       previousStock: currentStock,
       newStock,
       reason,
-      user: 'Usuário Atual'
+      user: 'Usuário Atual' // Aqui você pode pegar o usuário logado
     });
 
     try {
@@ -94,14 +70,26 @@ export const StockRow: React.FC<StockRowProps> = ({
       });
     } catch (error) {
       console.error('Erro ao atualizar estoque:', error);
-      // Reverter atualização otimista em caso de erro
-      setTempStock(prev => ({ ...prev, [key]: String(currentStock) }));
+      // Em caso de erro, reverter a mudança visual
+      if (isVariation) {
+        const variationIndex = product.variations?.findIndex((v: any) => v.id === variationId);
+        if (variationIndex !== -1 && product.variations) {
+          product.variations[variationIndex].stock_quantity = currentStock;
+        }
+      } else {
+        product.stock_quantity = currentStock;
+      }
     }
   };
 
   const updateStockDirect = async (productId: number, variationId: number | null, newStock: number) => {
-    const currentStock = getCurrentStock(variationId);
+    const isVariation = variationId !== null;
+    const currentStock = isVariation 
+      ? product.variations?.find((v: any) => v.id === variationId)?.stock_quantity || 0
+      : product.stock_quantity || 0;
+    
     const change = newStock - currentStock;
+    
     if (change !== 0) {
       await updateStock(productId, variationId, change, 'Ajuste manual direto');
     }
@@ -119,7 +107,7 @@ export const StockRow: React.FC<StockRowProps> = ({
       if (value !== undefined) {
         const newStock = parseInt(value) || 0;
         updateStockDirect(productId, variationId, newStock);
-        setTempStock(prev => ({ ...prev, [key]: undefined as any }));
+        setTempStock(prev => ({ ...prev, [key]: undefined }));
       }
     }
   };
@@ -130,7 +118,7 @@ export const StockRow: React.FC<StockRowProps> = ({
     if (value !== undefined) {
       const newStock = parseInt(value) || 0;
       updateStockDirect(productId, variationId, newStock);
-      setTempStock(prev => ({ ...prev, [key]: undefined as any }));
+      setTempStock(prev => ({ ...prev, [key]: undefined }));
     }
   };
 
@@ -142,10 +130,10 @@ export const StockRow: React.FC<StockRowProps> = ({
   const getLastChange = (productId: number, variationId?: number) => {
     const lastChange = stockHistoryService.getLastChange(productId, variationId);
     if (!lastChange) return 'Nunca alterado';
-
+    
     const date = new Date(lastChange.date);
     const diffInHours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
-
+    
     if (diffInHours < 1) return 'Há poucos minutos';
     if (diffInHours < 24) return `Há ${diffInHours} horas`;
     const diffInDays = Math.floor(diffInHours / 24);
@@ -171,7 +159,7 @@ export const StockRow: React.FC<StockRowProps> = ({
               )}
             </Button>
           )}
-
+          
           {/* Miniatura da imagem */}
           <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
             {product.images && product.images.length > 0 ? (
@@ -189,7 +177,7 @@ export const StockRow: React.FC<StockRowProps> = ({
               </div>
             )}
           </div>
-
+          
           <div className="flex-1">
             <h3 className="font-medium text-foreground">{product.name}</h3>
             <div className="flex items-center space-x-2 text-sm text-muted-foreground">
@@ -212,7 +200,7 @@ export const StockRow: React.FC<StockRowProps> = ({
               >
                 <Minus className="w-3 h-3" />
               </Button>
-
+              
               <Input
                 type="number"
                 value={getDisplayStock(product.id, null, totalStock)}
@@ -222,7 +210,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                 className="w-20 text-center"
                 disabled={updateStockMutation.isPending}
               />
-
+              
               <Button
                 variant="outline"
                 size="sm"
@@ -264,22 +252,18 @@ export const StockRow: React.FC<StockRowProps> = ({
       {/* Variações */}
       {hasVariations && isExpanded && (
         <div className="border-t bg-muted/20">
-          {displayVariations?.map((variation: any) => {
-            const variationStock = Number(variation?.stock_quantity) || 0;
-            const variationStatus = getStockStatus(variationStock, variation?.stock_status);
-
+          {product.variations?.map((variation: any) => {
+            const variationStock = variation.stock_quantity || 0;
+            const variationStatus = getStockStatus(variationStock, variation.stock_status);
+            
             return (
               <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
                 <div className="flex-1">
                   <div className="font-medium text-sm">
-                    {Array.isArray(variation?.attributes) && variation.attributes.length > 0
-                      ? variation.attributes
-                          .map((attr: any) => `${attr?.name}: ${attr?.option ?? attr?.value ?? ''}`)
-                          .join(', ')
-                      : `Variação #${variation?.id}`}
+                    {variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <span>SKU: {variation?.sku || 'N/A'}</span>
+                    <span>SKU: {variation.sku || 'N/A'}</span>
                     <Badge variant={variationStatus.color as any} className="text-xs">
                       {variationStatus.label}
                     </Badge>
@@ -291,26 +275,26 @@ export const StockRow: React.FC<StockRowProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => updateStock(product.id, Number(variation.id), -1, 'Ajuste manual')}
+                      onClick={() => updateStock(product.id, variation.id, -1, 'Ajuste manual')}
                       disabled={variationStock <= 0 || updateStockMutation.isPending}
                     >
                       <Minus className="w-3 h-3" />
                     </Button>
-
+                    
                     <Input
                       type="number"
-                      value={getDisplayStock(product.id, Number(variation.id), variationStock)}
-                      onChange={(e) => handleStockInputChange(product.id, Number(variation.id), e.target.value)}
-                      onKeyDown={(e) => handleStockInputKeyDown(e, product.id, Number(variation.id))}
-                      onBlur={() => handleStockInputBlur(product.id, Number(variation.id))}
+                      value={getDisplayStock(product.id, variation.id, variationStock)}
+                      onChange={(e) => handleStockInputChange(product.id, variation.id, e.target.value)}
+                      onKeyDown={(e) => handleStockInputKeyDown(e, product.id, variation.id)}
+                      onBlur={() => handleStockInputBlur(product.id, variation.id)}
                       className="w-20 text-center"
                       disabled={updateStockMutation.isPending}
                     />
-
+                    
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => updateStock(product.id, Number(variation.id), 1, 'Ajuste manual')}
+                      onClick={() => updateStock(product.id, variation.id, 1, 'Ajuste manual')}
                       disabled={updateStockMutation.isPending}
                     >
                       <Plus className="w-3 h-3" />
@@ -318,7 +302,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                   </div>
 
                   <div className="text-sm text-muted-foreground w-32 text-right">
-                    {getLastChange(product.id, Number(variation.id))}
+                    {getLastChange(product.id, variation.id)}
                   </div>
                 </div>
               </div>
