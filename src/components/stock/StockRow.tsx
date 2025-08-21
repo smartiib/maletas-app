@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
 import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
+import { useProductVariations, DbVariation } from '@/hooks/useProductVariations';
 
 interface StockRowProps {
   product: any;
@@ -29,6 +31,14 @@ export const StockRow: React.FC<StockRowProps> = ({
   const totalStock = getTotalStock(product);
   const stockStatus = getStockStatus(totalStock, product.stock_status);
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
+
+  // Buscar dados completos das variações para exibir SKU e atributos corretamente
+  const { data: dbVariations = [] } = useProductVariations(hasVariations ? product.id : undefined);
+  const variationInfoById = useMemo(() => {
+    const map = new Map<number, DbVariation>();
+    dbVariations.forEach((v) => map.set(v.id, v));
+    return map;
+  }, [dbVariations]);
 
   const updateStock = async (productId: number, variationId: number | null, change: number, reason: string) => {
     const isVariation = variationId !== null;
@@ -255,15 +265,21 @@ export const StockRow: React.FC<StockRowProps> = ({
           {product.variations?.map((variation: any) => {
             const variationStock = variation.stock_quantity || 0;
             const variationStatus = getStockStatus(variationStock, variation.stock_status);
+            const vInfo = variationInfoById.get(variation.id);
+            const displayAttributes =
+              (vInfo?.attributes && vInfo.attributes.length
+                ? vInfo.attributes.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')
+                : (variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ') || 'Variação'))) as string;
+            const displaySku = (vInfo?.sku ?? variation.sku) || 'N/A';
             
             return (
               <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
                 <div className="flex-1">
                   <div className="font-medium text-sm">
-                    {variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}
+                    {displayAttributes}
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <span>SKU: {variation.sku || 'N/A'}</span>
+                    <span>SKU: {displaySku}</span>
                     <Badge variant={variationStatus.color as any} className="text-xs">
                       {variationStatus.label}
                     </Badge>
