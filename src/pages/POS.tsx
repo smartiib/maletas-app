@@ -1,8 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Product } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { formatCurrency } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { toast } from 'sonner';
+import { toast as sonnerToast } from 'sonner';
 
 interface DbVariation {
   id: number;
@@ -34,15 +34,30 @@ interface DbVariation {
   description?: string | null;
 }
 
+// Minimal Product shape used in this page
+interface Product {
+  id: number | string;
+  type?: string | null;
+  name: string;
+  images?: { src: string }[];
+  description?: string | null;
+  price?: number | string | null;
+  regular_price?: number | string | null;
+  sale_price?: number | string | null;
+}
+
 const POS = () => {
-  const router = useRouter();
-  const { productId } = router.query;
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const rawProductId = searchParams.get('productId');
+  const productId = rawProductId ? Number(rawProductId) : undefined;
+
   const { currentOrganization } = useOrganization();
   const { addItemToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [selectedVariationIds, setSelectedVariationIds] = useState<number[]>([]);
   const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
-  const { toast } = useToast()
+  const { toast } = useToast();
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', productId, currentOrganization?.id],
@@ -107,18 +122,18 @@ const POS = () => {
         variant: "destructive",
         title: "Erro ao carregar produto",
         description: "Verifique sua conexão com a internet.",
-      })
-      router.push('/estoque');
+      });
+      navigate('/stock');
     }
     if (isVariationsError) {
       toast({
         variant: "destructive",
         title: "Erro ao carregar variações",
         description: "Verifique sua conexão com a internet.",
-      })
-      router.push('/estoque');
+      });
+      navigate('/stock');
     }
-  }, [isError, isVariationsError, router, toast]);
+  }, [isError, isVariationsError, navigate, toast]);
 
   if (isLoading || isVariationsLoading) {
     return <div>Carregando...</div>;
@@ -139,29 +154,48 @@ const POS = () => {
       selectedVariationIds.forEach(variationId => {
         const variation = variations?.find(v => v.id === variationId);
         if (variation) {
+          const attrValues = Array.isArray(variation?.attributes)
+            ? variation.attributes
+                .map((a: any) => (a?.value ?? a?.option))
+                .filter((v: any) => v !== undefined && v !== null && String(v).trim() !== '')
+            : [];
+          const variationTitle =
+            attrValues.length > 0
+              ? attrValues.join(' - ')
+              : (variation as any)?.name ? String((variation as any).name) : `Variação #${variation?.id ?? ''}`;
+
+          const price = Number(variation.price ?? variation.regular_price ?? 0);
+
           addItemToCart({
-            ...product,
-            id: `variation-${variation.id}`, // Use um ID único para cada variação
-            name: `${product.name} - ${variation.attributes?.map((a: any) => a.value).join(', ')}`, // Adapte o nome conforme necessário
-            price: variation.price || variation.regular_price || 0, // Use o preço da variação
+            // garantir um ID único por variação
+            id: `variation-${variation.id}`,
+            name: `${product.name} - ${variationTitle}`,
+            price,
             quantity,
+            sku: variation?.sku ?? null,
+            productId: product.id,
+            variationId: variation.id,
           });
         }
       });
       toast({
         title: "Adicionado ao carrinho",
         description: `${product.name} (variações) adicionado com sucesso.`,
-      })
+      });
     } else {
       // Se for um produto simples, adicione o produto diretamente
+      const price = Number(product.price ?? product.regular_price ?? 0);
       addItemToCart({
-        ...product,
+        id: product.id,
+        name: product.name,
+        price,
         quantity,
+        sku: null,
       });
       toast({
         title: "Adicionado ao carrinho",
         description: `${product.name} adicionado com sucesso.`,
-      })
+      });
     }
   };
 
@@ -194,7 +228,7 @@ const POS = () => {
         />
       </div>
 
-      <Button onClick={handleAddToCart} className="bg-blue-500 text-white px-4 py-2 rounded">
+      <Button onClick={handleAddToCart} className="px-4 py-2 rounded">
         Adicionar ao Carrinho
       </Button>
 
