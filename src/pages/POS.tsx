@@ -1497,9 +1497,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
               ) : null}
 
               {displayVariations?.map((variation: any) => {
-                const attrsText = (variation?.attributes && variation.attributes.length > 0)
+                // NOVO: título da variação com múltiplos fallbacks
+                const hasAttrs = Array.isArray(variation?.attributes) && variation.attributes.length > 0;
+                const attrsText = hasAttrs
                   ? variation.attributes.map((a: any) => `${a.name}: ${a.value}`).join(', ')
-                  : 'Sem atributos';
+                  : '';
+                const variationTitle =
+                  (variation?.name && String(variation.name)) ||
+                  (hasAttrs ? attrsText : '') ||
+                  (variation?.description && String(variation.description)) ||
+                  (variation?.sku ? `SKU: ${variation.sku}` : `Variação #${variation?.id ?? ''}`);
 
                 const priceValue = variation?.price ?? variation?.regular_price ?? 0;
 
@@ -1511,7 +1518,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{attrsText}</p>
+                        <p className="font-medium text-sm">{variationTitle}</p>
                         <p className="text-xs text-slate-500 mt-1">
                           SKU: {variation?.sku || 'N/A'}
                         </p>
