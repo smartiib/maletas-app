@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { RefreshCw, Clock, AlertCircle, CheckCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -58,7 +59,9 @@ const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOn
   const isSyncing = syncStatus?.is_syncing;
 
   const handleManualSync = async () => {
-    if (!wooConfig?.apiUrl || !wooConfig?.consumerKey || !wooConfig?.consumerSecret) {
+    console.log('Botão de sincronização clicado');
+    
+    if (!wooConfig?.isConfigured) {
       toast({
         title: "Configuração Necessária",
         description: "Configure sua integração com WooCommerce nas configurações",
@@ -72,6 +75,15 @@ const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOn
       if (syncType === 'all') {
         syncTypeForApi = 'full';
       }
+
+      console.log('Iniciando sincronização com:', {
+        sync_type: syncTypeForApi,
+        config: {
+          url: wooConfig.apiUrl,
+          consumer_key: wooConfig.consumerKey?.substring(0, 10) + '...',
+          consumer_secret: '[HIDDEN]',
+        }
+      });
 
       await manualSync.mutateAsync({
         sync_type: syncTypeForApi,
@@ -89,6 +101,7 @@ const SyncHeader: React.FC<SyncHeaderProps> = ({ syncType, title, showProductsOn
         description: `Sincronização de ${syncInfo.label} iniciada com sucesso`,
       });
     } catch (error: any) {
+      console.error('Erro ao iniciar sincronização:', error);
       toast({
         title: "Erro na Sincronização",
         description: error.message || "Erro ao iniciar sincronização",
