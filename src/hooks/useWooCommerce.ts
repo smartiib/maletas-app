@@ -111,24 +111,17 @@ export const useWooCommerceConfig = () => {
   const configQuery = useQuery({
     queryKey: ['woocommerce-config', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) {
-        return null;
-      }
-      
-      // Access WooCommerce settings from organization settings (via casting seguro)
-      const wooSettings = ((currentOrganization as any)?.settings ?? {}) as any;
-      
-      return {
-        url: wooSettings?.woocommerce_url || '',
-        consumerKey: wooSettings?.woocommerce_consumer_key || '',
-        consumerSecret: wooSettings?.woocommerce_consumer_secret || '',
-      };
-    },
-    enabled: !!currentOrganization,
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    select: (data) => {
-      if (!data) {
+      if (!currentOrganization) return null;
+
+      console.log('[WooConfig] Fetching organization settings from Supabase...');
+      const { data, error } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', currentOrganization.id)
+        .single();
+
+      if (error) {
+        console.error('[WooConfig] Error fetching settings:', error);
         return {
           isConfigured: false,
           apiUrl: '',
@@ -137,36 +130,45 @@ export const useWooCommerceConfig = () => {
           consumerSecret: '',
         };
       }
-      const isConfigured = !!data.url && !!data.consumerKey && !!data.consumerSecret;
+
+      const wooSettings = ((data?.settings ?? {}) as any) || {};
+      const url = wooSettings?.woocommerce_url || '';
+      const consumerKey = wooSettings?.woocommerce_consumer_key || '';
+      const consumerSecret = wooSettings?.woocommerce_consumer_secret || '';
+      const isConfigured = !!url && !!consumerKey && !!consumerSecret;
+
       return {
         isConfigured,
-        apiUrl: data.url || '',
-        url: data.url || '',
-        consumerKey: data.consumerKey || '',
-        consumerSecret: data.consumerSecret || '',
+        apiUrl: url,
+        url,
+        consumerKey,
+        consumerSecret,
       };
     },
+    enabled: !!currentOrganization,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
   const testConnection = useMutation({
     mutationFn: async (config: { apiUrl: string; consumerKey: string; consumerSecret: string }) => {
-      try {
-        // Test the connection by making a simple API call
-        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`, {
-          headers: {
-            'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
-          }
-        });
-        
-        if (!response.ok) {
-          throw new Error('Falha na conexão com WooCommerce');
+      // Test the connection by making a simple API call
+      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
         }
-        
-        toast.success('Conexão testada com sucesso!');
-        return { success: true };
-      } catch (error) {
-        toast.error('Erro ao testar conexão');
-        throw error;
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha na conexão com WooCommerce');
+      }
+      
+      toast.success('Conexão testada com sucesso!');
+      return { success: true };
+    },
+    meta: {
+      onError: (error: any) => {
+        console.error('[WooConfig] Test connection failed:', error);
       }
     }
   });
@@ -174,40 +176,54 @@ export const useWooCommerceConfig = () => {
   const saveConfig = async (config: { apiUrl: string; consumerKey: string; consumerSecret: string }) => {
     if (!currentOrganization) return;
 
-    try {
-      const updatedSettings = {
-        ...(((currentOrganization as any)?.settings) ?? {}),
-        woocommerce_url: config.apiUrl,
-        woocommerce_consumer_key: config.consumerKey,
-        woocommerce_consumer_secret: config.consumerSecret,
-      };
+    // Carregar settings atuais do banco para mesclar e não sobrescrever outras configs
+    const { data: currentData, error: loadError } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', currentOrganization.id)
+      .single();
 
-      const { error } = await supabase
-        .from('organizations')
-        .update({ settings: updatedSettings })
-        .eq('id', currentOrganization.id);
-
-      if (error) throw error;
-
-      // Update organization in context if available
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-config'] });
-      toast.success('Configuração salva com sucesso!');
-    } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
-      toast.error('Erro ao salvar configuração');
+    if (loadError) {
+      console.error('[WooConfig] Erro ao carregar settings atuais:', loadError);
+      toast.error('Erro ao carregar configurações atuais');
+      return;
     }
+
+    const baseSettings = ((currentData?.settings ?? {}) as any) || {};
+
+    const updatedSettings = {
+      ...baseSettings,
+      woocommerce_url: config.apiUrl,
+      woocommerce_consumer_key: config.consumerKey,
+      woocommerce_consumer_secret: config.consumerSecret,
+    };
+
+    const { error } = await supabase
+      .from('organizations')
+      .update({ settings: updatedSettings })
+      .eq('id', currentOrganization.id);
+
+    if (error) {
+      console.error('[WooConfig] Erro ao salvar configuração:', error);
+      toast.error('Erro ao salvar configuração');
+      return;
+    }
+
+    // Garantir que a UI reflita imediatamente
+    await queryClient.invalidateQueries({ queryKey: ['woocommerce-config', currentOrganization.id] });
+    toast.success('Configuração salva com sucesso!');
   };
 
   const webhooksQuery = useQuery({
     queryKey: ['woocommerce-webhooks', currentOrganization?.id],
     queryFn: async () => {
-      const config = configQuery.data;
-      if (!config?.isConfigured) return [];
+      const cfg = configQuery.data;
+      if (!cfg?.isConfigured) return [];
 
       try {
-        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+        const response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
           headers: {
-            'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+            'Authorization': `Basic ${btoa(`${cfg.consumerKey}:${cfg.consumerSecret}`)}`
           }
         });
 
@@ -223,8 +239,8 @@ export const useWooCommerceConfig = () => {
 
   const setupWebhook = useMutation({
     mutationFn: async () => {
-      const config = configQuery.data;
-      if (!config?.isConfigured) throw new Error('WooCommerce not configured');
+      const cfg = configQuery.data;
+      if (!cfg?.isConfigured) throw new Error('WooCommerce not configured');
 
       const webhookData = {
         name: 'Stock Sync Webhook',
@@ -233,10 +249,10 @@ export const useWooCommerceConfig = () => {
         status: 'active'
       };
 
-      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+      const response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`,
+          'Authorization': `Basic ${btoa(`${cfg.consumerKey}:${cfg.consumerSecret}`)}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(webhookData)
