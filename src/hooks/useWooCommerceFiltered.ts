@@ -1,4 +1,5 @@
 
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -6,7 +7,7 @@ import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
 export const useWooCommerceFilteredProducts = () => {
   const { currentOrganization } = useOrganization();
-  const { config, isConfigured } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-products-filtered', currentOrganization?.id, isConfigured],
@@ -35,7 +36,7 @@ export const useWooCommerceFilteredProducts = () => {
 
 export const useWooCommerceFilteredOrders = () => {
   const { currentOrganization } = useOrganization();
-  const { config, isConfigured } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-orders-filtered', currentOrganization?.id, isConfigured],
@@ -64,7 +65,7 @@ export const useWooCommerceFilteredOrders = () => {
 
 export const useWooCommerceFilteredCustomers = () => {
   const { currentOrganization } = useOrganization();
-  const { config, isConfigured } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-customers-filtered', currentOrganization?.id, isConfigured],
@@ -93,7 +94,7 @@ export const useWooCommerceFilteredCustomers = () => {
 
 export const useWooCommerceFilteredCategories = () => {
   const { currentOrganization } = useOrganization();
-  const { config, isConfigured } = useWooCommerceConfig();
+  const { isConfigured } = useWooCommerceConfig();
   
   return useQuery({
     queryKey: ['wc-categories-filtered', currentOrganization?.id, isConfigured],
@@ -119,3 +120,4 @@ export const useWooCommerceFilteredCategories = () => {
     staleTime: 10 * 60 * 1000, // 10 minutos
   });
 };
+
