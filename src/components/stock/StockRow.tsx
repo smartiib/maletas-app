@@ -265,10 +265,12 @@ export const StockRow: React.FC<StockRowProps> = ({
             const variationStock = variation.stock_quantity || 0;
             const variationStatus = getStockStatus(variationStock, variation.stock_status);
             const vInfo = variationInfoById.get(variation.id);
-            const displayAttributes =
-              (vInfo?.attributes && vInfo.attributes.length
-                ? vInfo.attributes.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')
-                : (variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ') || 'Variação'))) as string;
+
+            const displayAttributes: string =
+              vInfo?.attributes?.length
+                ? (vInfo.attributes as any[]).map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')
+                : (variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ') || 'Variação');
+
             const displaySku = (vInfo?.sku ?? variation.sku) || 'N/A';
             
             return (
