@@ -1354,7 +1354,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
       ? dbVariations
       : (dbVariationsByIds && dbVariationsByIds.length > 0)
         ? dbVariationsByIds
-        : (Array.isArray(product.variations) ? product.variations as any[] : []);
+        : (Array.isArray(product.variations) ? (product.variations as any[]) : []);
 
   // Normalizador de atributos (cobre diferentes formatos)
   const normalizeAttributes = (variation: any): Array<{ name: string; value: string }> => {
@@ -1381,11 +1381,18 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
 
     // Caso a variação seja apenas um ID, mantemos a estrutura mínima para não quebrar
     if (typeof variation === 'number') {
-      return { id: variation, attributes: [], price: product.price, sku: product.sku, stock_quantity: product.stock_quantity };
+      return { 
+        id: variation, 
+        parent_id: product.id,
+        attributes: [], 
+        price: product.price, 
+        sku: null, 
+        stock_quantity: product.stock_quantity 
+      };
     }
 
     const priceValue = variation?.price ?? variation?.regular_price ?? product.price ?? '0';
-    const skuValue = variation?.sku ?? product.sku ?? null;
+    const skuValue = variation?.sku ?? null;
     const stockQty = variation?.stock_quantity ?? null;
     const attrs = normalizeAttributes(variation);
 
@@ -1401,6 +1408,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
       attributes: attrs,
       image: variation?.image,
       description: variation?.description,
+      name: variation?.name
     };
   };
 
@@ -1433,7 +1441,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         {
           ...product,
           price: (selectedVariation.price ?? product.price)?.toString?.() ?? String(selectedVariation.price ?? product.price),
-          sku: selectedVariation.sku ?? product.sku
+          sku: selectedVariation.sku ?? undefined
         } as Product,
         selectedVariation.id,
         variationAttributes
@@ -1497,7 +1505,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
               ) : null}
 
               {displayVariations?.map((variation: any) => {
-                // NOVO: título da variação com múltiplos fallbacks
+                // Título da variação com múltiplos fallbacks
                 const hasAttrs = Array.isArray(variation?.attributes) && variation.attributes.length > 0;
                 const attrsText = hasAttrs
                   ? variation.attributes.map((a: any) => `${a.name}: ${a.value}`).join(', ')
