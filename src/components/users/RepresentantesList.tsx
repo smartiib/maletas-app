@@ -65,18 +65,18 @@ const RepresentantesList = () => {
           </p>
         ) : (
           <div className="space-y-4">
-            {representantes.map((rep) => (
+            {representantes.map((rep: any) => (
               <div key={rep.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50">
                 <div className="flex items-center space-x-4">
                   <Avatar>
-                    <AvatarImage src={rep.avatar_urls?.['48']} />
+                    <AvatarImage src={rep.avatar_urls?.['48'] || ''} />
                     <AvatarFallback>
-                      {rep.first_name?.[0]}{rep.last_name?.[0]}
+                      {rep.first_name?.[0] || ''}{rep.last_name?.[0] || ''}
                     </AvatarFallback>
                   </Avatar>
                   
                   <div>
-                    <h3 className="font-medium">{rep.display_name}</h3>
+                    <h3 className="font-medium">{rep.display_name || `${rep.first_name || ''} ${rep.last_name || ''}`.trim() || 'N/A'}</h3>
                     <div className="flex items-center gap-4 text-sm text-slate-500">
                       <span className="flex items-center gap-1">
                         <Mail className="w-3 h-3" />

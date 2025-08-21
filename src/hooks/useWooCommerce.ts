@@ -99,7 +99,7 @@ export const useWooCommerceFilteredCustomers = (page = 1, perPage = 20) => {
 
 // WooCommerce Config with full functionality
 export const useWooCommerceConfig = () => {
-  const { currentOrganization, updateOrganization } = useOrganization();
+  const { currentOrganization } = useOrganization();
   const queryClient = useQueryClient();
 
   const configQuery = useQuery({
@@ -110,7 +110,7 @@ export const useWooCommerceConfig = () => {
       }
       
       // Access WooCommerce settings from organization metadata or settings
-      const wooSettings = currentOrganization.settings as any;
+      const wooSettings = (currentOrganization as any).settings as any;
       
       return {
         url: wooSettings?.woocommerce_url || '',
@@ -125,6 +125,7 @@ export const useWooCommerceConfig = () => {
       if (!data) {
         return {
           isConfigured: false,
+          apiUrl: '',
           url: '',
           consumerKey: '',
           consumerSecret: '',
@@ -133,6 +134,7 @@ export const useWooCommerceConfig = () => {
       const isConfigured = !!data.url && !!data.consumerKey && !!data.consumerSecret;
       return {
         isConfigured,
+        apiUrl: data.url || '',
         url: data.url || '',
         consumerKey: data.consumerKey || '',
         consumerSecret: data.consumerSecret || '',
@@ -168,7 +170,7 @@ export const useWooCommerceConfig = () => {
 
     try {
       const updatedSettings = {
-        ...currentOrganization.settings,
+        ...(currentOrganization as any).settings,
         woocommerce_url: config.apiUrl,
         woocommerce_consumer_key: config.consumerKey,
         woocommerce_consumer_secret: config.consumerSecret,
@@ -181,11 +183,7 @@ export const useWooCommerceConfig = () => {
 
       if (error) throw error;
 
-      await updateOrganization({
-        ...currentOrganization,
-        settings: updatedSettings
-      });
-
+      // Update organization in context if available
       queryClient.invalidateQueries({ queryKey: ['woocommerce-config'] });
       toast.success('Configuração salva com sucesso!');
     } catch (error) {
@@ -201,7 +199,7 @@ export const useWooCommerceConfig = () => {
       if (!config?.isConfigured) return [];
 
       try {
-        const response = await fetch(`${config.url.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
           headers: {
             'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
           }
@@ -229,7 +227,7 @@ export const useWooCommerceConfig = () => {
         status: 'active'
       };
 
-      const response = await fetch(`${config.url.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`,
