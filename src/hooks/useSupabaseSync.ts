@@ -340,7 +340,7 @@ export const useSaveSyncConfig = () => {
 // Data hooks used around the app (POS, Suppliers, Maletas)
 // =========================================
 
-export const useSupabaseProducts = () => {
+export const useSupabaseProducts = (..._args: any[]) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
@@ -363,7 +363,7 @@ export const useSupabaseProducts = () => {
   });
 };
 
-export const useSupabaseCustomers = () => {
+export const useSupabaseCustomers = (..._args: any[]) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
@@ -386,7 +386,7 @@ export const useSupabaseCustomers = () => {
   });
 };
 
-export const useSupabaseAllCustomers = () => {
+export const useSupabaseAllCustomers = (..._args: any[]) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
@@ -409,7 +409,7 @@ export const useSupabaseAllCustomers = () => {
   });
 };
 
-export const useSupabaseCategories = () => {
+export const useSupabaseCategories = (..._args: any[]) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
