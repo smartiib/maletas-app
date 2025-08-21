@@ -23,6 +23,7 @@ import { addDays, format } from 'date-fns';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 import SyncHeader from '@/components/sync/SyncHeader';
+import { useProductVariations } from '@/hooks/useProductVariations';
 
 interface CartItem extends Product {
   quantity: number;
@@ -1330,6 +1331,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   // Verificar se o produto tem variações (tipo variable)
   const hasVariations = product.type === 'variable' && product.variations && product.variations.length > 0;
 
+  // Buscar variações completas no Supabase quando o produto for variável
+  const { data: dbVariations = [], isLoading: loadingVariations } = useProductVariations(
+    hasVariations ? product.id : undefined
+  );
+
+  // Lista de variações a exibir: prioriza as do banco; se não houver, usa o que vier no produto
+  const displayVariations: any[] = (dbVariations && dbVariations.length > 0)
+    ? dbVariations
+    : (Array.isArray(product.variations) ? product.variations as any[] : []);
+
   const handleAddToCart = () => {
     if (hasVariations && !selectedVariation) {
       setShowVariations(true);
@@ -1339,12 +1350,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     if (selectedVariation) {
       // Converter os atributos para o formato esperado
       const variationAttributes = selectedVariation.attributes?.map((attr: any) => ({
-        name: attr.name || attr.attribute || 'Atributo',
-        value: attr.option || attr.value || 'N/A'
+        name: attr?.name || attr?.attribute || 'Atributo',
+        value: attr?.option || attr?.value || 'N/A'
       })) || [];
 
       onAddToCart(
-        { ...product, price: selectedVariation.price },
+        {
+          ...product,
+          // garantir string para ser compatível com cálculos atuais (parseFloat em outros pontos)
+          price: (selectedVariation.price ?? product.price)?.toString?.() ?? String(selectedVariation.price ?? product.price),
+          sku: selectedVariation.sku ?? product.sku
+        } as Product,
         selectedVariation.id,
         variationAttributes
       );
@@ -1380,7 +1396,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             <p className="text-xs text-slate-500 mb-1">SKU: {product.sku}</p>
           )}
           <p className="text-lg font-bold text-primary mb-1">
-            R$ {parseFloat(product.price || '0').toFixed(2)}
+            R$ {parseFloat((product.price || '0') as string).toFixed(2)}
           </p>
           <div className="flex items-center justify-between">
             <p className="text-xs text-slate-500">
@@ -1388,7 +1404,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             </p>
             {hasVariations && (
               <Badge variant="outline" className="text-xs">
-                {product.variations?.length} variações
+                {displayVariations?.length || 0} variações
               </Badge>
             )}
           </div>
@@ -1402,13 +1418,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             <h3 className="text-lg font-semibold mb-4">Selecionar Variação - {product.name}</h3>
             
             <div className="space-y-3 mb-4">
-              {product.variations?.map((variation: any) => {
-                // Processar atributos da variação
-                const attributesText = variation.attributes?.map((attr: any) => {
-                  const name = attr.name || attr.attribute || 'Atributo';
-                  const value = attr.option || attr.value || 'N/A';
+              {loadingVariations && (
+                <div className="text-sm text-muted-foreground">Carregando variações...</div>
+              )}
+
+              {displayVariations?.map((variation: any) => {
+                // Processar atributos da variação com fallbacks
+                const attributesText = variation?.attributes?.map((attr: any) => {
+                  const name = attr?.name || attr?.attribute || 'Atributo';
+                  const value = attr?.option || attr?.value || 'N/A';
                   return `${name}: ${value}`;
                 }).join(', ') || 'Sem atributos';
+
+                const priceValue = variation?.price ?? variation?.regular_price ?? 0;
 
                 return (
                   <div
@@ -1424,15 +1446,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
                       <div className="flex-1">
                         <p className="font-medium text-sm">{attributesText}</p>
                         <p className="text-xs text-slate-500 mt-1">
-                          SKU: {variation.sku || 'N/A'}
+                          SKU: {variation?.sku || 'N/A'}
                         </p>
                       </div>
                       <div className="text-right ml-3">
                         <p className="font-bold text-primary">
-                          R$ {parseFloat(variation.price || '0').toFixed(2)}
+                          R$ {parseFloat(String(priceValue || 0)).toFixed(2)}
                         </p>
                         <p className="text-xs text-slate-500">
-                          Estoque: {variation.stock_quantity || 0}
+                          Estoque: {variation?.stock_quantity ?? 0}
                         </p>
                       </div>
                     </div>
