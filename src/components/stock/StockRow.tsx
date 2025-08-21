@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
 import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
-import { useProductVariations, DbVariation } from '@/hooks/useProductVariations';
+import { useProductVariations, DbVariation, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface StockRowProps {
   product: any;
@@ -32,12 +32,22 @@ export const StockRow: React.FC<StockRowProps> = ({
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
 
   // Buscar dados completos das variações para exibir SKU e atributos corretamente
-  const { data: dbVariations = [] } = useProductVariations(hasVariations ? product.id : undefined);
+  const { data: dbVariationsParent = [] } = useProductVariations(hasVariations ? product.id : undefined);
+
+  const variationIds = useMemo(() => {
+    return hasVariations ? (product.variations?.map((v: any) => v.id).filter(Boolean) as number[]) : [];
+  }, [hasVariations, product.variations]);
+
+  const shouldFetchByIds = (dbVariationsParent?.length ?? 0) === 0 && variationIds.length > 0;
+  const { data: dbVariationsByIds = [] } = useProductVariationsByIds(shouldFetchByIds ? variationIds : undefined);
+
+  const effectiveVariations: DbVariation[] = (dbVariationsParent?.length ?? 0) > 0 ? dbVariationsParent : dbVariationsByIds;
+
   const variationInfoById = useMemo(() => {
     const map = new Map<number, DbVariation>();
-    dbVariations.forEach((v) => map.set(v.id, v));
+    effectiveVariations.forEach((v) => map.set(v.id, v));
     return map;
-  }, [dbVariations]);
+  }, [effectiveVariations]);
 
   const updateStock = async (productId: number, variationId: number | null, change: number, reason: string) => {
     const isVariation = variationId !== null;
@@ -271,7 +281,9 @@ export const StockRow: React.FC<StockRowProps> = ({
                 ? (vInfo.attributes as any[]).map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')
                 : (variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ') || 'Variação');
 
-            const displaySku = (vInfo?.sku ?? variation.sku) || 'N/A';
+            const displaySku = (vInfo?.sku && String(vInfo.sku).trim()) 
+              ? String(vInfo.sku).trim() 
+              : ((variation.sku && String(variation.sku).trim()) ? String(variation.sku).trim() : 'N/A');
             
             return (
               <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
