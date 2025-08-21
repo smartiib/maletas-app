@@ -21,16 +21,26 @@ export const useProductVariations = (parentId?: number) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
-    queryKey: ['wc-variations', currentOrganization?.id, parentId],
+    queryKey: ['wc-variations', currentOrganization?.id ?? 'no-org', parentId],
     queryFn: async (): Promise<DbVariation[]> => {
-      if (!currentOrganization || !parentId) return [];
+      if (!parentId) return [];
 
-      const { data, error } = await supabase
+      // Base da query: sempre por parent_id
+      let query = supabase
         .from('wc_product_variations')
-        .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .select('id,parent_id,sku,price,regular_price,sale_price,stock_quantity,stock_status,attributes,image,description')
         .eq('parent_id', parentId)
         .order('id', { ascending: true });
+
+      // Incluir registros com organization_id nulo OU da organização atual
+      if (currentOrganization?.id) {
+        query = query.or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`);
+      } else {
+        // Enquanto a org não carrega, tentar trazer os nulos (política RLS permite SELECT quando organization_id IS NULL)
+        query = query.is('organization_id', null);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('[useProductVariations] Erro ao buscar variações:', error);
@@ -40,11 +50,13 @@ export const useProductVariations = (parentId?: number) => {
       console.log('[useProductVariations] Variações carregadas:', {
         parentId,
         count: data?.length || 0,
+        sample: data?.[0],
       });
 
       return (data || []) as DbVariation[];
     },
-    enabled: !!currentOrganization && !!parentId,
-    staleTime: 10000,
+    // Buscar assim que tivermos o parentId, mesmo se a organização ainda não estiver disponível
+    enabled: !!parentId,
+    staleTime: 15000,
   });
 };
