@@ -60,3 +60,44 @@ export const useProductVariations = (parentId?: number) => {
     staleTime: 15000,
   });
 };
+
+// Novo hook: busca variações por lista de IDs (fallback quando por parent_id vier vazio)
+export const useProductVariationsByIds = (ids?: number[]) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['wc-variations-by-ids', currentOrganization?.id ?? 'no-org', (ids || []).join(',')],
+    queryFn: async (): Promise<DbVariation[]> => {
+      if (!ids || ids.length === 0) return [];
+
+      let query = supabase
+        .from('wc_product_variations')
+        .select('id,parent_id,sku,price,regular_price,sale_price,stock_quantity,stock_status,attributes,image,description')
+        .in('id', ids)
+        .order('id', { ascending: true });
+
+      if (currentOrganization?.id) {
+        query = query.or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`);
+      } else {
+        query = query.is('organization_id', null);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('[useProductVariationsByIds] Erro ao buscar variações por IDs:', error);
+        return [];
+      }
+
+      console.log('[useProductVariationsByIds] Variações por IDs carregadas:', {
+        ids,
+        count: data?.length || 0,
+        sample: data?.[0],
+      });
+
+      return (data || []) as DbVariation[];
+    },
+    enabled: !!ids && ids.length > 0,
+    staleTime: 15000,
+  });
+};

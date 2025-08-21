@@ -23,7 +23,7 @@ import { addDays, format } from 'date-fns';
 import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 import SyncHeader from '@/components/sync/SyncHeader';
-import { useProductVariations } from '@/hooks/useProductVariations';
+import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface CartItem extends Product {
   quantity: number;
@@ -1329,17 +1329,96 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
   const [selectedVariation, setSelectedVariation] = useState<any>(null);
 
   // Verificar se o produto tem variações (tipo variable)
-  const hasVariations = product.type === 'variable' && product.variations && product.variations.length > 0;
+  const hasVariations = product.type === 'variable' && Array.isArray(product.variations) && product.variations.length > 0;
 
-  // Buscar variações completas no Supabase quando o produto for variável
+  // Buscar variações completas no Supabase quando o produto for variável (por parent_id)
   const { data: dbVariations = [], isLoading: loadingVariations } = useProductVariations(
     hasVariations ? product.id : undefined
   );
 
-  // Lista de variações a exibir: prioriza as do banco; se não houver, usa o que vier no produto
-  const displayVariations: any[] = (dbVariations && dbVariations.length > 0)
-    ? dbVariations
-    : (Array.isArray(product.variations) ? product.variations as any[] : []);
+  // Obter uma lista de IDs das variações caso o array venha como números ou objetos
+  const variationIds: number[] = hasVariations
+    ? (product.variations as any[])
+        .map((v: any) => (typeof v === 'number' ? v : v?.id))
+        .filter((id: any) => typeof id === 'number')
+    : [];
+
+  // Fallback: buscar por lista de IDs quando não houver resultados por parent_id
+  const { data: dbVariationsByIds = [], isLoading: loadingVariationsByIds } = useProductVariationsByIds(
+    dbVariations.length === 0 ? variationIds : []
+  );
+
+  // Lista de variações a exibir: prioriza as do banco; se não houver, usa por IDs; se ainda não houver, tenta o que vier no produto
+  const rawVariations: any[] =
+    (dbVariations && dbVariations.length > 0)
+      ? dbVariations
+      : (dbVariationsByIds && dbVariationsByIds.length > 0)
+        ? dbVariationsByIds
+        : (Array.isArray(product.variations) ? product.variations as any[] : []);
+
+  // Normalizador de atributos (cobre diferentes formatos)
+  const normalizeAttributes = (variation: any): Array<{ name: string; value: string }> => {
+    const attrs = variation?.attributes;
+    if (!attrs) return [];
+    if (Array.isArray(attrs)) {
+      return attrs.map((attr: any) => ({
+        name: attr?.name || attr?.attribute || 'Atributo',
+        value: attr?.option || attr?.value || 'N/A',
+      }));
+    }
+    if (typeof attrs === 'object') {
+      return Object.entries(attrs).map(([k, v]) => ({
+        name: String(k),
+        value: String(v ?? 'N/A'),
+      }));
+    }
+    return [];
+  };
+
+  // Normalizador de variação para garantir campos consistentes
+  const normalizeVariation = (variation: any) => {
+    if (variation == null) return null;
+
+    // Caso a variação seja apenas um ID, mantemos a estrutura mínima para não quebrar
+    if (typeof variation === 'number') {
+      return { id: variation, attributes: [], price: product.price, sku: product.sku, stock_quantity: product.stock_quantity };
+    }
+
+    const priceValue = variation?.price ?? variation?.regular_price ?? product.price ?? '0';
+    const skuValue = variation?.sku ?? product.sku ?? null;
+    const stockQty = variation?.stock_quantity ?? null;
+    const attrs = normalizeAttributes(variation);
+
+    return {
+      id: variation?.id ?? 0,
+      parent_id: variation?.parent_id ?? product.id,
+      price: typeof priceValue === 'number' ? String(priceValue) : String(priceValue ?? '0'),
+      regular_price: variation?.regular_price,
+      sale_price: variation?.sale_price,
+      sku: skuValue,
+      stock_quantity: stockQty,
+      stock_status: variation?.stock_status,
+      attributes: attrs,
+      image: variation?.image,
+      description: variation?.description,
+    };
+  };
+
+  const displayVariations: any[] = rawVariations.map(normalizeVariation).filter(Boolean);
+
+  useEffect(() => {
+    if (showVariations) {
+      console.log('[POS/ProductCard] Debug variações', {
+        productId: product.id,
+        productName: product.name,
+        hasVariations,
+        variationIds,
+        byParentCount: dbVariations.length,
+        byIdsCount: dbVariationsByIds.length,
+        sample: displayVariations?.[0],
+      });
+    }
+  }, [showVariations, dbVariations, dbVariationsByIds, displayVariations, hasVariations, variationIds, product]);
 
   const handleAddToCart = () => {
     if (hasVariations && !selectedVariation) {
@@ -1348,16 +1427,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     }
 
     if (selectedVariation) {
-      // Converter os atributos para o formato esperado
-      const variationAttributes = selectedVariation.attributes?.map((attr: any) => ({
-        name: attr?.name || attr?.attribute || 'Atributo',
-        value: attr?.option || attr?.value || 'N/A'
-      })) || [];
+      const variationAttributes = normalizeAttributes(selectedVariation);
 
       onAddToCart(
         {
           ...product,
-          // garantir string para ser compatível com cálculos atuais (parseFloat em outros pontos)
           price: (selectedVariation.price ?? product.price)?.toString?.() ?? String(selectedVariation.price ?? product.price),
           sku: selectedVariation.sku ?? product.sku
         } as Product,
@@ -1418,33 +1492,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             <h3 className="text-lg font-semibold mb-4">Selecionar Variação - {product.name}</h3>
             
             <div className="space-y-3 mb-4">
-              {loadingVariations && (
+              {loadingVariations || loadingVariationsByIds ? (
                 <div className="text-sm text-muted-foreground">Carregando variações...</div>
-              )}
+              ) : null}
 
               {displayVariations?.map((variation: any) => {
-                // Processar atributos da variação com fallbacks
-                const attributesText = variation?.attributes?.map((attr: any) => {
-                  const name = attr?.name || attr?.attribute || 'Atributo';
-                  const value = attr?.option || attr?.value || 'N/A';
-                  return `${name}: ${value}`;
-                }).join(', ') || 'Sem atributos';
+                const attrsText = (variation?.attributes && variation.attributes.length > 0)
+                  ? variation.attributes.map((a: any) => `${a.name}: ${a.value}`).join(', ')
+                  : 'Sem atributos';
 
                 const priceValue = variation?.price ?? variation?.regular_price ?? 0;
 
                 return (
                   <div
                     key={variation.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedVariation?.id === variation.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${selectedVariation?.id === variation.id ? 'border-primary bg-primary/10' : 'border-slate-200 hover:border-slate-300'}`}
                     onClick={() => setSelectedVariation(variation)}
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex-1">
-                        <p className="font-medium text-sm">{attributesText}</p>
+                        <p className="font-medium text-sm">{attrsText}</p>
                         <p className="text-xs text-slate-500 mt-1">
                           SKU: {variation?.sku || 'N/A'}
                         </p>
@@ -1464,23 +1531,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             </div>
 
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
+              <button
+                className="flex-1 inline-flex items-center justify-center h-10 px-4 py-2 whitespace-nowrap rounded-md border bg-background hover:bg-accent text-foreground"
                 onClick={() => {
                   setShowVariations(false);
                   setSelectedVariation(null);
                 }}
               >
                 Cancelar
-              </Button>
-              <Button
-                className="flex-1"
+              </button>
+              <button
+                className="flex-1 inline-flex items-center justify-center h-10 px-4 py-2 whitespace-nowrap rounded-md bg-primary text-primary-foreground hover:opacity-90"
                 onClick={handleAddToCart}
                 disabled={!selectedVariation}
               >
                 Adicionar ao Carrinho
-              </Button>
+              </button>
             </div>
           </div>
         </div>
