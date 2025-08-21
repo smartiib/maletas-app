@@ -1348,7 +1348,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     dbVariations.length === 0 ? variationIds : []
   );
 
-  // Lista de variações a exibir: prioriza as do banco; se não houver, usa por IDs; se ainda não houver, tenta o que vier no produto
+  // Lista de variações a exibir
   const rawVariations: any[] =
     (dbVariations && dbVariations.length > 0)
       ? dbVariations
@@ -1363,13 +1363,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     if (Array.isArray(attrs)) {
       return attrs.map((attr: any) => ({
         name: attr?.name || attr?.attribute || 'Atributo',
-        value: attr?.option || attr?.value || 'N/A',
+        value: String(attr?.option ?? attr?.value ?? ''),
       }));
     }
     if (typeof attrs === 'object') {
       return Object.entries(attrs).map(([k, v]) => ({
         name: String(k),
-        value: String(v ?? 'N/A'),
+        value: String(v ?? ''),
       }));
     }
     return [];
@@ -1392,7 +1392,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     }
 
     const priceValue = variation?.price ?? variation?.regular_price ?? product.price ?? '0';
-    const skuValue = variation?.sku ?? null;
+    // Tratar SKU vazia como inexistente
+    const rawSku = variation?.sku;
+    const skuValue = typeof rawSku === 'string' && rawSku.trim() === '' ? null : (rawSku ?? null);
     const stockQty = variation?.stock_quantity ?? null;
     const attrs = normalizeAttributes(variation);
 
@@ -1441,6 +1443,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
         {
           ...product,
           price: (selectedVariation.price ?? product.price)?.toString?.() ?? String(selectedVariation.price ?? product.price),
+          // Usar somente a SKU da variação (não herdar do pai)
           sku: selectedVariation.sku ?? undefined
         } as Product,
         selectedVariation.id,
@@ -1505,16 +1508,15 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
               ) : null}
 
               {displayVariations?.map((variation: any) => {
-                // Título da variação com múltiplos fallbacks
+                // Título da variação: apenas os valores dos atributos unidos por " - "
                 const hasAttrs = Array.isArray(variation?.attributes) && variation.attributes.length > 0;
-                const attrsText = hasAttrs
-                  ? variation.attributes.map((a: any) => `${a.name}: ${a.value}`).join(', ')
-                  : '';
+                const attrValues = hasAttrs
+                  ? variation.attributes.map((a: any) => a?.value).filter(Boolean)
+                  : [];
                 const variationTitle =
-                  (variation?.name && String(variation.name)) ||
-                  (hasAttrs ? attrsText : '') ||
-                  (variation?.description && String(variation.description)) ||
-                  (variation?.sku ? `SKU: ${variation.sku}` : `Variação #${variation?.id ?? ''}`);
+                  attrValues.length > 0
+                    ? attrValues.join(' - ')
+                    : (variation?.name ? String(variation.name) : `Variação #${variation?.id ?? ''}`);
 
                 const priceValue = variation?.price ?? variation?.regular_price ?? 0;
 
@@ -1528,7 +1530,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
                       <div className="flex-1">
                         <p className="font-medium text-sm">{variationTitle}</p>
                         <p className="text-xs text-slate-500 mt-1">
-                          SKU: {variation?.sku || 'N/A'}
+                          SKU: {variation?.sku ? String(variation.sku) : 'N/A'}
                         </p>
                       </div>
                       <div className="text-right ml-3">
