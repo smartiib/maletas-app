@@ -307,7 +307,6 @@ export const useSaveSyncConfig = () => {
 
       const payload: SyncConfig = {
         organization_id: currentOrganization.id,
-        // @ts-expect-error union safe: spread pode conter os demais campos
         ...config,
         updated_at: new Date().toISOString(),
       };
@@ -347,7 +346,7 @@ export const useSupabaseProducts = () => {
   return useQuery({
     queryKey: ['woocommerce-products', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) return [];
+      if (!currentOrganization) return { products: [] };
       const { data, error } = await supabase
         .from('wc_products')
         .select('*')
@@ -356,9 +355,9 @@ export const useSupabaseProducts = () => {
 
       if (error) {
         console.error('Erro ao buscar produtos:', error);
-        return [];
+        return { products: [] };
       }
-      return data as any[];
+      return { products: data as any[] };
     },
     enabled: !!currentOrganization,
   });
@@ -370,7 +369,7 @@ export const useSupabaseCustomers = () => {
   return useQuery({
     queryKey: ['woocommerce-customers', currentOrganization?.id],
     queryFn: async () => {
-      if (!currentOrganization) return [];
+      if (!currentOrganization) return { customers: [] };
       const { data, error } = await supabase
         .from('wc_customers')
         .select('*')
@@ -379,9 +378,9 @@ export const useSupabaseCustomers = () => {
 
       if (error) {
         console.error('Erro ao buscar clientes:', error);
-        return [];
+        return { customers: [] };
       }
-      return data as any[];
+      return { customers: data as any[] };
     },
     enabled: !!currentOrganization,
   });
