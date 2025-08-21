@@ -1337,10 +1337,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
     }
 
     if (selectedVariation) {
+      // Converter os atributos para o formato esperado
+      const variationAttributes = selectedVariation.attributes?.map((attr: any) => ({
+        name: attr.name || attr.attribute || 'Atributo',
+        value: attr.option || attr.value || 'N/A'
+      })) || [];
+
       onAddToCart(
         { ...product, price: selectedVariation.price },
         selectedVariation.id,
-        selectedVariation.attributes
+        variationAttributes
       );
     } else {
       onAddToCart(product);
@@ -1396,30 +1402,43 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
             <h3 className="text-lg font-semibold mb-4">Selecionar Variação - {product.name}</h3>
             
             <div className="space-y-3 mb-4">
-              {product.variations?.map((variation: any) => (
-                <div
-                  key={variation.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                    selectedVariation?.id === variation.id
-                      ? 'border-primary bg-primary/10'
-                      : 'border-slate-200 hover:border-slate-300'
-                  }`}
-                  onClick={() => setSelectedVariation(variation)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className="font-medium">{variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')}</p>
-                      <p className="text-sm text-slate-500">SKU: {variation.sku || 'N/A'}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">R$ {parseFloat(variation.price || '0').toFixed(2)}</p>
-                      <p className="text-xs text-slate-500">
-                        Estoque: {variation.stock_quantity || 0}
-                      </p>
+              {product.variations?.map((variation: any) => {
+                // Processar atributos da variação
+                const attributesText = variation.attributes?.map((attr: any) => {
+                  const name = attr.name || attr.attribute || 'Atributo';
+                  const value = attr.option || attr.value || 'N/A';
+                  return `${name}: ${value}`;
+                }).join(', ') || 'Sem atributos';
+
+                return (
+                  <div
+                    key={variation.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedVariation?.id === variation.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                    onClick={() => setSelectedVariation(variation)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{attributesText}</p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          SKU: {variation.sku || 'N/A'}
+                        </p>
+                      </div>
+                      <div className="text-right ml-3">
+                        <p className="font-bold text-primary">
+                          R$ {parseFloat(variation.price || '0').toFixed(2)}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          Estoque: {variation.stock_quantity || 0}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="flex gap-2">
