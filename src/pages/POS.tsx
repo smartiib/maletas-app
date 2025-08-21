@@ -69,20 +69,19 @@ const POS = () => {
         .select('*')
         .eq('id', productId);
 
-      // Garante que o produto é da organização atual ou não tem organização (público)
       query = query.or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`);
 
-      const { data, error } = await query.single();
+      const { data, error } = await query.maybeSingle();
 
       if (error) {
         console.error("Erro ao buscar produto:", error);
         throw new Error(error.message);
       }
 
-      return data as Product;
+      return data as any;
     },
     enabled: !!productId && !!currentOrganization?.id,
-    staleTime: 60000, // 1 minute
+    staleTime: 60000,
   });
 
   const { data: variations, isLoading: isVariationsLoading, isError: isVariationsError } = useQuery({
@@ -95,7 +94,6 @@ const POS = () => {
         .select('*')
         .eq('parent_id', productId);
 
-      // Garante que a variação é da organização atual ou não tem organização (público)
       query = query.or(`organization_id.is.null,organization_id.eq.${currentOrganization.id}`);
 
       const { data, error } = await query;
@@ -105,10 +103,10 @@ const POS = () => {
         throw new Error(error.message);
       }
 
-      return data as DbVariation[];
+      return data as any[];
     },
     enabled: !!productId && !!currentOrganization?.id,
-    staleTime: 60000, // 1 minute
+    staleTime: 60000,
   });
 
   const displayVariations = React.useMemo(() => {
@@ -134,6 +132,19 @@ const POS = () => {
       navigate('/stock');
     }
   }, [isError, isVariationsError, navigate, toast]);
+
+  // NOVO: experiência amigável quando não há productId na URL
+  if (!productId) {
+    return (
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-2">PDV</h1>
+        <p className="text-muted-foreground mb-4">
+          Para usar o PDV, selecione um produto na página de Estoque.
+        </p>
+        <Button onClick={() => navigate('/stock')}>Ir para Estoque</Button>
+      </div>
+    );
+  }
 
   if (isLoading || isVariationsLoading) {
     return <div>Carregando...</div>;

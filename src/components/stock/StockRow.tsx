@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Minus, ChevronDown, ChevronRight, History, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
-import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
+import { stockHistoryService } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
-import { useProductVariations } from '@/hooks/useProductVariations';
+import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface StockRowProps {
   product: any;
@@ -29,16 +29,29 @@ export const StockRow: React.FC<StockRowProps> = ({
   const updateStockMutation = useUpdateStock();
   const [tempStock, setTempStock] = useState<{ [key: string]: string }>({});
 
-  // Buscar variações do Supabase para garantir que temos objetos completos (sku, atributos, etc.)
+  // Buscar variações do Supabase por parent_id
   const { data: dbVariations } = useProductVariations(product?.id);
 
-  // Preferir variações do banco; se não houver, usar as do produto se forem objetos (não IDs)
+  // Fallback: quando product.variations vem como lista de IDs, buscar por IDs
+  const variationIdsFromProduct = React.useMemo(() => {
+    const raw = Array.isArray(product?.variations) ? product.variations : [];
+    return raw
+      .filter((v: any) => typeof v === 'number' || (typeof v === 'string' && /^\d+$/.test(v)))
+      .map((v: any) => Number(v));
+  }, [product?.variations]);
+
+  const { data: dbVariationsByIds } = useProductVariationsByIds(
+    variationIdsFromProduct.length > 0 ? variationIdsFromProduct : undefined
+  );
+
+  // Preferir variações do banco; se não houver, tentar pelos IDs; se ainda não houver, usar as do produto se forem objetos
   const displayVariations = React.useMemo(() => {
     if (Array.isArray(dbVariations) && dbVariations.length > 0) return dbVariations;
+    if (Array.isArray(dbVariationsByIds) && dbVariationsByIds.length > 0) return dbVariationsByIds;
     const pv = Array.isArray(product?.variations) ? product.variations : [];
     if (pv.length > 0 && typeof pv[0] === 'object') return pv;
     return [];
-  }, [dbVariations, product?.variations]);
+  }, [dbVariations, dbVariationsByIds, product?.variations]);
 
   const totalStock = getTotalStock(product);
   const stockStatus = getStockStatus(totalStock, product.stock_status);
