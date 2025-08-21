@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI } from '@/services/woocommerce';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -114,8 +115,8 @@ export const useWooCommerceConfig = () => {
         return null;
       }
       
-      // Access WooCommerce settings from organization settings
-      const wooSettings = currentOrganization.settings as any;
+      // Access WooCommerce settings from organization settings (via casting seguro)
+      const wooSettings = ((currentOrganization as any)?.settings ?? {}) as any;
       
       return {
         url: wooSettings?.woocommerce_url || '',
@@ -175,7 +176,7 @@ export const useWooCommerceConfig = () => {
 
     try {
       const updatedSettings = {
-        ...currentOrganization.settings,
+        ...(((currentOrganization as any)?.settings) ?? {}),
         woocommerce_url: config.apiUrl,
         woocommerce_consumer_key: config.consumerKey,
         woocommerce_consumer_secret: config.consumerSecret,
