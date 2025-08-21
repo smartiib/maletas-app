@@ -387,8 +387,26 @@ export const useSupabaseCustomers = () => {
 };
 
 export const useSupabaseAllCustomers = () => {
-  // For now same as useSupabaseCustomers (non-paginated)
-  return useSupabaseCustomers();
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-customers', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return [];
+      const { data, error } = await supabase
+        .from('wc_customers')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('id', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar clientes:', error);
+        return [];
+      }
+      return data as any[];
+    },
+    enabled: !!currentOrganization,
+  });
 };
 
 export const useSupabaseCategories = () => {
