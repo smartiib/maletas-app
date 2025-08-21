@@ -349,7 +349,7 @@ export const useUpdateStock = () => {
   });
 };
 
-// Representatives hook
+// Representatives hook - Fixed parameter type
 export const useRepresentantes = () => {
   const { currentOrganization } = useOrganization();
   
