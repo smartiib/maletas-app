@@ -268,9 +268,9 @@ const POS = () => {
 
         {categories.length > 0 && (
           <CategorySlider
-            categories={categories}
+            categories={categories as unknown as string[]}
             selectedCategory={selectedCategory}
-            onCategorySelect={setSelectedCategory}
+            onCategoryChange={(cat) => setSelectedCategory(cat)}
           />
         )}
       </div>
