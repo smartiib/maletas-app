@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -16,7 +15,7 @@ interface SyncRequest {
   config: WooCommerceConfig;
   batch_size?: number;
   force_full_sync?: boolean;
-  organization_id?: string; // <-- incluir org recebida do app
+  organization_id?: string;
 }
 
 interface SyncResult {
@@ -51,13 +50,29 @@ Deno.serve(async (req) => {
       throw new Error('Usuário não autenticado');
     }
 
+    // Parse request body with better error handling
+    let requestBody: SyncRequest;
+    try {
+      const bodyText = await req.text();
+      console.log('Raw request body:', bodyText);
+      
+      if (!bodyText || bodyText.trim() === '') {
+        throw new Error('Request body is empty');
+      }
+      
+      requestBody = JSON.parse(bodyText);
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
+    }
+
     const {
       sync_type,
       config,
       batch_size = 50,
       force_full_sync = false,
       organization_id
-    }: SyncRequest = await req.json();
+    } = requestBody;
 
     if (!organization_id) {
       throw new Error('organization_id é obrigatório');
@@ -197,6 +212,8 @@ async function syncProducts(
           url.searchParams.set('modified_after', lastSync);
         }
 
+        console.log('Making request to:', url.toString());
+        
         const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
         const response = await fetch(url.toString(), {
           headers: {
@@ -205,13 +222,30 @@ async function syncProducts(
           }
         });
 
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
         if (!response.ok) {
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('WooCommerce API error response:', errorText);
+          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        const products = await response.json();
+        const responseText = await response.text();
+        console.log('Raw response text length:', responseText.length);
+        console.log('Response text preview:', responseText.substring(0, 500));
+
+        let products;
+        try {
+          products = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing products JSON:', parseError);
+          console.error('Response text that failed to parse:', responseText);
+          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
+        }
         
         if (!Array.isArray(products) || products.length === 0) {
+          console.log('No products returned or empty array');
           hasMore = false;
           break;
         }
@@ -298,6 +332,8 @@ async function syncCategories(
         url.searchParams.set('per_page', batchSize.toString());
         url.searchParams.set('orderby', 'name');
 
+        console.log('Making request to:', url.toString());
+
         const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
         const response = await fetch(url.toString(), {
           headers: {
@@ -306,11 +342,25 @@ async function syncCategories(
           }
         });
 
+        console.log('Categories response status:', response.status);
+
         if (!response.ok) {
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('WooCommerce Categories API error response:', errorText);
+          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        const categories = await response.json();
+        const responseText = await response.text();
+        console.log('Categories raw response length:', responseText.length);
+
+        let categories;
+        try {
+          categories = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing categories JSON:', parseError);
+          console.error('Categories response text that failed to parse:', responseText);
+          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
+        }
         
         if (!Array.isArray(categories) || categories.length === 0) {
           hasMore = false;
@@ -362,143 +412,6 @@ async function syncCategories(
       duration_ms: Date.now() - startTime,
       errors: [error.message]
     };
-  }
-}
-
-// ------------------------- UPSERT HELPERS -------------------------
-async function upsertProduct(supabase: any, product: any, organizationId: string) {
-  const productData = {
-    id: product.id,
-    name: product.name,
-    slug: product.slug,
-    permalink: product.permalink,
-    date_created: product.date_created,
-    date_modified: product.date_modified,
-    type: product.type,
-    status: product.status,
-    featured: product.featured,
-    catalog_visibility: product.catalog_visibility,
-    description: product.description,
-    short_description: product.short_description,
-    sku: product.sku,
-    price: parseFloat(product.price) || null,
-    regular_price: parseFloat(product.regular_price) || null,
-    sale_price: parseFloat(product.sale_price) || null,
-    date_on_sale_from: product.date_on_sale_from,
-    date_on_sale_to: product.date_on_sale_to,
-    on_sale: product.on_sale,
-    purchasable: product.purchasable,
-    total_sales: product.total_sales,
-    virtual: product.virtual,
-    downloadable: product.downloadable,
-    downloads: product.downloads,
-    download_limit: product.download_limit,
-    download_expiry: product.download_expiry,
-    external_url: product.external_url,
-    button_text: product.button_text,
-    tax_status: product.tax_status,
-    tax_class: product.tax_class,
-    manage_stock: product.manage_stock,
-    stock_quantity: product.stock_quantity,
-    backorders: product.backorders,
-    backorders_allowed: product.backorders_allowed,
-    backordered: product.backordered,
-    low_stock_amount: product.low_stock_amount,
-    sold_individually: product.sold_individually,
-    weight: product.weight,
-    dimensions: product.dimensions,
-    shipping_required: product.shipping_required,
-    shipping_taxable: product.shipping_taxable,
-    shipping_class: product.shipping_class,
-    shipping_class_id: product.shipping_class_id,
-    reviews_allowed: product.reviews_allowed,
-    average_rating: product.average_rating,
-    rating_count: product.rating_count,
-    upsell_ids: product.upsell_ids,
-    cross_sell_ids: product.cross_sell_ids,
-    parent_id: product.parent_id,
-    purchase_note: product.purchase_note,
-    categories: product.categories,
-    tags: product.tags,
-    images: product.images,
-    attributes: product.attributes,
-    default_attributes: product.default_attributes,
-    variations: product.variations,
-    grouped_products: product.grouped_products,
-    menu_order: product.menu_order,
-    price_html: product.price_html,
-    related_ids: product.related_ids,
-    meta_data: product.meta_data,
-    stock_status: product.stock_status,
-    has_options: product.has_options,
-    post_password: product.post_password,
-    global_unique_id: product.global_unique_id,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId // <-- chave para a UI enxergar
-  };
-
-  const { error } = await supabase
-    .from('wc_products')
-    .upsert(productData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar produto: ${error.message}`);
-  }
-}
-
-async function upsertCategory(supabase: any, category: any, organizationId: string) {
-  const categoryData = {
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    parent: category.parent,
-    description: category.description,
-    display: category.display,
-    image: category.image,
-    menu_order: category.menu_order,
-    count: category.count,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId // <-- incluir org
-  };
-
-  const { error } = await supabase
-    .from('wc_product_categories')
-    .upsert(categoryData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar categoria: ${error.message}`);
-  }
-}
-
-// ------------------------- LOGS -------------------------
-async function logSyncEvent(
-  supabase: any,
-  userId: string,
-  organizationId: string,
-  syncType: string,
-  operation: string,
-  status: string,
-  message: string,
-  details: any = {}
-) {
-  const { error } = await supabase
-    .from('sync_logs')
-    .insert({
-      user_id: userId,
-      organization_id: organizationId, // <-- incluir org
-      sync_type: syncType,
-      operation,
-      status,
-      message,
-      details,
-      items_processed: details.items_processed || 0,
-      items_failed: details.items_failed || 0,
-      duration_ms: details.duration_ms || null,
-      error_details: details.errors ? details.errors.join('; ') : null
-    });
-
-  if (error) {
-    console.error('Erro ao salvar log:', error);
   }
 }
 
@@ -569,10 +482,18 @@ async function syncOrders(
         });
 
         if (!response.ok) {
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        const orders = await response.json();
+        const responseText = await response.text();
+        let orders;
+        try {
+          orders = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing orders JSON:', parseError);
+          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
+        }
         
         if (!Array.isArray(orders) || orders.length === 0) {
           hasMore = false;
@@ -679,10 +600,18 @@ async function syncCustomers(
         });
 
         if (!response.ok) {
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText}`);
+          const errorText = await response.text();
+          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
         }
 
-        const customers = await response.json();
+        const responseText = await response.text();
+        let customers;
+        try {
+          customers = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing customers JSON:', parseError);
+          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
+        }
         
         if (!Array.isArray(customers) || customers.length === 0) {
           hasMore = false;
@@ -737,7 +666,111 @@ async function syncCustomers(
   }
 }
 
-// ------------------------- UPSERT HELPERS (orders/customers) -------------------------
+// ------------------------- UPSERT HELPERS -------------------------
+async function upsertProduct(supabase: any, product: any, organizationId: string) {
+  const productData = {
+    id: product.id,
+    name: product.name,
+    slug: product.slug,
+    permalink: product.permalink,
+    date_created: product.date_created,
+    date_modified: product.date_modified,
+    type: product.type,
+    status: product.status,
+    featured: product.featured,
+    catalog_visibility: product.catalog_visibility,
+    description: product.description,
+    short_description: product.short_description,
+    sku: product.sku,
+    price: parseFloat(product.price) || null,
+    regular_price: parseFloat(product.regular_price) || null,
+    sale_price: parseFloat(product.sale_price) || null,
+    date_on_sale_from: product.date_on_sale_from,
+    date_on_sale_to: product.date_on_sale_to,
+    on_sale: product.on_sale,
+    purchasable: product.purchasable,
+    total_sales: product.total_sales,
+    virtual: product.virtual,
+    downloadable: product.downloadable,
+    downloads: product.downloads,
+    download_limit: product.download_limit,
+    download_expiry: product.download_expiry,
+    external_url: product.external_url,
+    button_text: product.button_text,
+    tax_status: product.tax_status,
+    tax_class: product.tax_class,
+    manage_stock: product.manage_stock,
+    stock_quantity: product.stock_quantity,
+    backorders: product.backorders,
+    backorders_allowed: product.backorders_allowed,
+    backordered: product.backordered,
+    low_stock_amount: product.low_stock_amount,
+    sold_individually: product.sold_individually,
+    weight: product.weight,
+    dimensions: product.dimensions,
+    shipping_required: product.shipping_required,
+    shipping_taxable: product.shipping_taxable,
+    shipping_class: product.shipping_class,
+    shipping_class_id: product.shipping_class_id,
+    reviews_allowed: product.reviews_allowed,
+    average_rating: product.average_rating,
+    rating_count: product.rating_count,
+    upsell_ids: product.upsell_ids,
+    cross_sell_ids: product.cross_sell_ids,
+    parent_id: product.parent_id,
+    purchase_note: product.purchase_note,
+    categories: product.categories,
+    tags: product.tags,
+    images: product.images,
+    attributes: product.attributes,
+    default_attributes: product.default_attributes,
+    variations: product.variations,
+    grouped_products: product.grouped_products,
+    menu_order: product.menu_order,
+    price_html: product.price_html,
+    related_ids: product.related_ids,
+    meta_data: product.meta_data,
+    stock_status: product.stock_status,
+    has_options: product.has_options,
+    post_password: product.post_password,
+    global_unique_id: product.global_unique_id,
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId
+  };
+
+  const { error } = await supabase
+    .from('wc_products')
+    .upsert(productData, { onConflict: 'id' });
+
+  if (error) {
+    throw new Error(`Erro ao salvar produto: ${error.message}`);
+  }
+}
+
+async function upsertCategory(supabase: any, category: any, organizationId: string) {
+  const categoryData = {
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    parent: category.parent,
+    description: category.description,
+    display: category.display,
+    image: category.image,
+    menu_order: category.menu_order,
+    count: category.count,
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId
+  };
+
+  const { error } = await supabase
+    .from('wc_product_categories')
+    .upsert(categoryData, { onConflict: 'id' });
+
+  if (error) {
+    throw new Error(`Erro ao salvar categoria: ${error.message}`);
+  }
+}
+
 async function upsertOrder(supabase: any, order: any, organizationId: string) {
   const orderData = {
     id: order.id,
@@ -787,7 +820,7 @@ async function upsertOrder(supabase: any, order: any, organizationId: string) {
     needs_payment: order.needs_payment,
     needs_processing: order.needs_processing,
     synced_at: new Date().toISOString(),
-    organization_id: organizationId // <-- incluir org
+    organization_id: organizationId
   };
 
   const { error } = await supabase
@@ -819,7 +852,7 @@ async function upsertCustomer(supabase: any, customer: any, organizationId: stri
     orders_count: customer.orders_count || 0,
     total_spent: parseFloat(customer.total_spent) || 0,
     synced_at: new Date().toISOString(),
-    organization_id: organizationId // <-- incluir org
+    organization_id: organizationId
   };
 
   const { error } = await supabase
@@ -828,6 +861,37 @@ async function upsertCustomer(supabase: any, customer: any, organizationId: stri
 
   if (error) {
     throw new Error(`Erro ao salvar cliente: ${error.message}`);
+  }
+}
+
+async function logSyncEvent(
+  supabase: any,
+  userId: string,
+  organizationId: string,
+  syncType: string,
+  operation: string,
+  status: string,
+  message: string,
+  details: any = {}
+) {
+  const { error } = await supabase
+    .from('sync_logs')
+    .insert({
+      user_id: userId,
+      organization_id: organizationId,
+      sync_type: syncType,
+      operation,
+      status,
+      message,
+      details,
+      items_processed: details.items_processed || 0,
+      items_failed: details.items_failed || 0,
+      duration_ms: details.duration_ms || null,
+      error_details: details.errors ? details.errors.join('; ') : null
+    });
+
+  if (error) {
+    console.error('Erro ao salvar log:', error);
   }
 }
 
