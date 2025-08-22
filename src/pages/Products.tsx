@@ -25,6 +25,17 @@ const Products = () => {
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
+  const getTotalStock = (product: any) => {
+    if (product.type === 'variable' && product.variations?.length > 0) {
+      return product.variations.reduce((total: number, variation: any) => {
+        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
+        return total + Math.max(0, qty);
+      }, 0);
+    }
+    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
+    return Math.max(0, qty);
+  };
+
   // Filtros combinados (busca + estoque)
   const filteredProducts = useMemo(() => {
     let filtered = products.filter((product) =>
@@ -89,17 +100,6 @@ const Products = () => {
       }
       return newSet;
     });
-  };
-
-  const getTotalStock = (product: any) => {
-    if (product.type === 'variable' && product.variations?.length > 0) {
-      return product.variations.reduce((total: number, variation: any) => {
-        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
-        return total + Math.max(0, qty);
-      }, 0);
-    }
-    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
-    return Math.max(0, qty);
   };
 
   const getStockStatus = (stock: number, status: string) => {
