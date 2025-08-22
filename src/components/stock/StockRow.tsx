@@ -32,10 +32,8 @@ export const StockRow: React.FC<StockRowProps> = ({
   const stockStatus = getStockStatus(totalStock, product.stock_status);
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
 
-  // Buscar dados completos das variações para exibir SKU e atributos corretamente
   const { data: dbVariationsParent = [] } = useProductVariations(hasVariations ? product.id : undefined);
 
-  // Ensure IDs are numbers to match DB results
   const variationIds = useMemo(() => {
     if (!hasVariations) return [];
     const ids = (product.variations || [])
@@ -268,18 +266,46 @@ export const StockRow: React.FC<StockRowProps> = ({
             const variationStock = variation.stock_quantity || 0;
             const variationStatus = getStockStatus(variationStock, variation.stock_status);
 
-            // Normalize ID to number when reading from Map
             const varIdNum = Number(variation.id);
             const vInfo = variationInfoById.get(varIdNum);
 
-            const displayAttributes: string =
-              vInfo?.attributes?.length
-                ? (vInfo.attributes as any[]).map((attr: any) => `${attr.name}: ${attr.option}`).join(', ')
-                : (variation.attributes?.map((attr: any) => `${attr.name}: ${attr.option}`).join(', ') || 'Variação');
+            // Reunir atributos para exibir e também usar no fallback de SKU
+            const attrsArr: any[] =
+              (Array.isArray(vInfo?.attributes) && (vInfo?.attributes?.length || 0) > 0)
+                ? (vInfo!.attributes as any[])
+                : (Array.isArray(variation.attributes) ? variation.attributes : []);
 
-            const displaySku = (vInfo?.sku && String(vInfo.sku).trim())
-              ? String(vInfo.sku).trim()
-              : ((variation.sku && String(variation.sku).trim()) ? String(variation.sku).trim() : 'N/A');
+            const displayAttributes: string =
+              (attrsArr.length > 0)
+                ? attrsArr.map((attr: any) => `${attr.name}: ${attr.option ?? attr.value ?? ''}`.trim()).join(', ')
+                : 'Variação';
+
+            // Determinar a SKU a exibir:
+            // 1) Tenta SKU da variação vinda do DB (vInfo)
+            // 2) Tenta SKU presente no objeto "variation" do produto
+            // 3) Fallback: SKU do pai + sufixo do atributo (preferindo "Tamanho do Anel")
+            // 4) Se nada, "N/A"
+            const parentSku = (product?.sku && String(product.sku).trim()) ? String(product.sku).trim() : undefined;
+            const vSku = (vInfo?.sku && String(vInfo.sku).trim()) ? String(vInfo.sku).trim() : undefined;
+            const objSku = (variation?.sku && String(variation.sku).trim()) ? String(variation.sku).trim() : undefined;
+
+            // Extrair valor do atributo para sufixo, priorizando "Tamanho do Anel" / "Tamanho" / "Size"
+            let suffix = '';
+            if (attrsArr.length > 0) {
+              const sizeAttr = attrsArr.find((a: any) => {
+                const n = (a?.name || a?.slug || '').toString().toLowerCase();
+                return n.includes('tamanho do anel') || n.includes('tamanho') || n.includes('size');
+              }) || attrsArr[0];
+              const rawVal = sizeAttr?.option ?? sizeAttr?.value;
+              if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+                suffix = String(rawVal).trim();
+              }
+            }
+
+            const displaySku =
+              vSku
+              ?? objSku
+              ?? (parentSku ? (suffix ? `${parentSku}-${suffix}` : parentSku) : 'N/A');
 
             return (
               <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
