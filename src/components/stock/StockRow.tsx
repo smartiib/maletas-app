@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,6 +19,14 @@ interface StockRowProps {
   getStockStatus: (stock: number, status: string) => { label: string; color: string };
 }
 
+interface NormalizedVariation {
+  id: number;
+  stock_quantity: number;
+  stock_status: string;
+  sku?: string;
+  attributes: Array<{ name: string; option: string }>;
+}
+
 export const StockRow: React.FC<StockRowProps> = ({
   product,
   isExpanded,
@@ -33,15 +40,23 @@ export const StockRow: React.FC<StockRowProps> = ({
   const stockStatus = getStockStatus(totalStock, product.stock_status);
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
 
-  const { data: dbVariationsParent = [] } = useProductVariations(hasVariations ? product.id : undefined);
-
+  // Normalize variation IDs from product.variations (can be objects or just IDs)
   const variationIds = useMemo(() => {
     if (!hasVariations) return [];
     const ids = (product.variations || [])
-      .map((v: any) => Number(v.id))
+      .map((v: any) => typeof v === 'object' && v.id ? Number(v.id) : Number(v))
       .filter((id: any) => typeof id === 'number' && !Number.isNaN(id)) as number[];
+    
+    console.log('[StockRow] Normalized variation IDs:', {
+      productId: product?.id,
+      rawVariations: product.variations,
+      normalizedIds: ids
+    });
+    
     return ids;
   }, [hasVariations, product.variations]);
+
+  const { data: dbVariationsParent = [] } = useProductVariations(hasVariations ? product.id : undefined);
 
   // Buscar por IDs somente as variações que não vieram pela consulta por parent_id
   const missingIds = useMemo(() => {
@@ -70,11 +85,91 @@ export const StockRow: React.FC<StockRowProps> = ({
     return arr;
   }, [dbVariationsParent, dbVariationsByIds, variationIds, product?.id]);
 
-  const variationInfoById = useMemo(() => {
-    const map = new Map<number, DbVariation>();
-    effectiveVariations.forEach((v) => map.set(Number(v.id), v));
-    return map;
-  }, [effectiveVariations]);
+  // Create normalized variations by merging product data with DB data
+  const normalizedVariations = useMemo(() => {
+    if (!hasVariations) return [];
+
+    const normalized: NormalizedVariation[] = variationIds.map(varId => {
+      // Find raw variation from product.variations
+      const rawVar = (product.variations || []).find((v: any) => {
+        const id = typeof v === 'object' && v.id ? Number(v.id) : Number(v);
+        return id === varId;
+      });
+
+      // Find DB variation data
+      const dbVar = effectiveVariations.find(v => Number(v.id) === varId);
+
+      console.log('[StockRow] Processing variation:', {
+        varId,
+        rawVar,
+        dbVar,
+        productId: product?.id
+      });
+
+      return {
+        id: varId,
+        stock_quantity: rawVar?.stock_quantity || 0,
+        stock_status: rawVar?.stock_status || 'instock',
+        sku: dbVar?.sku || rawVar?.sku,
+        attributes: dbVar?.attributes || rawVar?.attributes || []
+      };
+    });
+
+    console.log('[StockRow] Normalized variations:', {
+      productId: product?.id,
+      count: normalized.length,
+      sample: normalized[0]
+    });
+
+    return normalized;
+  }, [hasVariations, variationIds, product.variations, effectiveVariations, product?.id]);
+
+  // Helper function to prettify attribute names
+  const prettifyAttributeName = (name: string): string => {
+    const nameMap: { [key: string]: string } = {
+      'pa_tamanho-do-anel': 'Tamanho do Anel',
+      'pa_tamanho': 'Tamanho',
+      'pa_size': 'Tamanho',
+      'pa_cor': 'Cor',
+      'pa_color': 'Cor',
+      'pa_material': 'Material'
+    };
+    
+    return nameMap[name] || name.replace(/^pa_/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Helper function to format attributes display
+  const formatAttributes = (attributes: Array<{ name: string; option: string }>): string => {
+    if (!attributes || attributes.length === 0) return 'Variação';
+    
+    return attributes
+      .map(attr => `${prettifyAttributeName(attr.name)}: ${attr.option}`)
+      .join(', ');
+  };
+
+  // Helper function to generate SKU
+  const generateVariationSku = (variation: NormalizedVariation): string => {
+    // 1. Use variation's own SKU if available
+    if (variation.sku && String(variation.sku).trim()) {
+      return String(variation.sku).trim();
+    }
+
+    // 2. Generate from parent SKU + attribute value
+    const parentSku = product?.sku && String(product.sku).trim() ? String(product.sku).trim() : '';
+    if (parentSku && variation.attributes?.length > 0) {
+      // Priority: find "Tamanho do Anel" or similar size attribute
+      const sizeAttr = variation.attributes.find(attr => {
+        const name = attr.name.toLowerCase();
+        return name.includes('tamanho-do-anel') || name.includes('tamanho') || name.includes('size');
+      }) || variation.attributes[0];
+
+      if (sizeAttr?.option) {
+        return `${parentSku}-${sizeAttr.option}`;
+      }
+    }
+
+    return parentSku || 'N/A';
+  };
 
   const updateStock = async (productId: number, variationId: number | null, change: number, reason: string) => {
     const isVariation = variationId !== null;
@@ -285,50 +380,11 @@ export const StockRow: React.FC<StockRowProps> = ({
       {/* Variações */}
       {hasVariations && isExpanded && (
         <div className="border-t bg-muted/20">
-          {product.variations?.map((variation: any) => {
+          {normalizedVariations.map((variation) => {
             const variationStock = variation.stock_quantity || 0;
             const variationStatus = getStockStatus(variationStock, variation.stock_status);
-
-            const varIdNum = Number(variation.id);
-            const vInfo = variationInfoById.get(varIdNum);
-
-            // Reunir atributos para exibir e também usar no fallback de SKU
-            const attrsArr: any[] =
-              (Array.isArray(vInfo?.attributes) && (vInfo?.attributes?.length || 0) > 0)
-                ? (vInfo!.attributes as any[])
-                : (Array.isArray(variation.attributes) ? variation.attributes : []);
-
-            const displayAttributes: string =
-              (attrsArr.length > 0)
-                ? attrsArr.map((attr: any) => `${attr.name}: ${attr.option ?? attr.value ?? ''}`.trim()).join(', ')
-                : 'Variação';
-
-            // Determinar a SKU a exibir:
-            // 1) Tenta SKU da variação vinda do DB (vInfo)
-            // 2) Tenta SKU presente no objeto "variation" do produto
-            // 3) Fallback: SKU do pai + sufixo do atributo (preferindo "Tamanho do Anel")
-            // 4) Se nada, "N/A"
-            const parentSku = (product?.sku && String(product.sku).trim()) ? String(product.sku).trim() : undefined;
-            const vSku = (vInfo?.sku && String(vInfo.sku).trim()) ? String(vInfo.sku).trim() : undefined;
-            const objSku = (variation?.sku && String(variation.sku).trim()) ? String(variation.sku).trim() : undefined;
-
-            // Extrair valor do atributo para sufixo, priorizando "Tamanho do Anel" / "Tamanho" / "Size"
-            let suffix = '';
-            if (attrsArr.length > 0) {
-              const sizeAttr = attrsArr.find((a: any) => {
-                const n = (a?.name || a?.slug || '').toString().toLowerCase();
-                return n.includes('tamanho do anel') || n.includes('tamanho') || n.includes('size');
-              }) || attrsArr[0];
-              const rawVal = sizeAttr?.option ?? sizeAttr?.value;
-              if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
-                suffix = String(rawVal).trim();
-              }
-            }
-
-            const displaySku =
-              vSku
-              ?? objSku
-              ?? (parentSku ? (suffix ? `${parentSku}-${suffix}` : parentSku) : 'N/A');
+            const displayAttributes = formatAttributes(variation.attributes);
+            const displaySku = generateVariationSku(variation);
 
             return (
               <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
