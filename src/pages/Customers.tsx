@@ -11,6 +11,7 @@ import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
+import SyncHeader from "@/components/sync/SyncHeader";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -100,6 +101,7 @@ const Customers = () => {
             </p>
           </div>
         </div>
+        <SyncHeader syncType="customers" />
         <EmptyWooCommerceState
           title="Nenhum Cliente Encontrado"
           description="Sincronize seus clientes do WooCommerce ou adicione clientes manualmente."
@@ -123,6 +125,8 @@ const Customers = () => {
           Novo Cliente
         </Button>
       </div>
+
+      <SyncHeader syncType="customers" />
 
       <div className="flex gap-4">
         <Input

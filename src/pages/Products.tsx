@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -13,6 +14,7 @@ import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
+import SyncHeader from "@/components/sync/SyncHeader";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,6 +190,7 @@ const Products = () => {
             </p>
           </div>
         </div>
+        <SyncHeader syncType="products" />
         <EmptyWooCommerceState
           title="Nenhum Produto Encontrado"
           description="Sincronize seus produtos do WooCommerce ou adicione produtos manualmente."
@@ -211,6 +214,8 @@ const Products = () => {
           Novo Produto
         </Button>
       </div>
+
+      <SyncHeader syncType="products" />
 
       {/* Filtros de estoque */}
       <div className="space-y-3">

@@ -12,6 +12,7 @@ import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerce
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 import ViewModeToggle from "@/components/ui/view-mode-toggle";
+import SyncHeader from "@/components/sync/SyncHeader";
 
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,6 +107,7 @@ const Orders = () => {
             </p>
           </div>
         </div>
+        <SyncHeader syncType="orders" />
         <EmptyWooCommerceState
           title="Nenhum Pedido Encontrado"
           description="Sincronize seus pedidos do WooCommerce ou adicione pedidos manualmente."
@@ -129,6 +131,8 @@ const Orders = () => {
           Novo Pedido
         </Button>
       </div>
+
+      <SyncHeader syncType="orders" />
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <Input
