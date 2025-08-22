@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ import { useUpdateStock } from '@/hooks/useWooCommerce';
 import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
 import { useProductVariations, DbVariation, useProductVariationsByIds } from '@/hooks/useProductVariations';
+import LastChangeLabel from './LastChangeLabel';
 
 interface StockRowProps {
   product: any;
@@ -152,19 +152,6 @@ export const StockRow: React.FC<StockRowProps> = ({
     return tempStock[key] !== undefined ? tempStock[key] : currentStock.toString();
   };
 
-  const getLastChange = (productId: number, variationId?: number) => {
-    const lastChange = stockHistoryService.getLastChange(productId, variationId);
-    if (!lastChange) return 'Nunca alterado';
-    
-    const date = new Date(lastChange.date);
-    const diffInHours = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Há poucos minutos';
-    if (diffInHours < 24) return `Há ${diffInHours} horas`;
-    const diffInDays = Math.floor(diffInHours / 24);
-    return `Há ${diffInDays} dia${diffInDays > 1 ? 's' : ''}`;
-  };
-
   return (
     <div className="border rounded-lg">
       {/* Produto Principal */}
@@ -255,7 +242,7 @@ export const StockRow: React.FC<StockRowProps> = ({
           )}
 
           <div className="text-sm text-muted-foreground">
-            {getLastChange(product.id)}
+            <LastChangeLabel productId={product.id} />
           </div>
 
           <Dialog>
@@ -340,7 +327,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                   </div>
 
                   <div className="text-sm text-muted-foreground w-32 text-right">
-                    {getLastChange(product.id, variation.id)}
+                    <LastChangeLabel productId={product.id} variationId={variation.id} />
                   </div>
                 </div>
               </div>
