@@ -2,7 +2,7 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2 } from 'lucide-react';
-import { formatBRL } from '@/utils/currency';
+import { formatBRL, toNumber } from '@/utils/currency';
 
 type Product = {
   status?: string;
@@ -16,17 +16,17 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const status = (product.status || '').toString();
   const isPublished = status === 'publish';
 
-  // Lógica corrigida para preços
-  const regularPrice = product?.regular_price ?? 0;
-  const salePrice = product?.sale_price ?? null;
-  const currentPrice = product?.price ?? regularPrice;
+  // Lógica corrigida para preços - usando toNumber para garantir tipos corretos
+  const regularPrice = toNumber(product?.regular_price);
+  const salePrice = toNumber(product?.sale_price);
+  const currentPrice = toNumber(product?.price) || regularPrice;
   
   // Produto está em promoção se:
   // 1. on_sale é true, OU
   // 2. sale_price existe e é diferente de regular_price, OU
   // 3. price é menor que regular_price
   const hasSale = !!product?.on_sale || 
-                  (!!salePrice && salePrice !== '' && salePrice !== null && salePrice !== regularPrice) ||
+                  (salePrice > 0 && salePrice !== regularPrice) ||
                   (currentPrice < regularPrice && regularPrice > 0);
 
   // Se está em promoção, mostra sale_price ou price (o menor)
