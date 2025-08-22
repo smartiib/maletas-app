@@ -17,6 +17,7 @@ interface StockRowProps {
   onToggleExpand: () => void;
   getTotalStock: (product: any) => number;
   getStockStatus: (stock: number, status: string) => { label: string; color: string };
+  rightExtra?: React.ReactNode;
 }
 
 interface NormalizedVariation {
@@ -32,7 +33,8 @@ export const StockRow: React.FC<StockRowProps> = ({
   isExpanded,
   onToggleExpand,
   getTotalStock,
-  getStockStatus
+  getStockStatus,
+  rightExtra
 }) => {
   const updateStockMutation = useUpdateStock();
   const [tempStock, setTempStock] = useState<{ [key: string]: string }>({});
@@ -374,6 +376,12 @@ export const StockRow: React.FC<StockRowProps> = ({
         </div>
 
         <div className="flex items-center space-x-4">
+          {rightExtra && (
+            <div className="hidden sm:block">
+              {rightExtra}
+            </div>
+          )}
+
           {!hasVariations && (
             <div className="flex items-center space-x-2">
               <Button

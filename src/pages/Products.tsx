@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import ProductCard from "@/components/products/ProductCard";
+// import ProductCard from "@/components/products/ProductCard"; // não usado neste layout
 import ProductDialog from "@/components/products/ProductDialog";
 import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
@@ -12,10 +12,13 @@ import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerce
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 import ViewModeToggle from "@/components/ui/view-mode-toggle";
+import { StockRow } from "@/components/stock/StockRow";
+import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
@@ -27,6 +30,40 @@ const Products = () => {
     product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const toggleProductExpansion = (productId: number) => {
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  // Mesmas regras da página Estoque
+  const getTotalStock = (product: any) => {
+    if (product.type === 'variable' && product.variations?.length > 0) {
+      return product.variations.reduce((total: number, variation: any) => {
+        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
+        return total + Math.max(0, qty);
+      }, 0);
+    }
+    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
+    return Math.max(0, qty);
+  };
+
+  const getStockStatus = (stock: number, status: string) => {
+    if (status === 'outofstock' || stock === 0) {
+      return { label: 'Sem Estoque', color: 'destructive' };
+    }
+    if (stock < 10) {
+      return { label: 'Estoque Baixo', color: 'secondary' };
+    }
+    return { label: 'Em Estoque', color: 'default' };
+  };
+
   if (orgLoading) {
     return (
       <div className="container mx-auto px-4 py-6 space-y-6">
@@ -37,9 +74,9 @@ const Products = () => {
           </div>
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       </div>
@@ -84,9 +121,9 @@ const Products = () => {
             Novo Produto
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       </div>
@@ -142,12 +179,18 @@ const Products = () => {
         />
       </div>
 
-      <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
-        : "space-y-4"
-      }>
+      {/* Lista no estilo da página Estoque, com preço/status à direita */}
+      <div className="space-y-4">
         {filteredProducts.map((product) => (
-          <ProductCard key={product.id} product={product} viewMode={viewMode} />
+          <StockRow
+            key={product.id}
+            product={product}
+            isExpanded={expandedProducts.has(product.id)}
+            onToggleExpand={() => toggleProductExpansion(product.id)}
+            getTotalStock={getTotalStock}
+            getStockStatus={getStockStatus}
+            rightExtra={<ProductPriceInfo product={product} />}
+          />
         ))}
       </div>
 
