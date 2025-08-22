@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
 import SyncHeader from "@/components/sync/SyncHeader";
 import ProductCard from "@/components/products/ProductCard";
+import ProductBulkActions from "@/components/products/ProductBulkActions";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -114,6 +114,25 @@ const Products = () => {
     return { label: 'Estoque OK', color: 'default' };
   };
 
+  const handleBulkAction = (action: string) => {
+    console.log(`Ação em massa: ${action}`);
+    // Implementar lógica das ações em massa aqui
+    switch (action) {
+      case 'review_all':
+        console.log('Colocando todos os produtos em revisão');
+        break;
+      case 'normal_all':
+        console.log('Marcando todos os produtos como normais');
+        break;
+      case 'remove_review_all':
+        console.log('Removendo revisão de todos os produtos');
+        break;
+      case 'export_selected':
+        console.log('Exportando produtos selecionados');
+        break;
+    }
+  };
+
   if (orgLoading) {
     return (
       <div className="container mx-auto px-4 py-6 space-y-6">
@@ -210,10 +229,13 @@ const Products = () => {
             Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Produto
-        </Button>
+        <div className="flex items-center gap-2">
+          <ProductBulkActions onBulkAction={handleBulkAction} />
+          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       <SyncHeader syncType="products" />

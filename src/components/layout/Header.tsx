@@ -1,5 +1,5 @@
 
-import { Menu, User, LogOut, Settings, Bell, Rocket } from "lucide-react";
+import { Menu, User, LogOut, Settings, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -85,13 +85,6 @@ const Header = () => {
               className="w-64"
             />
           </div>
-
-          {/* Roadmap */}
-          <Button variant="ghost" size="icon" asChild>
-            <Link to="/changelog">
-              <Rocket className="h-4 w-4" />
-            </Link>
-          </Button>
 
           {/* Notificações */}
           <Button variant="ghost" size="icon" className="relative">

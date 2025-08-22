@@ -71,12 +71,21 @@ const ProductCard: React.FC<ProductCardProps> = ({
     console.log(`Produto ${product.id} marcado como: ${status}`);
   };
 
+  const getCardBackgroundColor = () => {
+    switch (reviewStatus) {
+      case 'review': return 'bg-yellow-50 border-yellow-200';
+      case 'normal': return 'bg-green-50 border-green-200';
+      case 'remove_review': return '';
+      default: return '';
+    }
+  };
+
   const getReviewStatusBadge = () => {
     if (reviewStatus === 'normal') return null;
+    if (reviewStatus === 'remove_review') return null;
     
     const statusConfig = {
-      review: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: AlertTriangle, text: 'Em Revisão' },
-      remove_review: { color: 'bg-red-100 text-red-800 border-red-200', icon: X, text: 'Remover Revisão' }
+      review: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: AlertTriangle, text: 'Em Revisão' }
     };
     
     const config = statusConfig[reviewStatus as keyof typeof statusConfig];
@@ -93,11 +102,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const stockStatus = getStockStatus(product);
-  const isUnderReview = reviewStatus === 'review';
+  const cardBgColor = getCardBackgroundColor();
 
   if (viewMode === 'grid') {
     return (
-      <Card className={`hover:shadow-md transition-all-smooth h-fit ${isUnderReview ? 'bg-yellow-50 border-yellow-200' : ''}`}>
+      <Card className={`hover:shadow-md transition-all-smooth h-fit ${cardBgColor}`}>
         <CardContent className="p-3">
           <div className="space-y-3">
             {/* Imagem e ações */}
@@ -209,7 +218,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Visualização em lista
   return (
-    <Card className={`hover:shadow-md transition-all-smooth ${isUnderReview ? 'bg-yellow-50 border-yellow-200' : ''}`}>
+    <Card className={`hover:shadow-md transition-all-smooth ${cardBgColor}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -293,7 +302,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   className="text-destructive"
                   onClick={() => onDelete?.(product.id, product.name)}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 w-4 mr-2" />
                   Excluir
                 </DropdownMenuItem>
               </DropdownMenuContent>
