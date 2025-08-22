@@ -73,7 +73,7 @@ const POS = () => {
         const newItem: CartItem = {
           id: product.id,
           name: product.name,
-          price: price.toString(),
+          price: price.toFixed(2),
           quantity: 1,
           image: product.images?.[0]?.src,
           sku: product.sku,
@@ -171,7 +171,7 @@ const POS = () => {
 
   if (orgLoading || productsLoading || categoriesLoading) {
     return (
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-4 py-6">
         <div className="text-center space-y-2 mb-6">
           <Skeleton className="h-8 w-32 mx-auto" />
           <Skeleton className="h-4 w-48 mx-auto" />
