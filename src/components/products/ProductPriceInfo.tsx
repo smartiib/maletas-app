@@ -16,11 +16,23 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const status = (product.status || '').toString();
   const isPublished = status === 'publish';
 
-  const price = product?.price ?? product?.regular_price ?? 0;
-  const hasSale = !!product?.on_sale || (!!product?.sale_price && product?.sale_price !== '' && product?.sale_price !== null);
+  // Lógica corrigida para preços
+  const regularPrice = product?.regular_price ?? 0;
+  const salePrice = product?.sale_price ?? null;
+  const currentPrice = product?.price ?? regularPrice;
+  
+  // Produto está em promoção se:
+  // 1. on_sale é true, OU
+  // 2. sale_price existe e é diferente de regular_price, OU
+  // 3. price é menor que regular_price
+  const hasSale = !!product?.on_sale || 
+                  (!!salePrice && salePrice !== '' && salePrice !== null && salePrice !== regularPrice) ||
+                  (currentPrice < regularPrice && regularPrice > 0);
 
-  const displayPrice = hasSale ? (product?.sale_price ?? price) : price;
-  const originalPrice = product?.regular_price ?? price;
+  // Se está em promoção, mostra sale_price ou price (o menor)
+  // Se não está em promoção, mostra price ou regular_price
+  const displayPrice = hasSale ? (salePrice || currentPrice) : currentPrice;
+  const originalPrice = hasSale ? regularPrice : null;
 
   return (
     <div className="flex items-center gap-2">
@@ -33,7 +45,7 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
       
       {/* Preços */}
       <div className="flex items-center gap-1">
-        {hasSale && (
+        {hasSale && originalPrice && (
           <div className="text-xs text-muted-foreground line-through">
             {formatBRL(originalPrice)}
           </div>
