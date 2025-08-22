@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,11 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Calendar, Rocket, Bug, Zap, AlertTriangle, Filter } from 'lucide-react';
+import { Plus, Search, Calendar, Rocket, Bug, Zap, AlertTriangle, Filter, Database } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import ChangelogItemDialog from '@/components/changelog/ChangelogItemDialog';
 import ChangelogItemCard from '@/components/changelog/ChangelogItemCard';
+import { populateLovableHistory } from '@/utils/populateLovableHistory';
 
 type ChangelogItem = {
   id: string;
@@ -36,6 +36,7 @@ const Changelog = () => {
   const [sortBy, setSortBy] = useState<string>('priority');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ChangelogItem | null>(null);
+  const [isPopulating, setIsPopulating] = useState(false);
   const { toast } = useToast();
 
   const { data: items = [], refetch } = useQuery({
@@ -105,6 +106,26 @@ const Changelog = () => {
     }
   };
 
+  const handlePopulateHistory = async () => {
+    setIsPopulating(true);
+    try {
+      await populateLovableHistory();
+      toast({
+        title: "Sucesso",
+        description: "Histórico do Lovable adicionado com sucesso!",
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao popular histórico do Lovable.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPopulating(false);
+    }
+  };
+
   const handleDialogClose = () => {
     setIsDialogOpen(false);
     setEditingItem(null);
@@ -131,10 +152,23 @@ const Changelog = () => {
             Acompanhe as últimas atualizações e recursos futuros da plataforma
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Item
-        </Button>
+        <div className="flex gap-2">
+          {items.length === 0 && (
+            <Button 
+              onClick={handlePopulateHistory} 
+              disabled={isPopulating}
+              variant="outline" 
+              className="gap-2"
+            >
+              <Database className="w-4 h-4" />
+              {isPopulating ? 'Carregando...' : 'Popular Histórico Lovable'}
+            </Button>
+          )}
+          <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Item
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -218,6 +252,7 @@ const Changelog = () => {
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhum item no changelog ainda.</p>
+                  <p className="text-sm mt-2">Clique em "Popular Histórico Lovable" para adicionar o histórico da plataforma.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -250,6 +285,7 @@ const Changelog = () => {
                 <div className="text-center py-8 text-muted-foreground">
                   <Rocket className="w-12 h-12 mx-auto mb-4 opacity-50" />
                   <p>Nenhum item no roadmap ainda.</p>
+                  <p className="text-sm mt-2">Clique em "Popular Histórico Lovable" para adicionar o roadmap da plataforma.</p>
                 </div>
               ) : (
                 <div className="space-y-4">
