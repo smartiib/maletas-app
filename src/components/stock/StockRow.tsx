@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,10 +43,32 @@ export const StockRow: React.FC<StockRowProps> = ({
     return ids;
   }, [hasVariations, product.variations]);
 
-  const shouldFetchByIds = (dbVariationsParent?.length ?? 0) === 0 && variationIds.length > 0;
-  const { data: dbVariationsByIds = [] } = useProductVariationsByIds(shouldFetchByIds ? variationIds : undefined);
+  // Buscar por IDs somente as variações que não vieram pela consulta por parent_id
+  const missingIds = useMemo(() => {
+    if (!hasVariations || !dbVariationsParent?.length) {
+      return variationIds;
+    }
+    const fetched = new Set<number>(dbVariationsParent.map(v => Number(v.id)));
+    return variationIds.filter(id => !fetched.has(id));
+  }, [hasVariations, variationIds, dbVariationsParent]);
 
-  const effectiveVariations: DbVariation[] = (dbVariationsParent?.length ?? 0) > 0 ? dbVariationsParent : dbVariationsByIds;
+  const { data: dbVariationsByIds = [] } = useProductVariationsByIds(missingIds.length > 0 ? missingIds : undefined);
+
+  // Unificar resultados (parent + byIds), garantindo 1 entrada por ID
+  const effectiveVariations: DbVariation[] = useMemo(() => {
+    const map = new Map<number, DbVariation>();
+    (dbVariationsParent || []).forEach(v => map.set(Number(v.id), v));
+    (dbVariationsByIds || []).forEach(v => map.set(Number(v.id), v));
+    const arr = Array.from(map.values());
+    console.log('[StockRow] effectiveVariations resolvidas:', {
+      productId: product?.id,
+      requestedIds: variationIds,
+      parentCount: dbVariationsParent?.length || 0,
+      byIdsCount: dbVariationsByIds?.length || 0,
+      finalCount: arr.length,
+    });
+    return arr;
+  }, [dbVariationsParent, dbVariationsByIds, variationIds, product?.id]);
 
   const variationInfoById = useMemo(() => {
     const map = new Map<number, DbVariation>();
