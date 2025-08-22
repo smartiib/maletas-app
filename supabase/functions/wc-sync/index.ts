@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -166,6 +165,67 @@ Deno.serve(async (req) => {
   }
 });
 
+// ------------------------- FETCH PRODUCT VARIATIONS -------------------------
+async function fetchProductVariations(config: WooCommerceConfig, productId: number): Promise<any[]> {
+  const variations: any[] = [];
+  let page = 1;
+  let hasMore = true;
+
+  while (hasMore) {
+    try {
+      console.log(`Buscando variações página ${page} do produto ${productId}...`);
+      
+      const url = new URL(`${config.url}/wp-json/wc/v3/products/${productId}/variations`);
+      url.searchParams.set('page', page.toString());
+      url.searchParams.set('per_page', '100');
+
+      const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Erro ao buscar variações do produto ${productId}:`, errorText);
+        break;
+      }
+
+      const responseText = await response.text();
+      let pageVariations;
+      try {
+        pageVariations = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Erro ao fazer parse das variações JSON:', parseError);
+        break;
+      }
+
+      if (!Array.isArray(pageVariations) || pageVariations.length === 0) {
+        hasMore = false;
+        break;
+      }
+
+      variations.push(...pageVariations);
+      console.log(`Encontradas ${pageVariations.length} variações na página ${page} do produto ${productId}`);
+
+      if (pageVariations.length < 100) {
+        hasMore = false;
+      } else {
+        page++;
+      }
+
+    } catch (error: any) {
+      console.error(`Erro na página ${page} das variações do produto ${productId}:`, error);
+      hasMore = false;
+    }
+  }
+
+  console.log(`Total de ${variations.length} variações encontradas para o produto ${productId}`);
+  return variations;
+}
+
 // ------------------------- PRODUCTS -------------------------
 async function syncProducts(
   supabase: any, 
@@ -271,6 +331,28 @@ async function syncProducts(
           try {
             await upsertProduct(supabase, product, organizationId);
             itemsProcessed++;
+
+            // Se for produto variável, buscar suas variações
+            if (product.type === 'variable' && product.variations && product.variations.length > 0) {
+              console.log(`Produto ${product.id} é variável, buscando ${product.variations.length} variações...`);
+              try {
+                const variations = await fetchProductVariations(config, product.id);
+                
+                for (const variation of variations) {
+                  try {
+                    await upsertVariation(supabase, variation, organizationId);
+                    console.log(`Variação ${variation.id} do produto ${product.id} sincronizada`);
+                  } catch (variationError: any) {
+                    console.error(`Erro ao processar variação ${variation.id} do produto ${product.id}:`, variationError);
+                    errors.push(`Variação ${variation.id} do produto ${product.id}: ${variationError.message}`);
+                  }
+                }
+              } catch (variationsError: any) {
+                console.error(`Erro ao buscar variações do produto ${product.id}:`, variationsError);
+                errors.push(`Variações do produto ${product.id}: ${variationsError.message}`);
+              }
+            }
+
           } catch (error: any) {
             console.error(`Erro ao processar produto ${product.id}:`, error);
             errors.push(`Produto ${product.id}: ${error.message}`);
@@ -758,6 +840,58 @@ async function upsertProduct(supabase: any, product: any, organizationId: string
 
   if (error) {
     throw new Error(`Erro ao salvar produto: ${error.message}`);
+  }
+}
+
+async function upsertVariation(supabase: any, variation: any, organizationId: string) {
+  const variationData = {
+    id: variation.id,
+    parent_id: variation.parent_id,
+    date_created: variation.date_created,
+    date_modified: variation.date_modified,
+    description: variation.description,
+    permalink: variation.permalink,
+    sku: variation.sku,
+    price: parseFloat(variation.price) || null,
+    regular_price: parseFloat(variation.regular_price) || null,
+    sale_price: parseFloat(variation.sale_price) || null,
+    date_on_sale_from: variation.date_on_sale_from,
+    date_on_sale_to: variation.date_on_sale_to,
+    on_sale: variation.on_sale,
+    status: variation.status,
+    purchasable: variation.purchasable,
+    virtual: variation.virtual,
+    downloadable: variation.downloadable,
+    downloads: variation.downloads,
+    download_limit: variation.download_limit,
+    download_expiry: variation.download_expiry,
+    tax_status: variation.tax_status,
+    tax_class: variation.tax_class,
+    manage_stock: variation.manage_stock,
+    stock_quantity: variation.stock_quantity,
+    stock_status: variation.stock_status,
+    backorders: variation.backorders,
+    backorders_allowed: variation.backorders_allowed,
+    backordered: variation.backordered,
+    low_stock_amount: variation.low_stock_amount,
+    weight: variation.weight,
+    dimensions: variation.dimensions,
+    shipping_class: variation.shipping_class,
+    shipping_class_id: variation.shipping_class_id,
+    image: variation.image,
+    attributes: variation.attributes,
+    menu_order: variation.menu_order,
+    meta_data: variation.meta_data,
+    synced_at: new Date().toISOString(),
+    organization_id: organizationId
+  };
+
+  const { error } = await supabase
+    .from('wc_product_variations')
+    .upsert(variationData, { onConflict: 'id' });
+
+  if (error) {
+    throw new Error(`Erro ao salvar variação: ${error.message}`);
   }
 }
 
