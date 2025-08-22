@@ -93,10 +93,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const stockStatus = getStockStatus(product);
+  const isUnderReview = reviewStatus === 'review';
 
   if (viewMode === 'grid') {
     return (
-      <Card className="hover:shadow-md transition-all-smooth h-fit">
+      <Card className={`hover:shadow-md transition-all-smooth h-fit ${isUnderReview ? 'bg-yellow-50 border-yellow-200' : ''}`}>
         <CardContent className="p-3">
           <div className="space-y-3">
             {/* Imagem e ações */}
@@ -112,6 +113,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <Package className="w-8 h-8 text-muted-foreground" />
                 )}
               </div>
+              
+              {/* Tag de revisão sobre a imagem */}
+              {getReviewStatusBadge() && (
+                <div className="absolute top-2 left-2">
+                  {getReviewStatusBadge()}
+                </div>
+              )}
+              
               <div className="absolute top-2 right-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -186,7 +195,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 >
                   {stockStatus.text}
                 </Badge>
-                {getReviewStatusBadge()}
               </div>
 
               <div className="text-sm font-semibold text-center">
@@ -201,7 +209,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Visualização em lista
   return (
-    <Card className="hover:shadow-md transition-all-smooth">
+    <Card className={`hover:shadow-md transition-all-smooth ${isUnderReview ? 'bg-yellow-50 border-yellow-200' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -219,7 +227,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   )}
                 </div>
                 <div>
-                  <h3 className="font-semibold">{product.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{product.name}</h3>
+                    {getReviewStatusBadge()}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     SKU: {product.sku || '-'} • ID: {product.id}
                   </p>
@@ -234,7 +245,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge className={stockStatus.color}>
                 {stockStatus.text}
               </Badge>
-              {getReviewStatusBadge()}
               <span className="font-semibold">
                 R$ {parseFloat(product.price || '0').toFixed(2)}
               </span>
