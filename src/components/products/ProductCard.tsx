@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
+import { Package, Edit, Trash2, Eye, MoreHorizontal, AlertTriangle, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,8 +11,11 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import ProductReviewDropdown from './ProductReviewDropdown';
 
 interface ProductCardProps {
   product: Product;
@@ -65,8 +68,28 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const handleReviewStatusChange = (status: string) => {
     setReviewStatus(status);
-    // Aqui você pode adicionar a lógica para salvar o status de revisão
     console.log(`Produto ${product.id} marcado como: ${status}`);
+  };
+
+  const getReviewStatusBadge = () => {
+    if (reviewStatus === 'normal') return null;
+    
+    const statusConfig = {
+      review: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: AlertTriangle, text: 'Em Revisão' },
+      remove_review: { color: 'bg-red-100 text-red-800 border-red-200', icon: X, text: 'Remover Revisão' }
+    };
+    
+    const config = statusConfig[reviewStatus as keyof typeof statusConfig];
+    if (!config) return null;
+    
+    const IconComponent = config.icon;
+    
+    return (
+      <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${config.color}`}>
+        <IconComponent className="w-3 h-3 mr-1" />
+        {config.text}
+      </Badge>
+    );
   };
 
   const stockStatus = getStockStatus(product);
@@ -96,7 +119,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                       <MoreHorizontal className="w-3 h-3" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem onClick={() => onView?.(product)}>
                       <Eye className="w-4 h-4 mr-2" />
                       Visualizar
@@ -105,6 +128,28 @@ const ProductCard: React.FC<ProductCardProps> = ({
                       <Edit className="w-4 h-4 mr-2" />
                       Editar
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="flex items-center">
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        Revisão
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onClick={() => handleReviewStatusChange('normal')}>
+                          <Eye className="w-4 h-4 mr-2" />
+                          Não alterar
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleReviewStatusChange('review')}>
+                          <AlertTriangle className="w-4 h-4 mr-2 text-yellow-600" />
+                          Em Revisão
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleReviewStatusChange('remove_review')}>
+                          <X className="w-4 h-4 mr-2 text-red-600" />
+                          Remover Revisão
+                        </DropdownMenuItem>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem 
                       className="text-destructive"
                       onClick={() => onDelete?.(product.id, product.name)}
@@ -141,14 +186,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 >
                   {stockStatus.text}
                 </Badge>
-              </div>
-
-              {/* Dropdown de Revisão */}
-              <div className="flex justify-center">
-                <ProductReviewDropdown
-                  currentStatus={reviewStatus}
-                  onStatusChange={handleReviewStatusChange}
-                />
+                {getReviewStatusBadge()}
               </div>
 
               <div className="text-sm font-semibold text-center">
@@ -196,10 +234,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge className={stockStatus.color}>
                 {stockStatus.text}
               </Badge>
-              <ProductReviewDropdown
-                currentStatus={reviewStatus}
-                onStatusChange={handleReviewStatusChange}
-              />
+              {getReviewStatusBadge()}
               <span className="font-semibold">
                 R$ {parseFloat(product.price || '0').toFixed(2)}
               </span>
@@ -213,7 +248,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem onClick={() => onView?.(product)}>
                   <Eye className="w-4 h-4 mr-2" />
                   Visualizar
@@ -222,6 +257,28 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="flex items-center">
+                    <AlertTriangle className="w-4 h-4 mr-2" />
+                    Revisão
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => handleReviewStatusChange('normal')}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Não alterar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleReviewStatusChange('review')}>
+                      <AlertTriangle className="w-4 h-4 mr-2 text-yellow-600" />
+                      Em Revisão
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleReviewStatusChange('remove_review')}>
+                      <X className="w-4 h-4 mr-2 text-red-600" />
+                      Remover Revisão
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="text-destructive"
                   onClick={() => onDelete?.(product.id, product.name)}
