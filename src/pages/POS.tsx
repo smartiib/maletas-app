@@ -31,7 +31,7 @@ interface CartItem {
 
 const POS = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -42,13 +42,17 @@ const POS = () => {
   const isMobile = useIsMobile();
 
   const filteredProducts = useMemo(() => {
+    const selectedCategoryId = selectedCategory ? Number(selectedCategory) : null;
+
     let filtered = products.filter((product) => {
-      const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = !selectedCategory || 
-                            product.categories?.some(cat => cat.id === selectedCategory);
-      
+      const matchesSearch =
+        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesCategory =
+        !selectedCategoryId ||
+        product.categories?.some((cat) => cat.id === selectedCategoryId);
+
       return matchesSearch && matchesCategory;
     });
 
