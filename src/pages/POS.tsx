@@ -74,7 +74,7 @@ const POS = () => {
         const newItem: CartItem = {
           id: product.id,
           name: product.name,
-          price: price.toFixed(2),
+          price: price.toString(),
           quantity: 1,
           image: product.images?.[0]?.src,
           sku: product.sku,
@@ -382,7 +382,7 @@ const POS = () => {
       {isMobile && (
         <FloatingCartButton
           itemCount={getTotalItems()}
-          total={formatBRL(getSubtotal())}
+          total={getSubtotal()}
           onClick={() => setIsCartOpen(true)}
         />
       )}
