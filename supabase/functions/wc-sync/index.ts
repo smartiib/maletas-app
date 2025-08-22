@@ -13,6 +13,9 @@ const logger = {
   error: (...args: any[]) => {
     console.error(...args);
   },
+  warn: (...args: any[]) => {
+    console.warn(...args);
+  },
 };
 
 const corsHeaders = {
@@ -334,9 +337,12 @@ async function syncVariationsForProduct(opts: {
 
 /**
  * Synchronizes products from WooCommerce to Supabase.
- * @param {string} organizationId - The ID of the organization.
+ * Agora aceita credenciais opcionais (vindo do body.config) além do organizationId.
  */
-async function syncProducts(organizationId: string | null) {
+async function syncProducts(
+  organizationId: string | null,
+  creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
+) {
   logger.log(`Starting product sync for organization: ${organizationId}`);
 
   if (!organizationId) {
@@ -344,7 +350,10 @@ async function syncProducts(organizationId: string | null) {
     return;
   }
 
-  const wooCommerceCredentials = await getWooCommerceCredentials(organizationId);
+  // Buscar credenciais: preferir as fornecidas no body (config), senão buscar no banco
+  const wooCommerceCredentials =
+    creds ??
+    (await getWooCommerceCredentials(organizationId));
 
   if (!wooCommerceCredentials) {
     logger.error(
@@ -478,12 +487,24 @@ serve(async (req) => {
   }
 
   try {
-    const { organizationId } = await req.json();
+    // Tentar ler o body (pode vir em dois formatos)
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
+    // Suporte aos dois formatos:
+    // - legado: { organizationId }
+    // - novo: { organization_id, config: { url, consumer_key, consumer_secret }, ... }
+    const organizationId: string | null =
+      body?.organization_id || body?.organizationId || null;
 
     if (!organizationId) {
       logger.error("Organization ID is missing in the request body.");
       return new Response(
-        JSON.stringify({ error: "Organization ID is required" }),
+        JSON.stringify({ success: false, message: "Organization ID is required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -491,17 +512,56 @@ serve(async (req) => {
       );
     }
 
-    await syncProducts(organizationId);
+    let creds:
+      | { wcBaseUrl: string; consumerKey: string; consumerSecret: string }
+      | undefined;
+
+    const cfg = body?.config;
+    const hasConfig =
+      cfg &&
+      typeof cfg?.url === "string" &&
+      typeof cfg?.consumer_key === "string" &&
+      typeof cfg?.consumer_secret === "string";
+
+    if (hasConfig) {
+      // Usar credenciais enviadas pelo frontend para esta execução
+      creds = {
+        wcBaseUrl: cfg.url,
+        consumerKey: cfg.consumer_key,
+        consumerSecret: cfg.consumer_secret,
+      };
+      logger.log("[wc-sync] Using credentials from request body.config (masked):", {
+        url: creds.wcBaseUrl,
+        consumer_key: "***",
+        consumer_secret: "***",
+        organizationId,
+      });
+    } else {
+      logger.log("[wc-sync] No config provided, will load credentials from database.", {
+        organizationId,
+      });
+    }
+
+    await syncProducts(organizationId, creds);
 
     return new Response(
-      JSON.stringify({ message: "Product sync completed successfully." }),
+      JSON.stringify({
+        success: true,
+        message: "Product sync completed successfully.",
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-  } catch (error) {
+  } catch (error: any) {
     logger.error("An unexpected error occurred:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: error?.message || "Unexpected error",
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 });
