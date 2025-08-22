@@ -31,7 +31,7 @@ interface CartItem {
 
 const POS = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
@@ -42,7 +42,13 @@ const POS = () => {
   const isMobile = useIsMobile();
 
   const filteredProducts = useMemo(() => {
-    const selectedCategoryId = selectedCategory ? Number(selectedCategory) : null;
+    // Converte o que está em selectedCategory (nome ou id em string) para id numérico
+    const selectedCategoryId =
+      selectedCategory
+        ? (isNaN(Number(selectedCategory))
+            ? (categories as any[]).find((c: any) => c?.name === selectedCategory)?.id ?? null
+            : Number(selectedCategory))
+        : null;
 
     let filtered = products.filter((product) => {
       const matchesSearch =
@@ -58,7 +64,7 @@ const POS = () => {
 
     // Ordenar por nome
     return filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  }, [products, searchTerm, selectedCategory]);
+  }, [products, searchTerm, selectedCategory, categories]);
 
   const addToCart = (product: any, variationId?: number, variationName?: string) => {
     const price = parseFloat(product.price || product.regular_price || '0');
@@ -268,7 +274,7 @@ const POS = () => {
 
         {categories.length > 0 && (
           <CategorySlider
-            categories={categories as unknown as string[]}
+            categories={(categories as any[]).map((c: any) => String(c?.name ?? ""))}
             selectedCategory={selectedCategory}
             onCategoryChange={(cat) => setSelectedCategory(cat)}
           />
