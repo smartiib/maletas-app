@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import FloatingCartButton from "@/components/pos/FloatingCartButton";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SyncHeader from "@/components/sync/SyncHeader";
+import { formatBRL } from "@/utils/currency"; // Added
 
 interface CartItem {
   id: number;
@@ -381,7 +383,7 @@ const POS = () => {
       {isMobile && (
         <FloatingCartButton
           itemCount={getTotalItems()}
-          total={getSubtotal()}
+          total={formatBRL(getSubtotal())} {/* Changed: ensure string value */}
           onClick={() => setIsCartOpen(true)}
         />
       )}
