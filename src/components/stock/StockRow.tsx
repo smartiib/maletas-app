@@ -173,7 +173,11 @@ export const StockRow: React.FC<StockRowProps> = ({
   // Calcula total a partir das variações normalizadas quando houver variações
   const computedVariationsTotal = useMemo(() => {
     if (!hasVariations) return 0;
-    return normalizedVariations.reduce((sum, v) => sum + (Number(v.stock_quantity) || 0), 0);
+    // Não descontar quantidades negativas do total
+    return normalizedVariations.reduce((sum, v) => {
+      const qty = Number(v.stock_quantity) || 0;
+      return sum + Math.max(0, qty);
+    }, 0);
   }, [hasVariations, normalizedVariations]);
 
   // Helper function to prettify attribute names

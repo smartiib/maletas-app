@@ -39,10 +39,13 @@ const Stock = () => {
   const getTotalStock = (product: any) => {
     if (product.type === 'variable' && product.variations?.length > 0) {
       return product.variations.reduce((total: number, variation: any) => {
-        return total + (variation.stock_quantity || 0);
+        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
+        // Ignorar negativos no somatório
+        return total + Math.max(0, qty);
       }, 0);
     }
-    return product.stock_quantity || 0;
+    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
+    return Math.max(0, qty);
   };
 
   const getStockStatus = (stock: number, status: string) => {
@@ -186,3 +189,4 @@ const Stock = () => {
 };
 
 export default Stock;
+
