@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import ProductReviewDropdown from './ProductReviewDropdown';
 
 interface ProductCardProps {
   product: Product;
@@ -28,6 +29,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onEdit, 
   onDelete 
 }) => {
+  const [reviewStatus, setReviewStatus] = useState<string>('normal');
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'publish': return 'bg-success-100 text-success-800';
@@ -58,6 +61,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
       return { color: 'bg-yellow-50 border-yellow-200 text-yellow-700', text: `${stock} un.` };
     }
     return { color: 'bg-green-50 border-green-200 text-green-700', text: `${stock} un.` };
+  };
+
+  const handleReviewStatusChange = (status: string) => {
+    setReviewStatus(status);
+    // Aqui você pode adicionar a lógica para salvar o status de revisão
+    console.log(`Produto ${product.id} marcado como: ${status}`);
   };
 
   const stockStatus = getStockStatus(product);
@@ -134,7 +143,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 </Badge>
               </div>
 
-              <div className="text-sm font-semibold">
+              {/* Dropdown de Revisão */}
+              <div className="flex justify-center">
+                <ProductReviewDropdown
+                  currentStatus={reviewStatus}
+                  onStatusChange={handleReviewStatusChange}
+                />
+              </div>
+
+              <div className="text-sm font-semibold text-center">
                 R$ {parseFloat(product.price || '0').toFixed(2)}
               </div>
             </div>
@@ -144,7 +161,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     );
   }
 
-  // Visualização em lista (mantém o código original)
+  // Visualização em lista
   return (
     <Card className="hover:shadow-md transition-all-smooth">
       <CardContent className="p-4">
@@ -172,13 +189,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
             
-            <div className="flex items-center gap-4 ml-16">
+            <div className="flex items-center gap-4 ml-16 mt-2">
               <Badge className={getStatusColor(product.status)}>
                 {getStatusLabel(product.status)}
               </Badge>
               <Badge className={stockStatus.color}>
                 {stockStatus.text}
               </Badge>
+              <ProductReviewDropdown
+                currentStatus={reviewStatus}
+                onStatusChange={handleReviewStatusChange}
+              />
               <span className="font-semibold">
                 R$ {parseFloat(product.price || '0').toFixed(2)}
               </span>
