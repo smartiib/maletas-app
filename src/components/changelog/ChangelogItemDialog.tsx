@@ -46,8 +46,8 @@ const ChangelogItemDialog: React.FC<ChangelogItemDialogProps> = ({
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'feature' as const,
-    status: 'planned' as const,
+    type: 'feature' as 'feature' | 'improvement' | 'bugfix' | 'breaking',
+    status: 'planned' as 'planned' | 'in_progress' | 'completed',
     category: 'general',
     version: '',
     release_date: undefined as Date | undefined,
@@ -207,7 +207,7 @@ const ChangelogItemDialog: React.FC<ChangelogItemDialogProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label>Tipo *</Label>
-                <Select value={formData.type} onValueChange={(value: any) => setFormData(prev => ({ ...prev, type: value }))}>
+                <Select value={formData.type} onValueChange={(value: 'feature' | 'improvement' | 'bugfix' | 'breaking') => setFormData(prev => ({ ...prev, type: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -222,7 +222,7 @@ const ChangelogItemDialog: React.FC<ChangelogItemDialogProps> = ({
 
               <div className="space-y-2">
                 <Label>Status *</Label>
-                <Select value={formData.status} onValueChange={(value: any) => setFormData(prev => ({ ...prev, status: value }))}>
+                <Select value={formData.status} onValueChange={(value: 'planned' | 'in_progress' | 'completed') => setFormData(prev => ({ ...prev, status: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

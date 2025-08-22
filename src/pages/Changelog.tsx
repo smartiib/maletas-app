@@ -61,7 +61,7 @@ const Changelog = () => {
           query = query.order('priority', { ascending: false }).order('created_at', { ascending: false });
           break;
         case 'date':
-          query = query.order('release_date', { ascending: false, nullsLast: true });
+          query = query.order('release_date', { ascending: false, nullsFirst: false });
           break;
         case 'created':
           query = query.order('created_at', { ascending: false });
