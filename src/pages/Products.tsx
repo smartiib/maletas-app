@@ -43,19 +43,19 @@ const Products = () => {
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Aplicar filtro de estoque
+    // Aplicar filtro de estoque - ajustado conforme solicitado
     if (stockFilter !== 'all') {
       filtered = filtered.filter((product) => {
         const totalStock = getTotalStock(product);
         const status = product.stock_status;
 
         switch (stockFilter) {
-          case 'in-stock':
-            return status !== 'outofstock' && totalStock > 10;
+          case 'stock-ok':
+            return totalStock > 5; // Estoque OK: mais de 5 peças
           case 'low-stock':
-            return totalStock > 0 && totalStock <= 10;
+            return totalStock > 0 && totalStock <= 5; // Estoque baixo: 1 a 5 peças
           case 'out-of-stock':
-            return status === 'outofstock' || totalStock === 0;
+            return totalStock === 0; // Sem estoque: 0 peças (mesmo com variações)
           default:
             return true;
         }
@@ -65,25 +65,24 @@ const Products = () => {
     return filtered;
   }, [products, searchTerm, stockFilter]);
 
-  // Contadores para os filtros
+  // Contadores para os filtros - ajustados
   const stockCounts = useMemo(() => {
     const counts = {
       all: products.length,
-      inStock: 0,
+      stockOk: 0,
       outOfStock: 0,
       lowStock: 0,
     };
 
     products.forEach((product) => {
       const totalStock = getTotalStock(product);
-      const status = product.stock_status;
 
-      if (status === 'outofstock' || totalStock === 0) {
+      if (totalStock === 0) {
         counts.outOfStock++;
-      } else if (totalStock <= 10) {
+      } else if (totalStock <= 5) {
         counts.lowStock++;
       } else {
-        counts.inStock++;
+        counts.stockOk++;
       }
     });
 
@@ -103,13 +102,13 @@ const Products = () => {
   };
 
   const getStockStatus = (stock: number, status: string) => {
-    if (status === 'outofstock' || stock === 0) {
+    if (stock === 0) {
       return { label: 'Sem Estoque', color: 'destructive' };
     }
-    if (stock < 10) {
+    if (stock <= 5) {
       return { label: 'Estoque Baixo', color: 'secondary' };
     }
-    return { label: 'Em Estoque', color: 'default' };
+    return { label: 'Estoque OK', color: 'default' };
   };
 
   if (orgLoading) {

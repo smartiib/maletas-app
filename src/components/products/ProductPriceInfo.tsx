@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
+import { CheckCircle2 } from 'lucide-react';
 import { formatBRL } from '@/utils/currency';
 
 type Product = {
@@ -14,7 +15,6 @@ type Product = {
 const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const status = (product.status || '').toString();
   const isPublished = status === 'publish';
-  const statusLabel = isPublished ? 'Publicado' : status === 'draft' ? 'Rascunho' : (status || '—');
 
   const price = product?.price ?? product?.regular_price ?? 0;
   const hasSale = !!product?.on_sale || (!!product?.sale_price && product?.sale_price !== '' && product?.sale_price !== null);
@@ -23,36 +23,35 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const originalPrice = product?.regular_price ?? price;
 
   return (
-    <div className="flex flex-col items-end gap-1 min-w-[120px]">
-      {/* Status badges - mais compactos */}
-      <div className="flex items-center gap-1">
-        <Badge 
-          variant={isPublished ? 'secondary' : 'outline'} 
-          className="text-xs px-1.5 py-0.5"
-        >
-          {statusLabel}
-        </Badge>
-        {hasSale && (
-          <Badge 
-            variant="default" 
-            className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 text-xs px-1.5 py-0.5"
-          >
-            Promoção
-          </Badge>
-        )}
-      </div>
+    <div className="flex items-center gap-2">
+      {/* Ícone de publicado */}
+      {isPublished && (
+        <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
+          <CheckCircle2 className="w-2 h-2 text-white" />
+        </div>
+      )}
       
-      {/* Preços alinhados verticalmente */}
-      <div className="text-right">
+      {/* Preços */}
+      <div className="flex items-center gap-1">
         {hasSale && (
-          <div className="text-xs text-muted-foreground line-through leading-tight">
+          <div className="text-xs text-muted-foreground line-through">
             {formatBRL(originalPrice)}
           </div>
         )}
-        <div className="font-semibold text-sm leading-tight">
+        <div className="font-medium text-sm">
           {formatBRL(displayPrice)}
         </div>
       </div>
+
+      {/* Tag de promoção */}
+      {hasSale && (
+        <Badge 
+          variant="default" 
+          className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 text-xs px-1.5 py-0.5"
+        >
+          Promoção
+        </Badge>
+      )}
     </div>
   );
 };
