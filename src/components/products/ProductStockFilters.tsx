@@ -21,10 +21,30 @@ export const ProductStockFilters: React.FC<ProductStockFiltersProps> = ({
   counts
 }) => {
   const filters = [
-    { key: 'all' as StockFilter, label: 'Todos', count: counts.all },
-    { key: 'stock-ok' as StockFilter, label: 'Estoque OK', count: counts.stockOk },
-    { key: 'low-stock' as StockFilter, label: 'Estoque Baixo', count: counts.lowStock },
-    { key: 'out-of-stock' as StockFilter, label: 'Sem Estoque', count: counts.outOfStock },
+    { 
+      key: 'all' as StockFilter, 
+      label: 'Todos', 
+      count: counts.all,
+      colorClasses: 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+    },
+    { 
+      key: 'stock-ok' as StockFilter, 
+      label: 'Estoque OK', 
+      count: counts.stockOk,
+      colorClasses: 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+    },
+    { 
+      key: 'low-stock' as StockFilter, 
+      label: 'Estoque Baixo', 
+      count: counts.lowStock,
+      colorClasses: 'bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100'
+    },
+    { 
+      key: 'out-of-stock' as StockFilter, 
+      label: 'Sem Estoque', 
+      count: counts.outOfStock,
+      colorClasses: 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
+    },
   ];
 
   return (
@@ -32,8 +52,12 @@ export const ProductStockFilters: React.FC<ProductStockFiltersProps> = ({
       {filters.map((filter) => (
         <Badge
           key={filter.key}
-          variant={selectedFilter === filter.key ? 'default' : 'outline'}
-          className="cursor-pointer hover:bg-primary/80 text-xs px-2 py-1"
+          variant="outline"
+          className={`cursor-pointer text-xs px-3 py-1.5 border transition-all duration-200 ${
+            selectedFilter === filter.key 
+              ? filter.colorClasses.replace('50', '100').replace('hover:bg-', 'bg-')
+              : filter.colorClasses
+          }`}
           onClick={() => onFilterChange(filter.key)}
         >
           {filter.label} ({filter.count})
