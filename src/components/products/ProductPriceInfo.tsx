@@ -23,22 +23,33 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const originalPrice = product?.regular_price ?? price;
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <Badge variant={isPublished ? 'secondary' : 'outline'}>{statusLabel}</Badge>
+    <div className="flex flex-col items-end gap-1 min-w-[120px]">
+      {/* Status badges - mais compactos */}
+      <div className="flex items-center gap-1">
+        <Badge 
+          variant={isPublished ? 'secondary' : 'outline'} 
+          className="text-xs px-1.5 py-0.5"
+        >
+          {statusLabel}
+        </Badge>
         {hasSale && (
-          <Badge variant="default" className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30">
+          <Badge 
+            variant="default" 
+            className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 text-xs px-1.5 py-0.5"
+          >
             Promoção
           </Badge>
         )}
       </div>
-      <div className="text-right leading-tight">
+      
+      {/* Preços alinhados verticalmente */}
+      <div className="text-right">
         {hasSale && (
-          <div className="text-xs sm:text-sm line-through text-muted-foreground">
+          <div className="text-xs text-muted-foreground line-through leading-tight">
             {formatBRL(originalPrice)}
           </div>
         )}
-        <div className="font-medium text-base sm:text-lg">
+        <div className="font-semibold text-sm leading-tight">
           {formatBRL(displayPrice)}
         </div>
       </div>

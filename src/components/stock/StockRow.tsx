@@ -328,26 +328,26 @@ export const StockRow: React.FC<StockRowProps> = ({
 
   return (
     <div className="border rounded-lg">
-      {/* Produto Principal */}
-      <div className="p-4 flex items-center justify-between hover:bg-muted/50 transition-colors">
-        <div className="flex items-center space-x-4 flex-1">
+      {/* Produto Principal - Layout mais compacto */}
+      <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
+        <div className="flex items-center space-x-3 flex-1 min-w-0">
           {hasVariations && (
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleExpand}
-              className="p-1"
+              className="p-1 h-6 w-6 flex-shrink-0"
             >
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-3 h-3" />
               ) : (
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3 h-3" />
               )}
             </Button>
           )}
           
-          {/* Miniatura da imagem */}
-          <div className="w-12 h-12 bg-muted rounded-md overflow-hidden flex-shrink-0">
+          {/* Miniatura da imagem - menor */}
+          <div className="w-10 h-10 bg-muted rounded-md overflow-hidden flex-shrink-0">
             {product.images && product.images.length > 0 ? (
               <img 
                 src={product.images[0].src} 
@@ -359,23 +359,23 @@ export const StockRow: React.FC<StockRowProps> = ({
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                <Package className="w-6 h-6" />
+                <Package className="w-4 h-4" />
               </div>
             )}
           </div>
           
-          <div className="flex-1">
-            <h3 className="font-medium text-foreground">{product.name}</h3>
-            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-sm text-foreground truncate">{product.name}</h3>
+            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <span>SKU: {product.sku || 'N/A'}</span>
-              <Badge variant={stockStatus.color as any}>
+              <Badge variant={stockStatus.color as any} className="text-xs px-1.5 py-0.5">
                 {stockStatus.label}
               </Badge>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3 flex-shrink-0">
           {rightExtra && (
             <div className="hidden sm:block">
               {rightExtra}
@@ -389,6 +389,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                 size="sm"
                 onClick={() => updateStock(product.id, null, -1, 'Ajuste manual')}
                 disabled={totalStock <= 0 || updateStockMutation.isPending}
+                className="h-7 w-7 p-0"
               >
                 <Minus className="w-3 h-3" />
               </Button>
@@ -399,7 +400,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                 onChange={(e) => handleStockInputChange(product.id, null, e.target.value)}
                 onKeyDown={(e) => handleStockInputKeyDown(e, product.id, null)}
                 onBlur={() => handleStockInputBlur(product.id, null)}
-                className="w-20 text-center"
+                className="w-16 text-center h-7 text-sm"
                 disabled={updateStockMutation.isPending}
               />
               
@@ -408,6 +409,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                 size="sm"
                 onClick={() => updateStock(product.id, null, 1, 'Ajuste manual')}
                 disabled={updateStockMutation.isPending}
+                className="h-7 w-7 p-0"
               >
                 <Plus className="w-3 h-3" />
               </Button>
@@ -416,21 +418,21 @@ export const StockRow: React.FC<StockRowProps> = ({
 
           {hasVariations && (
             <div className="text-center">
-              <div className="font-medium text-lg">
+              <div className="font-medium text-sm">
                 {computedVariationsTotal}
               </div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
           )}
 
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs text-muted-foreground min-w-[80px] text-right">
             <LastChangeLabel productId={product.id} />
           </div>
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <History className="w-4 h-4" />
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                <History className="w-3 h-3" />
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
@@ -443,7 +445,7 @@ export const StockRow: React.FC<StockRowProps> = ({
         </div>
       </div>
 
-      {/* Variações */}
+      {/* Variações - também mais compactas */}
       {hasVariations && isExpanded && (
         <div className="border-t bg-muted/20">
           {normalizedVariations.map((variation) => {
@@ -453,26 +455,27 @@ export const StockRow: React.FC<StockRowProps> = ({
             const displaySku = generateVariationSku(variation);
 
             return (
-              <div key={`${product.id}-${variation.id}`} className="p-4 pl-12 flex items-center justify-between border-b last:border-b-0">
-                <div className="flex-1">
-                  <div className="font-medium text-sm">
+              <div key={`${product.id}-${variation.id}`} className="p-3 pl-10 flex items-center justify-between border-b last:border-b-0">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-xs truncate">
                     {displayAttributes}
                   </div>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                  <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                     <span>SKU: {displaySku}</span>
-                    <Badge variant={variationStatus.color as any} className="text-xs">
+                    <Badge variant={variationStatus.color as any} className="text-xs px-1.5 py-0.5">
                       {variationStatus.label}
                     </Badge>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-3 flex-shrink-0">
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => updateStock(product.id, variation.id, -1, 'Ajuste manual')}
                       disabled={variationStock <= 0 || updateStockMutation.isPending}
+                      className="h-7 w-7 p-0"
                     >
                       <Minus className="w-3 h-3" />
                     </Button>
@@ -483,7 +486,7 @@ export const StockRow: React.FC<StockRowProps> = ({
                       onChange={(e) => handleStockInputChange(product.id, variation.id, e.target.value)}
                       onKeyDown={(e) => handleStockInputKeyDown(e, product.id, variation.id)}
                       onBlur={() => handleStockInputBlur(product.id, variation.id)}
-                      className="w-20 text-center"
+                      className="w-16 text-center h-7 text-sm"
                       disabled={updateStockMutation.isPending}
                     />
                     
@@ -492,12 +495,13 @@ export const StockRow: React.FC<StockRowProps> = ({
                       size="sm"
                       onClick={() => updateStock(product.id, variation.id, 1, 'Ajuste manual')}
                       disabled={updateStockMutation.isPending}
+                      className="h-7 w-7 p-0"
                     >
                       <Plus className="w-3 h-3" />
                     </Button>
                   </div>
 
-                  <div className="text-sm text-muted-foreground w-32 text-right">
+                  <div className="text-xs text-muted-foreground min-w-[80px] text-right">
                     <LastChangeLabel productId={product.id} variationId={variation.id} />
                   </div>
                 </div>

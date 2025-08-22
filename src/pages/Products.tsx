@@ -1,9 +1,7 @@
-
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// import ProductCard from "@/components/products/ProductCard"; // não usado neste layout
 import ProductDialog from "@/components/products/ProductDialog";
 import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
@@ -14,21 +12,72 @@ import { useViewMode } from "@/hooks/useViewMode";
 import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
+import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
-  const filteredProducts = products.filter((product) =>
-    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filtros combinados (busca + estoque)
+  const filteredProducts = useMemo(() => {
+    let filtered = products.filter((product) =>
+      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Aplicar filtro de estoque
+    if (stockFilter !== 'all') {
+      filtered = filtered.filter((product) => {
+        const totalStock = getTotalStock(product);
+        const status = product.stock_status;
+
+        switch (stockFilter) {
+          case 'in-stock':
+            return status !== 'outofstock' && totalStock > 10;
+          case 'low-stock':
+            return totalStock > 0 && totalStock <= 10;
+          case 'out-of-stock':
+            return status === 'outofstock' || totalStock === 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [products, searchTerm, stockFilter]);
+
+  // Contadores para os filtros
+  const stockCounts = useMemo(() => {
+    const counts = {
+      all: products.length,
+      inStock: 0,
+      outOfStock: 0,
+      lowStock: 0,
+    };
+
+    products.forEach((product) => {
+      const totalStock = getTotalStock(product);
+      const status = product.stock_status;
+
+      if (status === 'outofstock' || totalStock === 0) {
+        counts.outOfStock++;
+      } else if (totalStock <= 10) {
+        counts.lowStock++;
+      } else {
+        counts.inStock++;
+      }
+    });
+
+    return counts;
+  }, [products]);
 
   const toggleProductExpansion = (productId: number) => {
     setExpandedProducts(prev => {
@@ -42,7 +91,6 @@ const Products = () => {
     });
   };
 
-  // Mesmas regras da página Estoque
   const getTotalStock = (product: any) => {
     if (product.type === 'variable' && product.variations?.length > 0) {
       return product.variations.reduce((total: number, variation: any) => {
@@ -76,7 +124,7 @@ const Products = () => {
         </div>
         <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
+            <Skeleton key={i} className="h-20" />
           ))}
         </div>
       </div>
@@ -121,9 +169,9 @@ const Products = () => {
             Novo Produto
           </Button>
         </div>
-        <div className="space-y-4">
+        <div className="space-y-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-24" />
+            <Skeleton key={i} className="h-20" />
           ))}
         </div>
       </div>
@@ -151,11 +199,11 @@ const Products = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+    <div className="container mx-auto px-4 py-6 space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
@@ -165,22 +213,31 @@ const Products = () => {
         </Button>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <Input
-          placeholder="Buscar por nome ou SKU..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full sm:max-w-sm"
+      {/* Filtros de estoque */}
+      <div className="space-y-3">
+        <ProductStockFilters
+          selectedFilter={stockFilter}
+          onFilterChange={setStockFilter}
+          counts={stockCounts}
         />
-        <ViewModeToggle 
-          viewMode={viewMode} 
-          onToggle={toggleViewMode}
-          className="w-full sm:w-auto"
-        />
+        
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+          <Input
+            placeholder="Buscar por nome ou SKU..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full sm:max-w-sm"
+          />
+          <ViewModeToggle 
+            viewMode={viewMode} 
+            onToggle={toggleViewMode}
+            className="w-full sm:w-auto"
+          />
+        </div>
       </div>
 
-      {/* Lista no estilo da página Estoque, com preço/status à direita */}
-      <div className="space-y-4">
+      {/* Lista compacta no estilo da página Estoque */}
+      <div className="space-y-2">
         {filteredProducts.map((product) => (
           <StockRow
             key={product.id}
