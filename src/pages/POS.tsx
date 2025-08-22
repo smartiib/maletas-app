@@ -10,9 +10,9 @@ import { useWooCommerceFilteredProducts, useWooCommerceFilteredCategories } from
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
-import { CartSidebar } from "@/components/pos/CartSidebar";
-import { CategorySlider } from "@/components/pos/CategorySlider";
-import { FloatingCartButton } from "@/components/pos/FloatingCartButton";
+import CartSidebar from "@/components/pos/CartSidebar";
+import CategorySlider from "@/components/pos/CategorySlider";
+import FloatingCartButton from "@/components/pos/FloatingCartButton";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SyncHeader from "@/components/sync/SyncHeader";
