@@ -36,6 +36,7 @@ export const StockRow: React.FC<StockRowProps> = ({
 }) => {
   const updateStockMutation = useUpdateStock();
   const [tempStock, setTempStock] = useState<{ [key: string]: string }>({});
+
   const totalStock = getTotalStock(product);
   const stockStatus = getStockStatus(totalStock, product.stock_status);
   const hasVariations = product.type === 'variable' && product.variations?.length > 0;
@@ -85,37 +86,82 @@ export const StockRow: React.FC<StockRowProps> = ({
     return arr;
   }, [dbVariationsParent, dbVariationsByIds, variationIds, product?.id]);
 
-  // Create normalized variations by merging product data with DB data
+  // Utilitário para normalizar atributos vindos do banco ou do produto (formatos diversos)
+  const normalizeAttributes = (src: any): Array<{ name: string; option: string }> => {
+    if (!src) return [];
+    let arr = src;
+    if (typeof arr === 'string') {
+      try {
+        arr = JSON.parse(arr);
+      } catch {
+        return [];
+      }
+    }
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((a: any) => {
+        const name = a?.name ?? a?.slug ?? a?.taxonomy ?? '';
+        const option = a?.option ?? (Array.isArray(a?.options) ? a.options[0] : a?.value ?? a?.term ?? '');
+        return {
+          name: String(name || ''),
+          option: String(option || ''),
+        };
+      })
+      .filter((a: any) => a.name && a.option);
+  };
+
+  // Create normalized variations by merging product data with DB data (preferindo dados do banco)
   const normalizedVariations = useMemo(() => {
     if (!hasVariations) return [];
 
     const normalized: NormalizedVariation[] = variationIds.map(varId => {
-      // Find raw variation from product.variations
+      // Encontrar item cru a partir do produto (pode ser apenas número)
       const rawVar = (product.variations || []).find((v: any) => {
         const id = typeof v === 'object' && v.id ? Number(v.id) : Number(v);
         return id === varId;
       });
+      const rawVarObj = typeof rawVar === 'object' ? rawVar : undefined;
 
-      // Find DB variation data
+      // Dados do banco
       const dbVar = effectiveVariations.find(v => Number(v.id) === varId);
 
-      console.log('[StockRow] Processing variation:', {
+      // Normalização de campos, priorizando banco
+      const stockQty =
+        (dbVar?.stock_quantity ?? null) !== null && (dbVar?.stock_quantity ?? undefined) !== undefined
+          ? Number(dbVar!.stock_quantity) || 0
+          : (rawVarObj?.stock_quantity ?? 0);
+
+      const stockStatus =
+        (dbVar?.stock_status ?? undefined) !== undefined
+          ? String(dbVar!.stock_status)
+          : (rawVarObj?.stock_status ?? 'instock');
+
+      const sku = (dbVar?.sku && String(dbVar.sku).trim())
+        ? String(dbVar.sku).trim()
+        : (rawVarObj?.sku ? String(rawVarObj.sku).trim() : undefined);
+
+      const attributes = normalizeAttributes(dbVar?.attributes ?? rawVarObj?.attributes);
+
+      console.log('[StockRow] Normalized variation from DB/product:', {
+        productId: product?.id,
         varId,
-        rawVar,
-        dbVar,
-        productId: product?.id
+        stock_from: dbVar?.stock_quantity !== undefined ? 'db' : (rawVarObj?.stock_quantity !== undefined ? 'raw' : 'none'),
+        stockQty,
+        stockStatus,
+        sku,
+        attributes,
       });
 
       return {
         id: varId,
-        stock_quantity: rawVar?.stock_quantity || 0,
-        stock_status: rawVar?.stock_status || 'instock',
-        sku: dbVar?.sku || rawVar?.sku,
-        attributes: dbVar?.attributes || rawVar?.attributes || []
+        stock_quantity: stockQty,
+        stock_status: stockStatus,
+        sku,
+        attributes
       };
     });
 
-    console.log('[StockRow] Normalized variations:', {
+    console.log('[StockRow] Normalized variations (final):', {
       productId: product?.id,
       count: normalized.length,
       sample: normalized[0]
@@ -123,6 +169,12 @@ export const StockRow: React.FC<StockRowProps> = ({
 
     return normalized;
   }, [hasVariations, variationIds, product.variations, effectiveVariations, product?.id]);
+
+  // Calcula total a partir das variações normalizadas quando houver variações
+  const computedVariationsTotal = useMemo(() => {
+    if (!hasVariations) return 0;
+    return normalizedVariations.reduce((sum, v) => sum + (Number(v.stock_quantity) || 0), 0);
+  }, [hasVariations, normalizedVariations]);
 
   // Helper function to prettify attribute names
   const prettifyAttributeName = (name: string): string => {
@@ -352,7 +404,9 @@ export const StockRow: React.FC<StockRowProps> = ({
 
           {hasVariations && (
             <div className="text-center">
-              <div className="font-medium text-lg">{totalStock}</div>
+              <div className="font-medium text-lg">
+                {computedVariationsTotal}
+              </div>
               <div className="text-xs text-muted-foreground">Total</div>
             </div>
           )}
