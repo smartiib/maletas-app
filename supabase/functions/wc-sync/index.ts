@@ -1,1059 +1,507 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
-import { corsHeaders } from '../_shared/cors.ts';
+/* eslint-disable */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { cors } from "../_shared/cors.ts";
+import { load } from "https://deno.land/std@0.182.0/dotenv/mod.ts";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const env = await load();
 
-interface WooCommerceConfig {
-  url: string;
-  consumer_key: string;
-  consumer_secret: string;
-}
+const logger = {
+  log: (...args: any[]) => {
+    console.log(...args);
+  },
+  error: (...args: any[]) => {
+    console.error(...args);
+  },
+};
 
-interface SyncRequest {
-  sync_type: 'products' | 'categories' | 'orders' | 'customers' | 'full';
-  config: WooCommerceConfig;
-  batch_size?: number;
-  force_full_sync?: boolean;
-  organization_id?: string;
-}
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
 
-interface SyncResult {
-  success: boolean;
-  message: string;
-  items_processed: number;
-  items_failed: number;
-  duration_ms: number;
-  errors?: string[];
-}
+// Adiciona/garante o Supabase client com Service Role (mantém se já existir)
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(supabaseUrl, serviceKey);
 
-// Helper: robust JSON parsing (json() when possible, else text()+parse)
-async function parseRequestBody(req: Request): Promise<SyncRequest> {
-  const ct = req.headers.get('content-type') || '';
-  try {
-    if (ct.includes('application/json')) {
-      const json = await req.json();
-      if (!json || Object.keys(json).length === 0) {
-        throw new Error('Request body is empty JSON');
-      }
-      return json as SyncRequest;
-    }
-    const text = await req.text();
-    console.log('Raw request body length:', text?.length ?? 0);
-    if (!text || text.trim() === '') {
-      throw new Error('Request body is empty');
-    }
-    return JSON.parse(text) as SyncRequest;
-  } catch (e: any) {
-    throw new Error(`Invalid JSON in request body: ${e.message}`);
-  }
-}
-
-Deno.serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+/**
+ * Gets WooCommerce credentials from the Supabase database.
+ * @param {string} organizationId - The ID of the organization.
+ * @returns {Promise<{wcBaseUrl: string, consumerKey: string, consumerSecret: string} | null>} - WooCommerce credentials or null if not found.
+ */
+async function getWooCommerceCredentials(organizationId: string | null) {
+  if (!organizationId) {
+    logger.error("Organization ID is null. Cannot fetch WooCommerce credentials.");
+    return null;
   }
 
+  const { data, error } = await supabase
+    .from("organizations")
+    .select("wc_base_url, wc_consumer_key, wc_consumer_secret")
+    .eq("id", organizationId)
+    .single();
+
+  if (error) {
+    logger.error(
+      `Failed to fetch WooCommerce credentials for organization ${organizationId}:`,
+      error,
+    );
+    return null;
+  }
+
+  if (!data) {
+    logger.warn(
+      `No WooCommerce credentials found for organization ${organizationId}.`,
+    );
+    return null;
+  }
+
+  const { wc_base_url, wc_consumer_key, wc_consumer_secret } = data;
+
+  if (!wc_base_url || !wc_consumer_key || !wc_consumer_secret) {
+    logger.warn(
+      `Incomplete WooCommerce credentials for organization ${organizationId}.`,
+      data,
+    );
+    return null;
+  }
+
+  return {
+    wcBaseUrl: wc_base_url,
+    consumerKey: wc_consumer_key,
+    consumerSecret: wc_consumer_secret,
+  };
+}
+
+/**
+ * Fetches products from WooCommerce API with pagination.
+ * @param {string} wcBaseUrl - WooCommerce base URL.
+ * @param {string} consumerKey - WooCommerce consumer key.
+ * @param {string} consumerSecret - WooCommerce consumer secret.
+ * @param {number} [page=1] - Page number for pagination.
+ * @param {number} [perPage=100] - Number of products per page.
+ * @returns {Promise<any[]>} - Array of products from WooCommerce.
+ */
+async function fetchProducts(
+  wcBaseUrl: string,
+  consumerKey: string,
+  consumerSecret: string,
+  page: number = 1,
+  perPage: number = 100,
+): Promise<any[]> {
+  const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products`);
+  url.searchParams.set("per_page", String(perPage));
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("consumer_key", consumerKey);
+  url.searchParams.set("consumer_secret", consumerSecret);
+
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const startTime = Date.now();
-    
-    // Get user from auth header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new Error('Token de autorização necessário');
-    }
-
-    const token = authHeader.split('Bearer ')[1];
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      throw new Error('Usuário não autenticado');
-    }
-
-    // Parse request body (robusto)
-    let requestBody: SyncRequest;
-    try {
-      console.log('Content-Type recebido:', req.headers.get('content-type') || '(none)');
-      requestBody = await parseRequestBody(req);
-    } catch (parseError: any) {
-      console.error('Erro ao interpretar o corpo da requisição:', parseError);
-      throw new Error(parseError.message || 'Invalid request body');
-    }
-
-    const {
-      sync_type,
-      config,
-      batch_size = 50,
-      force_full_sync = false,
-      organization_id
-    } = requestBody;
-
-    if (!organization_id) {
-      throw new Error('organization_id é obrigatório');
-    }
-
-    console.log(`Iniciando sincronização: ${sync_type} para usuário ${user.id} na org ${organization_id}`);
-
-    // Log início da sincronização (com organization_id)
-    await logSyncEvent(supabase, user.id, organization_id, sync_type, 'sync_started', 'success', 
-      `Iniciando sincronização de ${sync_type}`, { batch_size, force_full_sync });
-
-    let result: SyncResult;
-
-    switch (sync_type) {
-      case 'products':
-        result = await syncProducts(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        break;
-      case 'categories':
-        result = await syncCategories(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        break;
-      case 'orders':
-        result = await syncOrders(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        break;
-      case 'customers':
-        result = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        break;
-      case 'full':
-        const categoriesResult = await syncCategories(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        const productsResult = await syncProducts(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        const customersResult = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        const ordersResult = await syncOrders(supabase, user.id, organization_id, config, batch_size, force_full_sync);
-        
-        result = {
-          success: categoriesResult.success && productsResult.success && customersResult.success && ordersResult.success,
-          message: `Categorias: ${categoriesResult.message}. Produtos: ${productsResult.message}. Clientes: ${customersResult.message}. Pedidos: ${ordersResult.message}`,
-          items_processed: categoriesResult.items_processed + productsResult.items_processed + customersResult.items_processed + ordersResult.items_processed,
-          items_failed: categoriesResult.items_failed + productsResult.items_failed + customersResult.items_failed + ordersResult.items_failed,
-          duration_ms: Date.now() - startTime,
-          errors: [...(categoriesResult.errors || []), ...(productsResult.errors || []), ...(customersResult.errors || []), ...(ordersResult.errors || [])]
-        };
-        break;
-      default:
-        throw new Error(`Tipo de sincronização não suportado: ${sync_type}`);
-    }
-
-    await logSyncEvent(supabase, user.id, organization_id, sync_type, 'sync_completed', 
-      result.success ? 'success' : 'error', result.message, {
-        items_processed: result.items_processed,
-        items_failed: result.items_failed,
-        duration_ms: result.duration_ms,
-        errors: result.errors
-      });
-
-    await updateSyncConfig(supabase, user.id, sync_type);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: result.success ? 200 : 500
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
     });
 
-  } catch (error: any) {
-    console.error('Erro na sincronização:', error);
-    
-    return new Response(JSON.stringify({
-      success: false,
-      message: error.message || 'Erro interno do servidor',
-      items_processed: 0,
-      items_failed: 0,
-      duration_ms: 0
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500
+    if (!response.ok) {
+      logger.error(
+        `WooCommerce API responded with an error: ${response.status} ${response.statusText}`,
+      );
+      return [];
+    }
+
+    const products = await response.json();
+    return products;
+  } catch (error) {
+    logger.error("Error fetching products from WooCommerce:", error);
+    return [];
+  }
+}
+
+/**
+ * Upserts products into the Supabase database.
+ * @param {any[]} products - Array of products to upsert.
+ * @param {string | null} organizationId - Organization ID to associate with the products.
+ */
+async function upsertProducts(products: any[], organizationId: string | null) {
+  if (!products || products.length === 0) {
+    logger.log("No products to upsert.");
+    return;
+  }
+
+  const productsToUpsert = products.map((product: any) => ({
+    id: product.id,
+    name: product.name,
+    sku: product.sku,
+    type: product.type,
+    status: product.status,
+    description: product.description,
+    short_description: product.short_description,
+    permalink: product.permalink,
+    price: product.price,
+    regular_price: product.regular_price,
+    sale_price: product.sale_price,
+    on_sale: product.on_sale,
+    featured: product.featured,
+    catalog_visibility: product.catalog_visibility,
+    date_created: product.date_created,
+    date_modified: product.date_modified,
+    images: product.images,
+    variations: product.variations,
+    organization_id: organizationId,
+    stock_quantity: product.stock_quantity,
+    stock_status: product.stock_status,
+  }));
+
+  const { data, error } = await supabase
+    .from("wc_products")
+    .upsert(productsToUpsert, { onConflict: "id" })
+    .select();
+
+  if (error) {
+    logger.error("Error upserting products into Supabase:", error);
+  } else {
+    logger.log(`Successfully upserted ${products.length} products.`);
+  }
+}
+
+/**
+ * Busca variações de um produto no WooCommerce com paginação
+ */
+async function fetchProductVariations(opts: {
+  wcBaseUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+  productId: number;
+}): Promise<any[]> {
+  const { wcBaseUrl, consumerKey, consumerSecret, productId } = opts;
+
+  const perPage = 100;
+  let page = 1;
+  const all: any[] = [];
+
+  while (true) {
+    const url = new URL(
+      `${wcBaseUrl}/wp-json/wc/v3/products/${productId}/variations`,
+    );
+    url.searchParams.set("per_page", String(perPage));
+    url.searchParams.set("page", String(page));
+    // Autenticação via query string (igual ao restante do sync)
+    url.searchParams.set("consumer_key", consumerKey);
+    url.searchParams.set("consumer_secret", consumerSecret);
+
+    const res = await fetch(url.toString(), { method: "GET" });
+    if (!res.ok) {
+      console.error("[wc-sync] Erro ao buscar variações", {
+        productId,
+        status: res.status,
+        text: await res.text().catch(() => ""),
+      });
+      break;
+    }
+    const data = (await res.json()) as any[];
+    if (!Array.isArray(data) || data.length === 0) break;
+
+    all.push(...data);
+    if (data.length < perPage) break;
+    page += 1;
+  }
+
+  console.log("[wc-sync] Variações buscadas", {
+    productId,
+    count: all.length,
+    sample: all[0],
+  });
+
+  return all;
+}
+
+/**
+ * Upsert das variações na tabela wc_product_variations
+ */
+async function upsertVariations(
+  variations: any[],
+  organizationId: string | null | undefined,
+) {
+  if (!variations || variations.length === 0) return;
+
+  // Mapeia campos pertinentes para a tabela wc_product_variations
+  const rows = variations.map((v) => ({
+    id: Number(v.id),
+    parent_id: Number(v.parent_id ?? v.product_id),
+    date_created: v.date_created ? new Date(v.date_created).toISOString() : null,
+    date_modified: v.date_modified ? new Date(v.date_modified).toISOString() : null,
+    price: v.price ?? null,
+    regular_price: v.regular_price ?? null,
+    sale_price: v.sale_price ?? null,
+    date_on_sale_from: v.date_on_sale_from
+      ? new Date(v.date_on_sale_from).toISOString()
+      : null,
+    date_on_sale_to: v.date_on_sale_to
+      ? new Date(v.date_on_sale_to).toISOString()
+      : null,
+    on_sale: !!v.on_sale,
+    purchasable: v.purchasable ?? true,
+    virtual: !!v.virtual,
+    downloadable: !!v.downloadable,
+    downloads: v.downloads ?? [],
+    download_limit: v.download_limit ?? -1,
+    download_expiry: v.download_expiry ?? -1,
+    manage_stock: !!v.manage_stock,
+    stock_quantity:
+      typeof v.stock_quantity === "number"
+        ? v.stock_quantity
+        : v.stock_quantity
+        ? Number(v.stock_quantity)
+        : null,
+    backorders_allowed: !!v.backorders_allowed,
+    backordered: !!v.backordered,
+    low_stock_amount:
+      typeof v.low_stock_amount === "number"
+        ? v.low_stock_amount
+        : v.low_stock_amount
+        ? Number(v.low_stock_amount)
+        : null,
+    dimensions: v.dimensions ?? {},
+    shipping_class_id:
+      typeof v.shipping_class_id === "number" ? v.shipping_class_id : null,
+    image: v.image ?? {},
+    attributes: Array.isArray(v.attributes) ? v.attributes : [],
+    menu_order: typeof v.menu_order === "number" ? v.menu_order : 0,
+    meta_data: Array.isArray(v.meta_data) ? v.meta_data : [],
+    synced_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    organization_id: organizationId ?? null,
+    tax_status: v.tax_status ?? "taxable",
+    tax_class: v.tax_class ?? null,
+    backorders: v.backorders ?? "no",
+    description: v.description ?? null,
+    permalink: v.permalink ?? null,
+    sku: typeof v.sku === "string" && v.sku.trim().length > 0 ? v.sku.trim() : null,
+    weight: v.weight ?? null,
+    shipping_class: v.shipping_class ?? null,
+    status: v.status ?? "publish",
+    stock_status: v.stock_status ?? "instock",
+  }));
+
+  const { data, error } = await supabase
+    .from("wc_product_variations")
+    .upsert(rows, { onConflict: "id" })
+    .select("id, parent_id, sku, stock_quantity, stock_status, attributes")
+    .order("id", { ascending: true });
+
+  if (error) {
+    console.error("[wc-sync] Erro ao upsert variações:", error);
+    return;
+  }
+
+  console.log("[wc-sync] Variações upsert concluído", {
+    count: data?.length ?? 0,
+    sample: data?.[0],
+  });
+}
+
+/**
+ * Sincroniza variações para um produto variável
+ */
+async function syncVariationsForProduct(opts: {
+  wcBaseUrl: string;
+  consumerKey: string;
+  consumerSecret: string;
+  productId: number;
+  organizationId?: string | null;
+}) {
+  const { wcBaseUrl, consumerKey, consumerSecret, productId, organizationId } =
+    opts;
+
+  const variations = await fetchProductVariations({
+    wcBaseUrl,
+    consumerKey,
+    consumerSecret,
+    productId,
+  });
+
+  if (!variations || variations.length === 0) {
+    console.log("[wc-sync] Produto variável sem variações no Woo", { productId });
+    return;
+  }
+
+  await upsertVariations(variations, organizationId ?? null);
+}
+
+/**
+ * Synchronizes products from WooCommerce to Supabase.
+ * @param {string} organizationId - The ID of the organization.
+ */
+async function syncProducts(organizationId: string | null) {
+  logger.log(`Starting product sync for organization: ${organizationId}`);
+
+  if (!organizationId) {
+    logger.error("Organization ID is null. Cannot proceed with product sync.");
+    return;
+  }
+
+  const wooCommerceCredentials = await getWooCommerceCredentials(organizationId);
+
+  if (!wooCommerceCredentials) {
+    logger.error(
+      `Could not retrieve WooCommerce credentials for organization ${organizationId}.`,
+    );
+    return;
+  }
+
+  const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
+
+  let page = 1;
+  const perPage = 100;
+  let allProducts: any[] = [];
+
+  while (true) {
+    const productsFromWoo = await fetchProducts(
+      wcBaseUrl,
+      consumerKey,
+      consumerSecret,
+      page,
+      perPage,
+    );
+
+    if (!productsFromWoo || productsFromWoo.length === 0) {
+      logger.log("No more products to fetch from WooCommerce.");
+      break;
+    }
+
+    logger.log(
+      `Fetched ${productsFromWoo.length} products from WooCommerce (page ${page}).`,
+    );
+    allProducts = allProducts.concat(productsFromWoo);
+    page++;
+  }
+
+  logger.log(`Total products fetched from WooCommerce: ${allProducts.length}`);
+
+  for (const product of allProducts) {
+    // Attach WooCommerce credentials to the product object
+    product.__wcBaseUrl = wcBaseUrl;
+    product.__consumerKey = consumerKey;
+    product.__consumerSecret = consumerSecret;
+
+    // upsert do produto em wc_products
+    const { data, error } = await supabase
+      .from("wc_products")
+      .upsert(
+        [
+          {
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            type: product.type,
+            status: product.status,
+            description: product.description,
+            short_description: product.short_description,
+            permalink: product.permalink,
+            price: product.price,
+            regular_price: product.regular_price,
+            sale_price: product.sale_price,
+            on_sale: product.on_sale,
+            featured: product.featured,
+            catalog_visibility: product.catalog_visibility,
+            date_created: product.date_created,
+            date_modified: product.date_modified,
+            images: product.images,
+            variations: product.variations,
+            organization_id: organizationId,
+            stock_quantity: product.stock_quantity,
+            stock_status: product.stock_status,
+          },
+        ],
+        { onConflict: "id" },
+      )
+      .select();
+
+    if (error) {
+      logger.error("Error upserting products into Supabase:", error);
+    } else {
+      logger.log(`Successfully upserted product ${product.id}.`);
+    }
+
+    // Passe a organizationId já determinada no arquivo
+    await afterProductUpsertHook(product, organizationId);
+  }
+
+  logger.log("Product sync completed.");
+}
+
+/**
+ * Integra a sync de variações dentro do fluxo de sync de produtos.
+ * Chame esta função logo após upsert de cada produto variável.
+ */
+async function afterProductUpsertHook(
+  product: any,
+  organizationId?: string | null,
+) {
+  try {
+    if (product && product.type === "variable") {
+      // Recupera credenciais existentes (mantém a mesma estratégia utilizada no arquivo)
+      const wcBaseUrl = (product.__wcBaseUrl ||
+        Deno.env.get("WC_BASE_URL") || "").toString();
+      const consumerKey = (product.__consumerKey ||
+        Deno.env.get("WC_CONSUMER_KEY") || "").toString();
+      const consumerSecret = (product.__consumerSecret ||
+        Deno.env.get("WC_CONSUMER_SECRET") || "").toString();
+
+      if (wcBaseUrl && consumerKey && consumerSecret) {
+        await syncVariationsForProduct({
+          wcBaseUrl,
+          consumerKey,
+          consumerSecret,
+          productId: Number(product.id),
+          organizationId: organizationId ?? null,
+        });
+      } else {
+        console.warn(
+          "[wc-sync] Credenciais WooCommerce ausentes para sync de variações",
+        );
+      }
+    }
+  } catch (err) {
+    console.error("[wc-sync] afterProductUpsertHook error:", err);
+  }
+}
+
+serve(async (req) => {
+  // This is needed if you're planning to invoke your function from a browser.
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const { organizationId } = await req.json();
+
+    if (!organizationId) {
+      logger.error("Organization ID is missing in the request body.");
+      return new Response(
+        JSON.stringify({ error: "Organization ID is required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    await syncProducts(organizationId);
+
+    return new Response(
+      JSON.stringify({ message: "Product sync completed successfully." }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  } catch (error) {
+    logger.error("An unexpected error occurred:", error);
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
-
-// ------------------------- FETCH PRODUCT VARIATIONS -------------------------
-async function fetchProductVariations(config: WooCommerceConfig, productId: number): Promise<any[]> {
-  const variations: any[] = [];
-  let page = 1;
-  let hasMore = true;
-
-  while (hasMore) {
-    try {
-      console.log(`Buscando variações página ${page} do produto ${productId}...`);
-      
-      const url = new URL(`${config.url}/wp-json/wc/v3/products/${productId}/variations`);
-      url.searchParams.set('page', page.toString());
-      url.searchParams.set('per_page', '100');
-
-      const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Erro ao buscar variações do produto ${productId}:`, errorText);
-        break;
-      }
-
-      const responseText = await response.text();
-      let pageVariations;
-      try {
-        pageVariations = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Erro ao fazer parse das variações JSON:', parseError);
-        break;
-      }
-
-      if (!Array.isArray(pageVariations) || pageVariations.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      variations.push(...pageVariations);
-      console.log(`Encontradas ${pageVariations.length} variações na página ${page} do produto ${productId}`);
-
-      if (pageVariations.length < 100) {
-        hasMore = false;
-      } else {
-        page++;
-      }
-
-    } catch (error: any) {
-      console.error(`Erro na página ${page} das variações do produto ${productId}:`, error);
-      hasMore = false;
-    }
-  }
-
-  console.log(`Total de ${variations.length} variações encontradas para o produto ${productId}`);
-  return variations;
-}
-
-// ------------------------- PRODUCTS -------------------------
-async function syncProducts(
-  supabase: any, 
-  userId: string,
-  organizationId: string,
-  config: WooCommerceConfig, 
-  batchSize: number,
-  forceFullSync: boolean
-): Promise<SyncResult> {
-  const startTime = Date.now();
-  let itemsProcessed = 0;
-  let itemsFailed = 0;
-  const errors: string[] = [];
-
-  try {
-    console.log('Iniciando sincronização de produtos...');
-    
-    // Buscar configuração de sincronização para verificar última sincronização
-    const { data: syncConfig } = await supabase
-      .from('sync_config')
-      .select('last_sync_at')
-      .eq('user_id', userId)
-      .eq('sync_type', 'products')
-      .single();
-
-    let page = 1;
-    let hasMore = true;
-
-    // IMPORTANTE: se não houver produtos ainda para esta organização, fazer full sync automaticamente
-    const { count: existingProductsCount, error: countErr } = await supabase
-      .from('wc_products')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId);
-    if (countErr) {
-      console.warn('Erro ao contar produtos existentes:', countErr);
-    }
-
-    let lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
-    if (!forceFullSync && (!existingProductsCount || existingProductsCount === 0)) {
-      console.log('Nenhum produto encontrado para a organização. Forçando FULL SYNC (ignorando modified_after).');
-      lastSync = null;
-    }
-
-    while (hasMore) {
-      try {
-        console.log(`Buscando página ${page} de produtos...`);
-        
-        // Fazer requisição para WooCommerce API
-        const url = new URL(`${config.url}/wp-json/wc/v3/products`);
-        url.searchParams.set('page', page.toString());
-        url.searchParams.set('per_page', batchSize.toString());
-        url.searchParams.set('orderby', 'date');
-        url.searchParams.set('order', 'desc');
-        // Buscar TODOS os status (publish, draft, private etc)
-        url.searchParams.set('status', 'any');
-        
-        if (lastSync) {
-          url.searchParams.set('modified_after', lastSync);
-        }
-
-        console.log('Making request to:', url.toString());
-        
-        const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('WooCommerce API error response:', errorText);
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        console.log('Raw response text length:', responseText.length);
-        console.log('Response text preview:', responseText.substring(0, 500));
-
-        let products;
-        try {
-          products = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Error parsing products JSON:', parseError);
-          console.error('Response text that failed to parse:', responseText);
-          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
-        }
-        
-        if (!Array.isArray(products) || products.length === 0) {
-          console.log('No products returned or empty array');
-          hasMore = false;
-          break;
-        }
-
-        console.log(`Processando ${products.length} produtos...`);
-
-        // Processar produtos em lote
-        for (const product of products) {
-          try {
-            await upsertProduct(supabase, product, organizationId);
-            itemsProcessed++;
-
-            // Se for produto variável, buscar suas variações
-            if (product.type === 'variable' && product.variations && product.variations.length > 0) {
-              console.log(`Produto ${product.id} é variável, buscando ${product.variations.length} variações...`);
-              try {
-                const variations = await fetchProductVariations(config, product.id);
-                
-                for (const variation of variations) {
-                  try {
-                    await upsertVariation(supabase, variation, organizationId);
-                    console.log(`Variação ${variation.id} do produto ${product.id} sincronizada`);
-                  } catch (variationError: any) {
-                    console.error(`Erro ao processar variação ${variation.id} do produto ${product.id}:`, variationError);
-                    errors.push(`Variação ${variation.id} do produto ${product.id}: ${variationError.message}`);
-                  }
-                }
-              } catch (variationsError: any) {
-                console.error(`Erro ao buscar variações do produto ${product.id}:`, variationsError);
-                errors.push(`Variações do produto ${product.id}: ${variationsError.message}`);
-              }
-            }
-
-          } catch (error: any) {
-            console.error(`Erro ao processar produto ${product.id}:`, error);
-            errors.push(`Produto ${product.id}: ${error.message}`);
-            itemsFailed++;
-          }
-        }
-
-        // Se retornou menos produtos que o batch size, não há mais páginas
-        if (products.length < batchSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-
-      } catch (error: any) {
-        console.error(`Erro na página ${page}:`, error);
-        errors.push(`Página ${page}: ${error.message}`);
-        hasMore = false;
-      }
-    }
-
-    const duration = Date.now() - startTime;
-    const success = itemsFailed === 0;
-
-    return {
-      success,
-      message: `Produtos sincronizados: ${itemsProcessed}, falhas: ${itemsFailed}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: duration,
-      errors: errors.length > 0 ? errors : undefined
-    };
-
-  } catch (error: any) {
-    console.error('Erro geral na sincronização de produtos:', error);
-    return {
-      success: false,
-      message: `Erro na sincronização de produtos: ${error.message}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: [error.message]
-    };
-  }
-}
-
-// ------------------------- CATEGORIES -------------------------
-async function syncCategories(
-  supabase: any, 
-  userId: string, 
-  organizationId: string,
-  config: WooCommerceConfig, 
-  batchSize: number,
-  forceFullSync: boolean
-): Promise<SyncResult> {
-  const startTime = Date.now();
-  let itemsProcessed = 0;
-  let itemsFailed = 0;
-  const errors: string[] = [];
-
-  try {
-    console.log('Iniciando sincronização de categorias...');
-    
-    let page = 1;
-    let hasMore = true;
-
-    while (hasMore) {
-      try {
-        console.log(`Buscando página ${page} de categorias...`);
-        
-        const url = new URL(`${config.url}/wp-json/wc/v3/products/categories`);
-        url.searchParams.set('page', page.toString());
-        url.searchParams.set('per_page', batchSize.toString());
-        url.searchParams.set('orderby', 'name');
-
-        console.log('Making request to:', url.toString());
-
-        const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        console.log('Categories response status:', response.status);
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('WooCommerce Categories API error response:', errorText);
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        console.log('Categories raw response length:', responseText.length);
-
-        let categories;
-        try {
-          categories = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Error parsing categories JSON:', parseError);
-          console.error('Categories response text that failed to parse:', responseText);
-          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
-        }
-        
-        if (!Array.isArray(categories) || categories.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        console.log(`Processando ${categories.length} categorias...`);
-
-        for (const category of categories) {
-          try {
-            await upsertCategory(supabase, category, organizationId);
-            itemsProcessed++;
-          } catch (error: any) {
-            console.error(`Erro ao processar categoria ${category.id}:`, error);
-            errors.push(`Categoria ${category.id}: ${error.message}`);
-            itemsFailed++;
-          }
-        }
-
-        if (categories.length < batchSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-
-      } catch (error: any) {
-        console.error(`Erro na página ${page}:`, error);
-        errors.push(`Página ${page}: ${error.message}`);
-        hasMore = false;
-      }
-    }
-
-    return {
-      success: itemsFailed === 0,
-      message: `Categorias sincronizadas: ${itemsProcessed}, falhas: ${itemsFailed}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: errors.length > 0 ? errors : undefined
-    };
-
-  } catch (error: any) {
-    console.error('Erro geral na sincronização de categorias:', error);
-    return {
-      success: false,
-      message: `Erro na sincronização de categorias: ${error.message}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: [error.message]
-    };
-  }
-}
-
-// ------------------------- ORDERS -------------------------
-async function syncOrders(
-  supabase: any, 
-  userId: string, 
-  organizationId: string,
-  config: WooCommerceConfig, 
-  batchSize: number,
-  forceFullSync: boolean
-): Promise<SyncResult> {
-  const startTime = Date.now();
-  let itemsProcessed = 0;
-  let itemsFailed = 0;
-  const errors: string[] = [];
-
-  try {
-    console.log('Iniciando sincronização de pedidos...');
-    
-    const { data: syncConfig } = await supabase
-      .from('sync_config')
-      .select('last_sync_at')
-      .eq('user_id', userId)
-      .eq('sync_type', 'orders')
-      .single();
-
-    let page = 1;
-    let hasMore = true;
-
-    // Se ainda não há pedidos salvos para a organização, forçar FULL SYNC
-    const { count: existingOrdersCount, error: countErr } = await supabase
-      .from('wc_orders')
-      .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId);
-    if (countErr) {
-      console.warn('Erro ao contar pedidos existentes:', countErr);
-    }
-
-    let lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
-    if (!forceFullSync && (!existingOrdersCount || existingOrdersCount === 0)) {
-      console.log('Nenhum pedido encontrado para a organização. Forçando FULL SYNC (ignorando modified_after).');
-      lastSync = null;
-    }
-
-    while (hasMore) {
-      try {
-        console.log(`Buscando página ${page} de pedidos...`);
-        
-        const url = new URL(`${config.url}/wp-json/wc/v3/orders`);
-        url.searchParams.set('page', page.toString());
-        url.searchParams.set('per_page', batchSize.toString());
-        url.searchParams.set('orderby', 'date');
-        url.searchParams.set('order', 'desc');
-        // Garantir todos os status
-        url.searchParams.set('status', 'any');
-        
-        if (lastSync) {
-          url.searchParams.set('modified_after', lastSync);
-        }
-
-        const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        let orders;
-        try {
-          orders = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Error parsing orders JSON:', parseError);
-          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
-        }
-        
-        if (!Array.isArray(orders) || orders.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        console.log(`Processando ${orders.length} pedidos...`);
-
-        for (const order of orders) {
-          try {
-            await upsertOrder(supabase, order, organizationId);
-            itemsProcessed++;
-          } catch (error: any) {
-            console.error(`Erro ao processar pedido ${order.id}:`, error);
-            errors.push(`Pedido ${order.id}: ${error.message}`);
-            itemsFailed++;
-          }
-        }
-
-        if (orders.length < batchSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-
-      } catch (error: any) {
-        console.error(`Erro na página ${page}:`, error);
-        errors.push(`Página ${page}: ${error.message}`);
-        hasMore = false;
-      }
-    }
-
-    return {
-      success: itemsFailed === 0,
-      message: `Pedidos sincronizados: ${itemsProcessed}, falhas: ${itemsFailed}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: errors.length > 0 ? errors : undefined
-    };
-
-  } catch (error: any) {
-    console.error('Erro geral na sincronização de pedidos:', error);
-    return {
-      success: false,
-      message: `Erro na sincronização de pedidos: ${error.message}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: [error.message]
-    };
-  }
-}
-
-// ------------------------- CUSTOMERS -------------------------
-async function syncCustomers(
-  supabase: any, 
-  userId: string, 
-  organizationId: string,
-  config: WooCommerceConfig, 
-  batchSize: number,
-  forceFullSync: boolean
-): Promise<SyncResult> {
-  const startTime = Date.now();
-  let itemsProcessed = 0;
-  let itemsFailed = 0;
-  const errors: string[] = [];
-
-  try {
-    console.log('Iniciando sincronização de clientes...');
-    
-    const { data: syncConfig } = await supabase
-      .from('sync_config')
-      .select('last_sync_at')
-      .eq('user_id', userId)
-      .eq('sync_type', 'customers')
-      .single();
-
-    let page = 1;
-    let hasMore = true;
-    const lastSync = forceFullSync ? null : syncConfig?.last_sync_at;
-
-    while (hasMore) {
-      try {
-        console.log(`Buscando página ${page} de clientes...`);
-        
-        const url = new URL(`${config.url}/wp-json/wc/v3/customers`);
-        url.searchParams.set('page', page.toString());
-        url.searchParams.set('per_page', batchSize.toString());
-        url.searchParams.set('orderby', 'registered_date');
-        url.searchParams.set('order', 'desc');
-        
-        if (lastSync) {
-          const syncDate = new Date(lastSync).toISOString();
-          url.searchParams.set('after', syncDate);
-        }
-
-        const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-        const response = await fetch(url.toString(), {
-          headers: {
-            'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`WooCommerce API erro: ${response.status} ${response.statusText} - ${errorText}`);
-        }
-
-        const responseText = await response.text();
-        let customers;
-        try {
-          customers = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Error parsing customers JSON:', parseError);
-          throw new Error(`Erro ao fazer parse da resposta JSON: ${parseError.message}`);
-        }
-        
-        if (!Array.isArray(customers) || customers.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        console.log(`Processando ${customers.length} clientes...`);
-
-        for (const customer of customers) {
-          try {
-            await upsertCustomer(supabase, customer, organizationId);
-            itemsProcessed++;
-          } catch (error: any) {
-            console.error(`Erro ao processar cliente ${customer.id}:`, error);
-            errors.push(`Cliente ${customer.id}: ${error.message}`);
-            itemsFailed++;
-          }
-        }
-
-        if (customers.length < batchSize) {
-          hasMore = false;
-        } else {
-          page++;
-        }
-
-      } catch (error: any) {
-        console.error(`Erro na página ${page}:`, error);
-        errors.push(`Página ${page}: ${error.message}`);
-        hasMore = false;
-      }
-    }
-
-    return {
-      success: itemsFailed === 0,
-      message: `Clientes sincronizados: ${itemsProcessed}, falhas: ${itemsFailed}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: errors.length > 0 ? errors : undefined
-    };
-
-  } catch (error: any) {
-    console.error('Erro geral na sincronização de clientes:', error);
-    return {
-      success: false,
-      message: `Erro na sincronização de clientes: ${error.message}`,
-      items_processed: itemsProcessed,
-      items_failed: itemsFailed,
-      duration_ms: Date.now() - startTime,
-      errors: [error.message]
-    };
-  }
-}
-
-// ------------------------- UPSERT HELPERS -------------------------
-async function upsertProduct(supabase: any, product: any, organizationId: string) {
-  const productData = {
-    id: product.id,
-    name: product.name,
-    slug: product.slug,
-    permalink: product.permalink,
-    date_created: product.date_created,
-    date_modified: product.date_modified,
-    type: product.type,
-    status: product.status,
-    featured: product.featured,
-    catalog_visibility: product.catalog_visibility,
-    description: product.description,
-    short_description: product.short_description,
-    sku: product.sku,
-    price: parseFloat(product.price) || null,
-    regular_price: parseFloat(product.regular_price) || null,
-    sale_price: parseFloat(product.sale_price) || null,
-    date_on_sale_from: product.date_on_sale_from,
-    date_on_sale_to: product.date_on_sale_to,
-    on_sale: product.on_sale,
-    purchasable: product.purchasable,
-    total_sales: product.total_sales,
-    virtual: product.virtual,
-    downloadable: product.downloadable,
-    downloads: product.downloads,
-    download_limit: product.download_limit,
-    download_expiry: product.download_expiry,
-    external_url: product.external_url,
-    button_text: product.button_text,
-    tax_status: product.tax_status,
-    tax_class: product.tax_class,
-    manage_stock: product.manage_stock,
-    stock_quantity: product.stock_quantity,
-    backorders: product.backorders,
-    backorders_allowed: product.backorders_allowed,
-    backordered: product.backordered,
-    low_stock_amount: product.low_stock_amount,
-    sold_individually: product.sold_individually,
-    weight: product.weight,
-    dimensions: product.dimensions,
-    shipping_required: product.shipping_required,
-    shipping_taxable: product.shipping_taxable,
-    shipping_class: product.shipping_class,
-    shipping_class_id: product.shipping_class_id,
-    reviews_allowed: product.reviews_allowed,
-    average_rating: product.average_rating,
-    rating_count: product.rating_count,
-    upsell_ids: product.upsell_ids,
-    cross_sell_ids: product.cross_sell_ids,
-    parent_id: product.parent_id,
-    purchase_note: product.purchase_note,
-    categories: product.categories,
-    tags: product.tags,
-    images: product.images,
-    attributes: product.attributes,
-    default_attributes: product.default_attributes,
-    variations: product.variations,
-    grouped_products: product.grouped_products,
-    menu_order: product.menu_order,
-    price_html: product.price_html,
-    related_ids: product.related_ids,
-    meta_data: product.meta_data,
-    stock_status: product.stock_status,
-    has_options: product.has_options,
-    post_password: product.post_password,
-    global_unique_id: product.global_unique_id,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId
-  };
-
-  const { error } = await supabase
-    .from('wc_products')
-    .upsert(productData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar produto: ${error.message}`);
-  }
-}
-
-async function upsertVariation(supabase: any, variation: any, organizationId: string) {
-  const variationData = {
-    id: variation.id,
-    parent_id: variation.parent_id,
-    date_created: variation.date_created,
-    date_modified: variation.date_modified,
-    description: variation.description,
-    permalink: variation.permalink,
-    sku: variation.sku,
-    price: parseFloat(variation.price) || null,
-    regular_price: parseFloat(variation.regular_price) || null,
-    sale_price: parseFloat(variation.sale_price) || null,
-    date_on_sale_from: variation.date_on_sale_from,
-    date_on_sale_to: variation.date_on_sale_to,
-    on_sale: variation.on_sale,
-    status: variation.status,
-    purchasable: variation.purchasable,
-    virtual: variation.virtual,
-    downloadable: variation.downloadable,
-    downloads: variation.downloads,
-    download_limit: variation.download_limit,
-    download_expiry: variation.download_expiry,
-    tax_status: variation.tax_status,
-    tax_class: variation.tax_class,
-    manage_stock: variation.manage_stock,
-    stock_quantity: variation.stock_quantity,
-    stock_status: variation.stock_status,
-    backorders: variation.backorders,
-    backorders_allowed: variation.backorders_allowed,
-    backordered: variation.backordered,
-    low_stock_amount: variation.low_stock_amount,
-    weight: variation.weight,
-    dimensions: variation.dimensions,
-    shipping_class: variation.shipping_class,
-    shipping_class_id: variation.shipping_class_id,
-    image: variation.image,
-    attributes: variation.attributes,
-    menu_order: variation.menu_order,
-    meta_data: variation.meta_data,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId
-  };
-
-  const { error } = await supabase
-    .from('wc_product_variations')
-    .upsert(variationData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar variação: ${error.message}`);
-  }
-}
-
-async function upsertCategory(supabase: any, category: any, organizationId: string) {
-  const categoryData = {
-    id: category.id,
-    name: category.name,
-    slug: category.slug,
-    parent: category.parent,
-    description: category.description,
-    display: category.display,
-    image: category.image,
-    menu_order: category.menu_order,
-    count: category.count,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId
-  };
-
-  const { error } = await supabase
-    .from('wc_product_categories')
-    .upsert(categoryData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar categoria: ${error.message}`);
-  }
-}
-
-async function upsertOrder(supabase: any, order: any, organizationId: string) {
-  const orderData = {
-    id: order.id,
-    parent_id: order.parent_id || 0,
-    number: order.number,
-    order_key: order.order_key,
-    created_via: order.created_via,
-    version: order.version,
-    status: order.status,
-    currency: order.currency,
-    currency_symbol: order.currency_symbol,
-    date_created: order.date_created,
-    date_created_gmt: order.date_created_gmt,
-    date_modified: order.date_modified,
-    date_modified_gmt: order.date_modified_gmt,
-    discount_total: parseFloat(order.discount_total) || 0,
-    discount_tax: parseFloat(order.discount_tax) || 0,
-    shipping_total: parseFloat(order.shipping_total) || 0,
-    shipping_tax: parseFloat(order.shipping_tax) || 0,
-    cart_tax: parseFloat(order.cart_tax) || 0,
-    total: parseFloat(order.total) || 0,
-    total_tax: parseFloat(order.total_tax) || 0,
-    prices_include_tax: order.prices_include_tax,
-    customer_id: order.customer_id || 0,
-    customer_ip_address: order.customer_ip_address,
-    customer_user_agent: order.customer_user_agent,
-    customer_note: order.customer_note,
-    billing: order.billing,
-    shipping: order.shipping,
-    payment_method: order.payment_method,
-    payment_method_title: order.payment_method_title,
-    payment_url: order.payment_url,
-    transaction_id: order.transaction_id,
-    date_paid: order.date_paid,
-    date_paid_gmt: order.date_paid_gmt,
-    date_completed: order.date_completed,
-    date_completed_gmt: order.date_completed_gmt,
-    cart_hash: order.cart_hash,
-    meta_data: order.meta_data,
-    line_items: order.line_items,
-    tax_lines: order.tax_lines,
-    shipping_lines: order.shipping_lines,
-    fee_lines: order.fee_lines,
-    coupon_lines: order.coupon_lines,
-    refunds: order.refunds,
-    is_editable: order.is_editable,
-    needs_payment: order.needs_payment,
-    needs_processing: order.needs_processing,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId
-  };
-
-  const { error } = await supabase
-    .from('wc_orders')
-    .upsert(orderData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar pedido: ${error.message}`);
-  }
-}
-
-async function upsertCustomer(supabase: any, customer: any, organizationId: string) {
-  const customerData = {
-    id: customer.id,
-    date_created: customer.date_created,
-    date_created_gmt: customer.date_created_gmt,
-    date_modified: customer.date_modified,
-    date_modified_gmt: customer.date_modified_gmt,
-    email: customer.email,
-    first_name: customer.first_name,
-    last_name: customer.last_name,
-    role: customer.role,
-    username: customer.username,
-    billing: customer.billing,
-    shipping: customer.shipping,
-    is_paying_customer: customer.is_paying_customer,
-    avatar_url: customer.avatar_url,
-    meta_data: customer.meta_data,
-    orders_count: customer.orders_count || 0,
-    total_spent: parseFloat(customer.total_spent) || 0,
-    synced_at: new Date().toISOString(),
-    organization_id: organizationId
-  };
-
-  const { error } = await supabase
-    .from('wc_customers')
-    .upsert(customerData, { onConflict: 'id' });
-
-  if (error) {
-    throw new Error(`Erro ao salvar cliente: ${error.message}`);
-  }
-}
-
-async function logSyncEvent(
-  supabase: any,
-  userId: string,
-  organizationId: string,
-  syncType: string,
-  operation: string,
-  status: string,
-  message: string,
-  details: any = {}
-) {
-  const { error } = await supabase
-    .from('sync_logs')
-    .insert({
-      user_id: userId,
-      organization_id: organizationId,
-      sync_type: syncType,
-      operation,
-      status,
-      message,
-      details,
-      items_processed: details.items_processed || 0,
-      items_failed: details.items_failed || 0,
-      duration_ms: details.duration_ms || null,
-      error_details: details.errors ? details.errors.join('; ') : null
-    });
-
-  if (error) {
-    console.error('Erro ao salvar log:', error);
-  }
-}
-
-async function updateSyncConfig(supabase: any, userId: string, syncType: string) {
-  const { error } = await supabase
-    .from('sync_config')
-    .upsert({
-      user_id: userId,
-      sync_type: syncType,
-      last_sync_at: new Date().toISOString(),
-      is_active: true
-    }, { onConflict: 'user_id,sync_type' });
-
-  if (error) {
-    console.error('Erro ao atualizar configuração de sync:', error);
-  }
-}
