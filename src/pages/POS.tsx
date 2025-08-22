@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,12 +19,13 @@ import SyncHeader from "@/components/sync/SyncHeader";
 interface CartItem {
   id: number;
   name: string;
-  price: number;
+  price: string;
   quantity: number;
   image?: string;
   sku?: string;
-  variationId?: number;
-  variationName?: string;
+  variation_id?: number;
+  variation_attributes?: Array<{ name: string; value: string }>;
+  item_discount?: { type: 'percentage' | 'fixed'; value: number };
 }
 
 const POS = () => {
@@ -57,16 +57,15 @@ const POS = () => {
 
   const addToCart = (product: any, variationId?: number, variationName?: string) => {
     const price = parseFloat(product.price || product.regular_price || '0');
-    const itemId = variationId ? `${product.id}-${variationId}` : product.id;
     
     setCart(prevCart => {
       const existingItem = prevCart.find(item => 
-        item.id === product.id && item.variationId === variationId
+        item.id === product.id && item.variation_id === variationId
       );
       
       if (existingItem) {
         return prevCart.map(item =>
-          item.id === product.id && item.variationId === variationId
+          item.id === product.id && item.variation_id === variationId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
@@ -74,12 +73,12 @@ const POS = () => {
         const newItem: CartItem = {
           id: product.id,
           name: product.name,
-          price,
+          price: price.toString(),
           quantity: 1,
           image: product.images?.[0]?.src,
           sku: product.sku,
-          variationId,
-          variationName
+          variation_id: variationId,
+          variation_attributes: variationName ? [{ name: 'Variação', value: variationName }] : undefined
         };
         return [...prevCart, newItem];
       }
@@ -89,17 +88,44 @@ const POS = () => {
     toast.success(`${displayName} adicionado ao carrinho!`);
   };
 
-  const updateCartItemQuantity = (productId: number, variationId: number | undefined, quantity: number) => {
+  const updateQuantity = (id: number, quantity: number, variationId?: number) => {
     if (quantity === 0) {
       setCart(prevCart => prevCart.filter(item => 
-        !(item.id === productId && item.variationId === variationId)
+        !(item.id === id && item.variation_id === variationId)
       ));
     } else {
       setCart(prevCart => prevCart.map(item =>
-        item.id === productId && item.variationId === variationId
+        item.id === id && item.variation_id === variationId
           ? { ...item, quantity }
           : item
       ));
+    }
+  };
+
+  const removeFromCart = (id: number, variationId?: number) => {
+    setCart(prevCart => prevCart.filter(item => 
+      !(item.id === id && item.variation_id === variationId)
+    ));
+  };
+
+  const updateItemDiscount = (id: number, discount: { type: 'percentage' | 'fixed'; value: number }, variationId?: number) => {
+    setCart(prevCart => prevCart.map(item =>
+      item.id === id && item.variation_id === variationId
+        ? { ...item, item_discount: discount }
+        : item
+    ));
+  };
+
+  const getItemTotal = (item: CartItem) => {
+    const basePrice = parseFloat(item.price) * item.quantity;
+    if (!item.item_discount || item.item_discount.value === 0) {
+      return basePrice;
+    }
+    
+    if (item.item_discount.type === 'percentage') {
+      return basePrice * (1 - item.item_discount.value / 100);
+    } else {
+      return Math.max(0, basePrice - item.item_discount.value);
     }
   };
 
@@ -111,8 +137,23 @@ const POS = () => {
     return cart.reduce((total, item) => total + item.quantity, 0);
   };
 
-  const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const getSubtotal = () => {
+    return cart.reduce((total, item) => total + getItemTotal(item), 0);
+  };
+
+  const saveCart = () => {
+    // TODO: Implement save cart functionality
+    toast.success("Carrinho salvo!");
+  };
+
+  const onCheckout = () => {
+    // TODO: Implement checkout functionality
+    toast.success("Redirecionando para checkout...");
+  };
+
+  const onCreateMaleta = () => {
+    // TODO: Implement create maleta functionality
+    toast.success("Criando maleta...");
   };
 
   const getStockQuantity = (product: any, variationId?: number) => {
@@ -324,16 +365,23 @@ const POS = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         cart={cart}
-        onUpdateQuantity={updateCartItemQuantity}
-        onClearCart={clearCart}
-        totalPrice={getTotalPrice()}
+        updateQuantity={updateQuantity}
+        removeFromCart={removeFromCart}
+        updateItemDiscount={updateItemDiscount}
+        getItemTotal={getItemTotal}
+        getSubtotal={getSubtotal}
+        getTotalItems={getTotalItems}
+        onCheckout={onCheckout}
+        onCreateMaleta={onCreateMaleta}
+        clearCart={clearCart}
+        saveCart={saveCart}
       />
 
       {/* Floating Cart Button (Mobile) */}
       {isMobile && (
         <FloatingCartButton
           itemCount={getTotalItems()}
-          total={getTotalPrice()}
+          total={getSubtotal()}
           onClick={() => setIsCartOpen(true)}
         />
       )}
