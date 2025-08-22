@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.2';
 import { corsHeaders } from '../_shared/cors.ts';
 
@@ -27,6 +28,28 @@ interface SyncResult {
   errors?: string[];
 }
 
+// Helper: robust JSON parsing (json() when possible, else text()+parse)
+async function parseRequestBody(req: Request): Promise<SyncRequest> {
+  const ct = req.headers.get('content-type') || '';
+  try {
+    if (ct.includes('application/json')) {
+      const json = await req.json();
+      if (!json || Object.keys(json).length === 0) {
+        throw new Error('Request body is empty JSON');
+      }
+      return json as SyncRequest;
+    }
+    const text = await req.text();
+    console.log('Raw request body length:', text?.length ?? 0);
+    if (!text || text.trim() === '') {
+      throw new Error('Request body is empty');
+    }
+    return JSON.parse(text) as SyncRequest;
+  } catch (e: any) {
+    throw new Error(`Invalid JSON in request body: ${e.message}`);
+  }
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -50,20 +73,14 @@ Deno.serve(async (req) => {
       throw new Error('Usuário não autenticado');
     }
 
-    // Parse request body with better error handling
+    // Parse request body (robusto)
     let requestBody: SyncRequest;
     try {
-      const bodyText = await req.text();
-      console.log('Raw request body:', bodyText);
-      
-      if (!bodyText || bodyText.trim() === '') {
-        throw new Error('Request body is empty');
-      }
-      
-      requestBody = JSON.parse(bodyText);
-    } catch (parseError) {
-      console.error('Error parsing request body:', parseError);
-      throw new Error(`Invalid JSON in request body: ${parseError.message}`);
+      console.log('Content-Type recebido:', req.headers.get('content-type') || '(none)');
+      requestBody = await parseRequestBody(req);
+    } catch (parseError: any) {
+      console.error('Erro ao interpretar o corpo da requisição:', parseError);
+      throw new Error(parseError.message || 'Invalid request body');
     }
 
     const {
@@ -100,7 +117,6 @@ Deno.serve(async (req) => {
         result = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         break;
       case 'full':
-        // Sincronizar na ordem: categorias, produtos, clientes, pedidos
         const categoriesResult = await syncCategories(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         const productsResult = await syncProducts(supabase, user.id, organization_id, config, batch_size, force_full_sync);
         const customersResult = await syncCustomers(supabase, user.id, organization_id, config, batch_size, force_full_sync);
@@ -119,7 +135,6 @@ Deno.serve(async (req) => {
         throw new Error(`Tipo de sincronização não suportado: ${sync_type}`);
     }
 
-    // Log conclusão (com organization_id)
     await logSyncEvent(supabase, user.id, organization_id, sync_type, 'sync_completed', 
       result.success ? 'success' : 'error', result.message, {
         items_processed: result.items_processed,
@@ -128,7 +143,6 @@ Deno.serve(async (req) => {
         errors: result.errors
       });
 
-    // Atualizar configuração com última sincronização
     await updateSyncConfig(supabase, user.id, sync_type);
 
     return new Response(JSON.stringify(result), {

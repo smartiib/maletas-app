@@ -188,12 +188,15 @@ export const useManualSync = () => {
         organization_id: currentOrganization.id,
       };
 
+      // Importante: não enviar headers customizados aqui; o client adiciona Authorization e Content-Type automaticamente.
+      console.log('[useManualSync] invocando wc-sync com corpo:', {
+        ...requestBody,
+        // evitar logar segredos
+        config: { ...requestBody.config, consumer_key: '***', consumer_secret: '***' }
+      });
+
       const { data, error } = await supabase.functions.invoke('wc-sync', {
-        body: requestBody,
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        body: requestBody
       });
 
       if (error) {

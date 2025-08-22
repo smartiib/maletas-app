@@ -64,14 +64,14 @@ export const useWooCommerceOperations = () => {
         organization_id: currentOrganization.id // Incluir organization_id obrigatório
       };
 
-      console.log('Request body:', requestBody);
+      console.log('Request body (sanitizado):', {
+        ...requestBody,
+        config: { ...requestBody.config, consumer_key: '***', consumer_secret: '***' }
+      });
 
+      // Não enviar headers customizados; o client injeta Authorization/Content-Type corretamente
       const { data, error } = await supabase.functions.invoke('wc-sync', {
-        body: requestBody,
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        }
+        body: requestBody
       });
 
       if (error) {
