@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -49,24 +50,107 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const getStockStatus = (product: any) => {
     if (product.stock_status === 'outofstock') {
-      return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
+      return { color: 'bg-red-50 border-red-200 text-red-700', text: 'Sem estoque' };
     }
     
     const stock = product.stock_quantity || 0;
     if (stock <= 5) {
-      return { color: 'bg-warning-100 text-warning-800', text: `${stock} unidades` };
+      return { color: 'bg-yellow-50 border-yellow-200 text-yellow-700', text: `${stock} un.` };
     }
-    return { color: 'bg-success-100 text-success-800', text: `${stock} unidades` };
+    return { color: 'bg-green-50 border-green-200 text-green-700', text: `${stock} un.` };
   };
 
   const stockStatus = getStockStatus(product);
 
+  if (viewMode === 'grid') {
+    return (
+      <Card className="hover:shadow-md transition-all-smooth h-fit">
+        <CardContent className="p-3">
+          <div className="space-y-3">
+            {/* Imagem e ações */}
+            <div className="relative">
+              <div className="w-full aspect-square bg-muted rounded-lg flex items-center justify-center overflow-hidden">
+                {product.images && product.images.length > 0 ? (
+                  <img 
+                    src={product.images[0].src} 
+                    alt={product.images[0].alt}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Package className="w-8 h-8 text-muted-foreground" />
+                )}
+              </div>
+              <div className="absolute top-2 right-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0 bg-white/80 hover:bg-white">
+                      <MoreHorizontal className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onView?.(product)}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Visualizar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit?.(product)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                      className="text-destructive"
+                      onClick={() => onDelete?.(product.id, product.name)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Excluir
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* Informações do produto */}
+            <div className="space-y-2">
+              <div>
+                <h3 className="font-semibold text-sm line-clamp-2 leading-tight" title={product.name}>
+                  {product.name}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {product.sku ? `SKU: ${product.sku}` : `ID: ${product.id}`}
+                </p>
+              </div>
+              
+              <div className="flex flex-wrap gap-1">
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs px-1.5 py-0.5 ${getStatusColor(product.status)}`}
+                >
+                  {getStatusLabel(product.status)}
+                </Badge>
+                <Badge 
+                  variant="outline" 
+                  className={`text-xs px-1.5 py-0.5 border ${stockStatus.color}`}
+                >
+                  {stockStatus.text}
+                </Badge>
+              </div>
+
+              <div className="text-sm font-semibold">
+                R$ {parseFloat(product.price || '0').toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Visualização em lista (mantém o código original)
   return (
     <Card className="hover:shadow-md transition-all-smooth">
       <CardContent className="p-4">
-        <div className={viewMode === 'grid' ? 'space-y-4' : 'flex items-center justify-between'}>
+        <div className="flex items-center justify-between">
           <div className="flex-1">
-            <div className={viewMode === 'grid' ? 'space-y-3' : 'flex items-center gap-4'}>
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
                   {product.images && product.images.length > 0 ? (
@@ -88,7 +172,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
             
-            <div className={viewMode === 'grid' ? 'space-y-2 mt-3' : 'flex items-center gap-4 ml-16'}>
+            <div className="flex items-center gap-4 ml-16">
               <Badge className={getStatusColor(product.status)}>
                 {getStatusLabel(product.status)}
               </Badge>
@@ -101,7 +185,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
           
-          <div className={viewMode === 'grid' ? 'flex justify-end' : ''}>
+          <div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">

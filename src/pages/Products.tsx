@@ -15,6 +15,7 @@ import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
 import SyncHeader from "@/components/sync/SyncHeader";
+import ProductCard from "@/components/products/ProductCard";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -240,20 +241,32 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Lista compacta no estilo da página Estoque */}
-      <div className="space-y-2">
-        {filteredProducts.map((product) => (
-          <StockRow
-            key={product.id}
-            product={product}
-            isExpanded={expandedProducts.has(product.id)}
-            onToggleExpand={() => toggleProductExpansion(product.id)}
-            getTotalStock={getTotalStock}
-            getStockStatus={getStockStatus}
-            rightExtra={<ProductPriceInfo product={product} />}
-          />
-        ))}
-      </div>
+      {/* Conteúdo baseado no modo de visualização */}
+      {viewMode === 'list' ? (
+        <div className="space-y-2">
+          {filteredProducts.map((product) => (
+            <StockRow
+              key={product.id}
+              product={product}
+              isExpanded={expandedProducts.has(product.id)}
+              onToggleExpand={() => toggleProductExpansion(product.id)}
+              getTotalStock={getTotalStock}
+              getStockStatus={getStockStatus}
+              rightExtra={<ProductPriceInfo product={product} />}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              viewMode={viewMode}
+            />
+          ))}
+        </div>
+      )}
 
       {filteredProducts.length === 0 && searchTerm && (
         <div className="text-center py-8">
