@@ -35,38 +35,35 @@ const ProductPriceInfo: React.FC<{ product: Product }> = ({ product }) => {
   const originalPrice = hasSale ? regularPrice : null;
 
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex items-center gap-2">
       {/* Ícone de publicado */}
       {isPublished && (
-        <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center mt-1">
+        <div className="w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
           <CheckCircle2 className="w-2 h-2 text-white" />
         </div>
       )}
       
-      {/* Coluna de preços e tag */}
-      <div className="flex flex-col items-start gap-1">
-        {/* Preços em coluna */}
-        <div className="flex flex-col items-start">
-          {hasSale && originalPrice && (
-            <div className="text-xs text-muted-foreground line-through">
-              {formatBRL(originalPrice)}
-            </div>
-          )}
-          <div className="font-medium text-sm">
-            {formatBRL(displayPrice)}
+      {/* Preços */}
+      <div className="flex items-center gap-1">
+        {hasSale && originalPrice && (
+          <div className="text-xs text-muted-foreground line-through">
+            {formatBRL(originalPrice)}
           </div>
-        </div>
-
-        {/* Tag de promoção */}
-        {hasSale && (
-          <Badge 
-            variant="default" 
-            className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 text-xs px-1.5 py-0.5"
-          >
-            Promoção
-          </Badge>
         )}
+        <div className="font-medium text-sm">
+          {formatBRL(displayPrice)}
+        </div>
       </div>
+
+      {/* Tag de promoção */}
+      {hasSale && (
+        <Badge 
+          variant="default" 
+          className="bg-emerald-500/20 text-emerald-700 border border-emerald-500/30 text-xs px-1.5 py-0.5"
+        >
+          Promoção
+        </Badge>
+      )}
     </div>
   );
 };
