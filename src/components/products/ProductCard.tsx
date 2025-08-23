@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal, AlertTriangle, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,11 +33,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   // Sincroniza o status de revisão vindo do pai (Products.tsx) para o grid refletir ações em massa.
   const incomingStatus = (product as any).review_status as 'review' | 'normal' | 'remove_review' | null | undefined;
-  const [reviewStatus, setReviewStatus] = useState<string>(incomingStatus ?? 'normal');
+
+  // Default agora é "remove_review" (sem marcação) para garantir fundo branco quando esvaziar marcações
+  const [reviewStatus, setReviewStatus] = useState<string>(incomingStatus ?? 'remove_review');
 
   useEffect(() => {
     // Quando o produto recebido mudar (ex.: ação em massa), atualiza o estado local
-    setReviewStatus(incomingStatus ?? 'normal');
+    setReviewStatus(incomingStatus ?? 'remove_review');
   }, [incomingStatus, product?.id]);
 
   const getStatusColor = (status: string) => {
@@ -322,4 +323,3 @@ const ProductCard: React.FC<ProductCardProps> = ({
 };
 
 export default ProductCard;
-
