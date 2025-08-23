@@ -3,14 +3,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Minus, ChevronDown, ChevronRight, History, Package, CheckCircle2 } from 'lucide-react';
+import { Plus, Minus, ChevronDown, ChevronRight, History, Package } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
 import { stockHistoryService, StockHistoryEntry } from './StockHistoryService';
 import { StockHistory } from './StockHistory';
 import { useProductVariations, DbVariation, useProductVariationsByIds } from '@/hooks/useProductVariations';
 import LastChangeLabel from './LastChangeLabel';
-import { StockStatusIcon } from '@/components/products/StockStatusIcon';
 
 interface StockRowProps {
   product: any;
@@ -329,7 +328,7 @@ export const StockRow: React.FC<StockRowProps> = ({
 
   return (
     <div className="border rounded-lg">
-      {/* Produto Principal - Layout reorganizado */}
+      {/* Produto Principal - Layout mais compacto */}
       <div className="p-3 flex items-center justify-between hover:bg-muted/50 transition-colors">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
           {hasVariations && (
@@ -347,8 +346,8 @@ export const StockRow: React.FC<StockRowProps> = ({
             </Button>
           )}
           
-          {/* Miniatura da imagem com ícone de publicado */}
-          <div className="relative w-10 h-10 bg-muted rounded-md overflow-hidden flex-shrink-0">
+          {/* Miniatura da imagem - menor */}
+          <div className="w-10 h-10 bg-muted rounded-md overflow-hidden flex-shrink-0">
             {product.images && product.images.length > 0 ? (
               <img 
                 src={product.images[0].src} 
@@ -363,27 +362,26 @@ export const StockRow: React.FC<StockRowProps> = ({
                 <Package className="w-4 h-4" />
               </div>
             )}
-            
-            {/* Ícone de publicado no canto da imagem */}
-            {product.status === 'publish' && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 flex items-center justify-center">
-                <CheckCircle2 className="w-2 h-2 text-white" />
-              </div>
-            )}
           </div>
           
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-medium text-sm text-foreground truncate">{product.name}</h3>
-              {rightExtra}
-            </div>
+            <h3 className="font-medium text-sm text-foreground truncate">{product.name}</h3>
             <div className="flex items-center space-x-2 text-xs text-muted-foreground">
               <span>SKU: {product.sku || 'N/A'}</span>
+              <Badge variant={stockStatus.color as any} className="text-xs px-1.5 py-0.5">
+                {stockStatus.label}
+              </Badge>
             </div>
           </div>
         </div>
 
         <div className="flex items-center space-x-3 flex-shrink-0">
+          {rightExtra && (
+            <div className="hidden sm:block">
+              {rightExtra}
+            </div>
+          )}
+
           {!hasVariations && (
             <div className="flex items-center space-x-2">
               <Button
@@ -418,18 +416,14 @@ export const StockRow: React.FC<StockRowProps> = ({
             </div>
           )}
 
-          {/* Quantidade total com ícone de status */}
-          <div className="flex items-center gap-1">
+          {hasVariations && (
             <div className="text-center">
               <div className="font-medium text-sm">
-                {hasVariations ? computedVariationsTotal : totalStock}
+                {computedVariationsTotal}
               </div>
-              {hasVariations && (
-                <div className="text-xs text-muted-foreground">Total</div>
-              )}
+              <div className="text-xs text-muted-foreground">Total</div>
             </div>
-            <StockStatusIcon stock={hasVariations ? computedVariationsTotal : totalStock} status={product.stock_status} />
-          </div>
+          )}
 
           <div className="text-xs text-muted-foreground min-w-[80px] text-right">
             <LastChangeLabel productId={product.id} />
@@ -451,7 +445,7 @@ export const StockRow: React.FC<StockRowProps> = ({
         </div>
       </div>
 
-      {/* Variações - layout mantido com ajustes */}
+      {/* Variações - também mais compactas */}
       {hasVariations && isExpanded && (
         <div className="border-t bg-muted/20">
           {normalizedVariations.map((variation) => {
@@ -468,6 +462,9 @@ export const StockRow: React.FC<StockRowProps> = ({
                   </div>
                   <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                     <span>SKU: {displaySku}</span>
+                    <Badge variant={variationStatus.color as any} className="text-xs px-1.5 py-0.5">
+                      {variationStatus.label}
+                    </Badge>
                   </div>
                 </div>
 
@@ -502,11 +499,6 @@ export const StockRow: React.FC<StockRowProps> = ({
                     >
                       <Plus className="w-3 h-3" />
                     </Button>
-                  </div>
-
-                  {/* Quantidade com ícone de status para variações */}
-                  <div className="flex items-center gap-1">
-                    <StockStatusIcon stock={variationStock} status={variation.stock_status} />
                   </div>
 
                   <div className="text-xs text-muted-foreground min-w-[80px] text-right">

@@ -13,16 +13,12 @@ import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
-import SyncHeader from "@/components/sync/SyncHeader";
-import ProductCard from "@/components/products/ProductCard";
-import ProductBulkActions from "@/components/products/ProductBulkActions";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-  const [reviewStatusById, setReviewStatusById] = useState<Record<number, 'review' | 'normal' | null>>({});
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
@@ -40,24 +36,26 @@ const Products = () => {
     return Math.max(0, qty);
   };
 
+  // Filtros combinados (busca + estoque)
   const filteredProducts = useMemo(() => {
     let filtered = products.filter((product) =>
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Aplicar filtro de estoque
     if (stockFilter !== 'all') {
       filtered = filtered.filter((product) => {
         const totalStock = getTotalStock(product);
         const status = product.stock_status;
 
         switch (stockFilter) {
-          case 'stock-ok':
-            return totalStock > 5;
+          case 'in-stock':
+            return status !== 'outofstock' && totalStock > 10;
           case 'low-stock':
-            return totalStock > 0 && totalStock <= 5;
+            return totalStock > 0 && totalStock <= 10;
           case 'out-of-stock':
-            return totalStock === 0;
+            return status === 'outofstock' || totalStock === 0;
           default:
             return true;
         }
@@ -67,23 +65,25 @@ const Products = () => {
     return filtered;
   }, [products, searchTerm, stockFilter]);
 
+  // Contadores para os filtros
   const stockCounts = useMemo(() => {
     const counts = {
       all: products.length,
-      stockOk: 0,
+      inStock: 0,
       outOfStock: 0,
       lowStock: 0,
     };
 
     products.forEach((product) => {
       const totalStock = getTotalStock(product);
+      const status = product.stock_status;
 
-      if (totalStock === 0) {
+      if (status === 'outofstock' || totalStock === 0) {
         counts.outOfStock++;
-      } else if (totalStock <= 5) {
+      } else if (totalStock <= 10) {
         counts.lowStock++;
       } else {
-        counts.stockOk++;
+        counts.inStock++;
       }
     });
 
@@ -103,49 +103,18 @@ const Products = () => {
   };
 
   const getStockStatus = (stock: number, status: string) => {
-    if (stock === 0) {
+    if (status === 'outofstock' || stock === 0) {
       return { label: 'Sem Estoque', color: 'destructive' };
     }
-    if (stock <= 5) {
+    if (stock < 10) {
       return { label: 'Estoque Baixo', color: 'secondary' };
     }
-    return { label: 'Estoque OK', color: 'default' };
-  };
-
-  const getReviewBgClass = (status: 'review' | 'normal' | null | undefined) => {
-    if (status === 'review') return 'bg-yellow-50';
-    if (status === 'normal') return 'bg-green-50';
-    return '';
-  };
-
-  const handleBulkAction = (action: string) => {
-    console.log(`Ação em massa: ${action}`);
-
-    if (action === 'review_all') {
-      const map: Record<number, 'review'> = {};
-      filteredProducts.forEach(p => { map[p.id] = 'review'; });
-      setReviewStatusById(map);
-      return;
-    }
-
-    if (action === 'normal_all') {
-      const map: Record<number, 'normal'> = {};
-      filteredProducts.forEach(p => { map[p.id] = 'normal'; });
-      setReviewStatusById(map);
-      return;
-    }
-
-    if (action === 'clear_all') {
-      setReviewStatusById({});
-      return;
-    }
-
-    console.log('Ação não suportada:', action);
+    return { label: 'Em Estoque', color: 'default' };
   };
 
   if (orgLoading) {
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -220,7 +189,6 @@ const Products = () => {
             </p>
           </div>
         </div>
-        <SyncHeader syncType="products" />
         <EmptyWooCommerceState
           title="Nenhum Produto Encontrado"
           description="Sincronize seus produtos do WooCommerce ou adicione produtos manualmente."
@@ -239,16 +207,11 @@ const Products = () => {
             Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ProductBulkActions onBulkAction={handleBulkAction} />
-          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Produto
-          </Button>
-        </div>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Produto
+        </Button>
       </div>
-
-      <SyncHeader syncType="products" />
 
       {/* Filtros de estoque */}
       <div className="space-y-3">
@@ -273,42 +236,20 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Conteúdo baseado no modo de visualização */}
-      {viewMode === 'list' ? (
-        <div className="space-y-2">
-          {filteredProducts.map((product) => {
-            const status = reviewStatusById[product.id] ?? null;
-            const bgClass = getReviewBgClass(status);
-            const productWithReview = { ...product, review_status: status };
-            return (
-              <div key={product.id} className={bgClass}>
-                <StockRow
-                  product={productWithReview}
-                  isExpanded={expandedProducts.has(product.id)}
-                  onToggleExpand={() => toggleProductExpansion(product.id)}
-                  getTotalStock={getTotalStock}
-                  getStockStatus={getStockStatus}
-                  rightExtra={<ProductPriceInfo product={productWithReview} />}
-                />
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {filteredProducts.map((product) => {
-            const status = reviewStatusById[product.id] ?? null;
-            const productWithReview = { ...product, review_status: status };
-            return (
-              <ProductCard
-                key={product.id}
-                product={productWithReview}
-                viewMode={viewMode}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* Lista compacta no estilo da página Estoque */}
+      <div className="space-y-2">
+        {filteredProducts.map((product) => (
+          <StockRow
+            key={product.id}
+            product={product}
+            isExpanded={expandedProducts.has(product.id)}
+            onToggleExpand={() => toggleProductExpansion(product.id)}
+            getTotalStock={getTotalStock}
+            getStockStatus={getStockStatus}
+            rightExtra={<ProductPriceInfo product={product} />}
+          />
+        ))}
+      </div>
 
       {filteredProducts.length === 0 && searchTerm && (
         <div className="text-center py-8">

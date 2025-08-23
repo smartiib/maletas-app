@@ -1,33 +1,62 @@
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import OrderCard from "@/components/orders/OrderCard";
-import OrderDialog from "@/components/orders/OrderDialog";
-import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
+import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 import ViewModeToggle from "@/components/ui/view-mode-toggle";
+import { StockRow } from "@/components/stock/StockRow";
 
-const Orders = () => {
+const Stock = () => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
-  const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
+  const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
   const { isConfigured } = useWooCommerceConfig();
-  const { viewMode, toggleViewMode } = useViewMode('orders');
+  const { viewMode, toggleViewMode } = useViewMode('stock');
 
-  const filteredOrders = orders.filter((order) =>
-    order.number?.toString().includes(searchTerm) ||
-    order.billing?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = products.filter((product) =>
+    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const toggleProductExpansion = (productId: number) => {
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const getTotalStock = (product: any) => {
+    if (product.type === 'variable' && product.variations?.length > 0) {
+      return product.variations.reduce((total: number, variation: any) => {
+        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
+        // Ignorar negativos no somatório
+        return total + Math.max(0, qty);
+      }, 0);
+    }
+    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
+    return Math.max(0, qty);
+  };
+
+  const getStockStatus = (stock: number, status: string) => {
+    if (status === 'outofstock' || stock === 0) {
+      return { label: 'Sem Estoque', color: 'destructive' };
+    }
+    if (stock < 10) {
+      return { label: 'Estoque Baixo', color: 'secondary' };
+    }
+    return { label: 'Em Estoque', color: 'default' };
+  };
 
   if (orgLoading) {
     return (
@@ -37,11 +66,10 @@ const Orders = () => {
             <Skeleton className="h-8 w-32 mb-2" />
             <Skeleton className="h-4 w-48" />
           </div>
-          <Skeleton className="h-10 w-32" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       </div>
@@ -53,7 +81,7 @@ const Orders = () => {
       <div className="container mx-auto px-4 py-6">
         <EmptyWooCommerceState
           title="Nenhuma Organização Selecionada"
-          description="Selecione uma organização para ver os pedidos."
+          description="Selecione uma organização para gerenciar o estoque."
           showConfigButton={false}
         />
       </div>
@@ -65,7 +93,7 @@ const Orders = () => {
       <div className="container mx-auto px-4 py-6">
         <EmptyWooCommerceState
           title="WooCommerce Não Configurado"
-          description="Configure sua conexão com o WooCommerce para começar a gerenciar pedidos."
+          description="Configure sua conexão com o WooCommerce para gerenciar o estoque."
         />
       </div>
     );
@@ -76,39 +104,35 @@ const Orders = () => {
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Gerenciar Estoque</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Gerencie seus pedidos
+              Controle o estoque dos seus produtos
             </p>
           </div>
-          <Button disabled>
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Pedido
-          </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-48" />
+            <Skeleton key={i} className="h-24" />
           ))}
         </div>
       </div>
     );
   }
 
-  if (orders.length === 0) {
+  if (products.length === 0) {
     return (
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">Gerenciar Estoque</h1>
             <p className="text-sm sm:text-base text-muted-foreground">
-              Gerencie seus pedidos
+              Controle o estoque dos seus produtos
             </p>
           </div>
         </div>
         <EmptyWooCommerceState
-          title="Nenhum Pedido Encontrado"
-          description="Sincronize seus pedidos do WooCommerce ou adicione pedidos manualmente."
+          title="Nenhum Produto Encontrado"
+          description="Sincronize seus produtos do WooCommerce para gerenciar o estoque."
           showConfigButton={false}
         />
       </div>
@@ -119,20 +143,16 @@ const Orders = () => {
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Pedidos</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Gerenciar Estoque</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Gerencie seus pedidos ({orders.length} pedidos)
+            Controle o estoque dos seus produtos ({products.length} produtos)
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Pedido
-        </Button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
         <Input
-          placeholder="Buscar por número, cliente ou email..."
+          placeholder="Buscar por nome ou SKU..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:max-w-sm"
@@ -144,30 +164,29 @@ const Orders = () => {
         />
       </div>
 
-      <div className={viewMode === 'grid' 
-        ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
-        : "space-y-4"
-      }>
-        {filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} viewMode={viewMode} />
+      <div className="space-y-4">
+        {filteredProducts.map((product) => (
+          <StockRow
+            key={product.id}
+            product={product}
+            isExpanded={expandedProducts.has(product.id)}
+            onToggleExpand={() => toggleProductExpansion(product.id)}
+            getTotalStock={getTotalStock}
+            getStockStatus={getStockStatus}
+          />
         ))}
       </div>
 
-      {filteredOrders.length === 0 && searchTerm && (
+      {filteredProducts.length === 0 && searchTerm && (
         <div className="text-center py-8">
           <p className="text-muted-foreground">
-            Nenhum pedido encontrado para "{searchTerm}"
+            Nenhum produto encontrado para "{searchTerm}"
           </p>
         </div>
       )}
-
-      <OrderDialog
-        open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        mode="create"
-      />
     </div>
   );
 };
 
-export default Orders;
+export default Stock;
+

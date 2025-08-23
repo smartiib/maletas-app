@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -18,7 +19,8 @@ import {
   Building2,
   Settings,
   FileText,
-  FileImage
+  FileImage,
+  Package2
 } from 'lucide-react';
 import { OrganizationSelector } from '@/components/layout/OrganizationSelector';
 
@@ -38,6 +40,7 @@ const Sidebar = () => {
   const storeMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard' },
     { path: '/products', label: 'Produtos', icon: Package, key: 'products' },
+    { path: '/stock', label: 'Estoque', icon: Package2, key: 'stock' },
     { path: '/orders', label: 'Pedidos', icon: ShoppingCart, key: 'orders' },
     { path: '/customers', label: 'Clientes', icon: Users, key: 'customers' },
     { path: '/pos', label: 'PDV', icon: CreditCard, key: 'pos' },
@@ -52,6 +55,7 @@ const Sidebar = () => {
   const superAdminMenuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, key: 'dashboard' },
     { path: '/products', label: 'Produtos', icon: Package, key: 'products' },
+    { path: '/stock', label: 'Estoque', icon: Package2, key: 'stock' },
     { path: '/orders', label: 'Pedidos', icon: ShoppingCart, key: 'orders' },
     { path: '/customers', label: 'Clientes', icon: Users, key: 'customers' },
     { path: '/pos', label: 'PDV', icon: CreditCard, key: 'pos' },

@@ -26,7 +26,7 @@ import Billing from '@/pages/Billing';
 import Settings from '@/pages/Settings';
 import Logs from '@/pages/Logs';
 import PdfTemplates from '@/pages/PdfTemplates';
-import Changelog from '@/pages/Changelog';
+import Stock from '@/pages/Stock';
 import NotFound from '@/pages/NotFound';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
@@ -97,9 +97,9 @@ function App() {
                       <DashboardLayout><Reports /></DashboardLayout>
                     </ProtectedRoute>
                   } />
-                  <Route path="/changelog" element={
+                  <Route path="/stock" element={
                     <ProtectedRoute>
-                      <DashboardLayout><Changelog /></DashboardLayout>
+                      <DashboardLayout><Stock /></DashboardLayout>
                     </ProtectedRoute>
                   } />
                   

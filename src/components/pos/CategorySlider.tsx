@@ -1,11 +1,10 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface CategorySliderProps {
   categories: string[];
-  selectedCategory: string | null;
+  selectedCategory: string;
   onCategoryChange: (category: string) => void;
 }
 
