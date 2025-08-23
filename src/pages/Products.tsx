@@ -22,6 +22,7 @@ const Products = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [reviewStatusById, setReviewStatusById] = useState<Record<number, 'review' | 'normal' | null>>({});
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
@@ -39,14 +40,12 @@ const Products = () => {
     return Math.max(0, qty);
   };
 
-  // Filtros combinados (busca + estoque)
   const filteredProducts = useMemo(() => {
     let filtered = products.filter((product) =>
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Aplicar filtro de estoque - ajustado conforme solicitado
     if (stockFilter !== 'all') {
       filtered = filtered.filter((product) => {
         const totalStock = getTotalStock(product);
@@ -54,11 +53,11 @@ const Products = () => {
 
         switch (stockFilter) {
           case 'stock-ok':
-            return totalStock > 5; // Estoque OK: mais de 5 peças
+            return totalStock > 5;
           case 'low-stock':
-            return totalStock > 0 && totalStock <= 5; // Estoque baixo: 1 a 5 peças
+            return totalStock > 0 && totalStock <= 5;
           case 'out-of-stock':
-            return totalStock === 0; // Sem estoque: 0 peças (mesmo com variações)
+            return totalStock === 0;
           default:
             return true;
         }
@@ -68,7 +67,6 @@ const Products = () => {
     return filtered;
   }, [products, searchTerm, stockFilter]);
 
-  // Contadores para os filtros - ajustados
   const stockCounts = useMemo(() => {
     const counts = {
       all: products.length,
@@ -114,44 +112,35 @@ const Products = () => {
     return { label: 'Estoque OK', color: 'default' };
   };
 
+  const getReviewBgClass = (status: 'review' | 'normal' | null | undefined) => {
+    if (status === 'review') return 'bg-yellow-50';
+    if (status === 'normal') return 'bg-green-50';
+    return '';
+  };
+
   const handleBulkAction = (action: string) => {
     console.log(`Ação em massa: ${action}`);
-    
-    // Simular a implementação das ações em massa
-    // Em uma implementação real, isso faria chamadas para a API
-    switch (action) {
-      case 'review_all':
-        console.log('Colocando todos os produtos em revisão');
-        // Aqui você aplicaria o status 'review' a todos os produtos filtrados
-        filteredProducts.forEach(product => {
-          console.log(`Produto ${product.id} marcado para revisão`);
-          // product.review_status = 'review'; // Implementação real
-        });
-        break;
-      case 'normal_all':
-        console.log('Marcando todos os produtos como não alterar');
-        // Aqui você aplicaria o status 'normal' a todos os produtos filtrados
-        filteredProducts.forEach(product => {
-          console.log(`Produto ${product.id} marcado como não alterar`);
-          // product.review_status = 'normal'; // Implementação real
-        });
-        break;
-      case 'remove_review_all':
-        console.log('Removendo revisão de todos os produtos');
-        // Aqui você aplicaria o status 'remove_review' a todos os produtos filtrados
-        filteredProducts.forEach(product => {
-          console.log(`Revisão removida do produto ${product.id}`);
-          // product.review_status = 'remove_review'; // Implementação real
-        });
-        break;
-      case 'export_selected':
-        console.log('Exportando produtos selecionados');
-        // Implementar exportação
-        break;
+
+    if (action === 'review_all') {
+      const map: Record<number, 'review'> = {};
+      products.forEach(p => { map[p.id] = 'review'; });
+      setReviewStatusById(map);
+      return;
     }
-    
-    // Em uma implementação real, você faria uma chamada para atualizar os produtos
-    // e depois atualizaria o estado local ou recarregaria os dados
+
+    if (action === 'normal_all') {
+      const map: Record<number, 'normal'> = {};
+      products.forEach(p => { map[p.id] = 'normal'; });
+      setReviewStatusById(map);
+      return;
+    }
+
+    if (action === 'remove_review_all') {
+      setReviewStatusById({});
+      return;
+    }
+
+    console.log('Ação não suportada:', action);
   };
 
   if (orgLoading) {
@@ -287,27 +276,37 @@ const Products = () => {
       {/* Conteúdo baseado no modo de visualização */}
       {viewMode === 'list' ? (
         <div className="space-y-2">
-          {filteredProducts.map((product) => (
-            <StockRow
-              key={product.id}
-              product={product}
-              isExpanded={expandedProducts.has(product.id)}
-              onToggleExpand={() => toggleProductExpansion(product.id)}
-              getTotalStock={getTotalStock}
-              getStockStatus={getStockStatus}
-              rightExtra={<ProductPriceInfo product={product} />}
-            />
-          ))}
+          {filteredProducts.map((product) => {
+            const status = reviewStatusById[product.id] ?? null;
+            const bgClass = getReviewBgClass(status);
+            const productWithReview = { ...product, review_status: status };
+            return (
+              <div key={product.id} className={bgClass}>
+                <StockRow
+                  product={productWithReview}
+                  isExpanded={expandedProducts.has(product.id)}
+                  onToggleExpand={() => toggleProductExpansion(product.id)}
+                  getTotalStock={getTotalStock}
+                  getStockStatus={getStockStatus}
+                  rightExtra={<ProductPriceInfo product={productWithReview} />}
+                />
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3">
-          {filteredProducts.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              viewMode={viewMode}
-            />
-          ))}
+          {filteredProducts.map((product) => {
+            const status = reviewStatusById[product.id] ?? null;
+            const productWithReview = { ...product, review_status: status };
+            return (
+              <ProductCard
+                key={product.id}
+                product={productWithReview}
+                viewMode={viewMode}
+              />
+            );
+          })}
         </div>
       )}
 

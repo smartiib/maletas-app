@@ -6,7 +6,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
+  // DropdownMenuSeparator, // removido pois não haverá mais a opção de exportar
 } from '@/components/ui/dropdown-menu';
 import { ChevronDown, AlertTriangle, Eye, X, CheckSquare } from 'lucide-react';
 
@@ -41,10 +41,13 @@ const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({
           <X className="w-4 h-4 mr-2 text-red-600" />
           Remover Revisão de Todos
         </DropdownMenuItem>
+        {/*
+        Removidos:
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onBulkAction('export_selected')}>
           Exportar Selecionados
         </DropdownMenuItem>
+        */}
       </DropdownMenuContent>
     </DropdownMenu>
   );
