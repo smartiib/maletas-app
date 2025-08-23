@@ -15,7 +15,6 @@ import FloatingCartButton from "@/components/pos/FloatingCartButton";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SyncHeader from "@/components/sync/SyncHeader";
-import { formatBRL } from "@/utils/currency";
 
 interface CartItem {
   id: number;
@@ -34,6 +33,13 @@ const POS = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [savedCarts, setSavedCarts] = useState<Array<{
+    id: string;
+    name: string;
+    items: CartItem[];
+    savedAt: Date;
+  }>>([]);
+  const [showSavedCarts, setShowSavedCarts] = useState(false);
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
@@ -42,7 +48,6 @@ const POS = () => {
   const isMobile = useIsMobile();
 
   const filteredProducts = useMemo(() => {
-    // Converte o que está em selectedCategory (nome ou id em string) para id numérico
     const selectedCategoryId =
       selectedCategory
         ? (isNaN(Number(selectedCategory))
@@ -62,7 +67,6 @@ const POS = () => {
       return matchesSearch && matchesCategory;
     });
 
-    // Ordenar por nome
     return filtered.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [products, searchTerm, selectedCategory, categories]);
 
@@ -117,6 +121,7 @@ const POS = () => {
     setCart(prevCart => prevCart.filter(item => 
       !(item.id === id && item.variation_id === variationId)
     ));
+    toast.success("Item removido do carrinho!");
   };
 
   const updateItemDiscount = (id: number, discount: { type: 'percentage' | 'fixed'; value: number }, variationId?: number) => {
@@ -142,6 +147,7 @@ const POS = () => {
 
   const clearCart = () => {
     setCart([]);
+    toast.success("Carrinho limpo!");
   };
 
   const getTotalItems = () => {
@@ -153,17 +159,51 @@ const POS = () => {
   };
 
   const saveCart = () => {
-    // TODO: Implement save cart functionality
+    if (cart.length === 0) {
+      toast.error("Carrinho vazio!");
+      return;
+    }
+    
+    const cartName = `Carrinho ${new Date().toLocaleString('pt-BR')}`;
+    const newSavedCart = {
+      id: Date.now().toString(),
+      name: cartName,
+      items: [...cart],
+      savedAt: new Date()
+    };
+    
+    setSavedCarts(prev => [...prev, newSavedCart]);
     toast.success("Carrinho salvo!");
   };
 
+  const onShowSavedCarts = () => {
+    setShowSavedCarts(!showSavedCarts);
+  };
+
+  const onLoadCart = (savedCart: any) => {
+    setCart(savedCart.items);
+    setShowSavedCarts(false);
+    toast.success(`Carrinho "${savedCart.name}" carregado!`);
+  };
+
+  const onDeleteSavedCart = (cartId: string) => {
+    setSavedCarts(prev => prev.filter(cart => cart.id !== cartId));
+    toast.success("Carrinho salvo removido!");
+  };
+
   const onCheckout = () => {
-    // TODO: Implement checkout functionality
+    if (cart.length === 0) {
+      toast.error("Carrinho vazio!");
+      return;
+    }
     toast.success("Redirecionando para checkout...");
   };
 
   const onCreateMaleta = () => {
-    // TODO: Implement create maleta functionality
+    if (cart.length === 0) {
+      toast.error("Carrinho vazio!");
+      return;
+    }
     toast.success("Criando maleta...");
   };
 
@@ -386,6 +426,12 @@ const POS = () => {
         onCreateMaleta={onCreateMaleta}
         clearCart={clearCart}
         saveCart={saveCart}
+        onShowSavedCarts={onShowSavedCarts}
+        savedCartsCount={savedCarts.length}
+        showSavedCarts={showSavedCarts}
+        savedCarts={savedCarts}
+        onLoadCart={onLoadCart}
+        onDeleteSavedCart={onDeleteSavedCart}
       />
 
       {/* Floating Cart Button (Mobile) */}
