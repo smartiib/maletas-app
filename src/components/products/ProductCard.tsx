@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal, AlertTriangle, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -75,8 +74,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     switch (reviewStatus) {
       case 'review': return 'bg-yellow-50 border-yellow-200';
       case 'normal': return 'bg-green-50 border-green-200';
-      case 'remove_review': return '';
-      default: return '';
+      case 'remove_review': return 'bg-white border-border';
+      default: return 'bg-white border-border';
     }
   };
 
