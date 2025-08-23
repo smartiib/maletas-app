@@ -35,7 +35,7 @@ const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onBulkAction('normal_all')}>
           <Eye className="w-4 h-4 mr-2 text-green-600" />
-          Marcar Todos como Normais
+          Marcar Todos como Não Alterar
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onBulkAction('remove_review_all')}>
           <X className="w-4 h-4 mr-2 text-red-600" />

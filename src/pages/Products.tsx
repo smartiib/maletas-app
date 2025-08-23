@@ -116,26 +116,47 @@ const Products = () => {
 
   const handleBulkAction = (action: string) => {
     console.log(`Ação em massa: ${action}`);
-    // Implementar lógica das ações em massa aqui
+    
+    // Simular a implementação das ações em massa
+    // Em uma implementação real, isso faria chamadas para a API
     switch (action) {
       case 'review_all':
         console.log('Colocando todos os produtos em revisão');
+        // Aqui você aplicaria o status 'review' a todos os produtos filtrados
+        filteredProducts.forEach(product => {
+          console.log(`Produto ${product.id} marcado para revisão`);
+          // product.review_status = 'review'; // Implementação real
+        });
         break;
       case 'normal_all':
-        console.log('Marcando todos os produtos como normais');
+        console.log('Marcando todos os produtos como não alterar');
+        // Aqui você aplicaria o status 'normal' a todos os produtos filtrados
+        filteredProducts.forEach(product => {
+          console.log(`Produto ${product.id} marcado como não alterar`);
+          // product.review_status = 'normal'; // Implementação real
+        });
         break;
       case 'remove_review_all':
         console.log('Removendo revisão de todos os produtos');
+        // Aqui você aplicaria o status 'remove_review' a todos os produtos filtrados
+        filteredProducts.forEach(product => {
+          console.log(`Revisão removida do produto ${product.id}`);
+          // product.review_status = 'remove_review'; // Implementação real
+        });
         break;
       case 'export_selected':
         console.log('Exportando produtos selecionados');
+        // Implementar exportação
         break;
     }
+    
+    // Em uma implementação real, você faria uma chamada para atualizar os produtos
+    // e depois atualizaria o estado local ou recarregaria os dados
   };
 
   if (orgLoading) {
     return (
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
