@@ -123,19 +123,19 @@ const Products = () => {
 
     if (action === 'review_all') {
       const map: Record<number, 'review'> = {};
-      products.forEach(p => { map[p.id] = 'review'; });
+      filteredProducts.forEach(p => { map[p.id] = 'review'; });
       setReviewStatusById(map);
       return;
     }
 
     if (action === 'normal_all') {
       const map: Record<number, 'normal'> = {};
-      products.forEach(p => { map[p.id] = 'normal'; });
+      filteredProducts.forEach(p => { map[p.id] = 'normal'; });
       setReviewStatusById(map);
       return;
     }
 
-    if (action === 'remove_review_all') {
+    if (action === 'clear_all') {
       setReviewStatusById({});
       return;
     }

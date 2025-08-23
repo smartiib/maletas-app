@@ -6,9 +6,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  // DropdownMenuSeparator, // removido pois não haverá mais a opção de exportar
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, AlertTriangle, Eye, X, CheckSquare } from 'lucide-react';
+import { ChevronDown, AlertTriangle, Eye, X, CheckSquare, Eraser } from 'lucide-react';
 
 interface ProductBulkActionsProps {
   onBulkAction: (action: string) => void;
@@ -37,17 +37,11 @@ const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({
           <Eye className="w-4 h-4 mr-2 text-green-600" />
           Marcar Todos como Não Alterar
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onBulkAction('remove_review_all')}>
-          <X className="w-4 h-4 mr-2 text-red-600" />
-          Remover Revisão de Todos
-        </DropdownMenuItem>
-        {/*
-        Removidos:
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onBulkAction('export_selected')}>
-          Exportar Selecionados
+        <DropdownMenuItem onClick={() => onBulkAction('clear_all')}>
+          <Eraser className="w-4 h-4 mr-2 text-gray-600" />
+          Remover Todas as Marcações
         </DropdownMenuItem>
-        */}
       </DropdownMenuContent>
     </DropdownMenu>
   );
