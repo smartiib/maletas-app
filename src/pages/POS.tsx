@@ -1,3 +1,4 @@
+
 import { useState, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ import FloatingCartButton from "@/components/pos/FloatingCartButton";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import SyncHeader from "@/components/sync/SyncHeader";
+import VariationSelectorDialog from "@/components/pos/VariationSelectorDialog";
 
 interface CartItem {
   id: number;
@@ -40,6 +42,7 @@ const POS = () => {
     savedAt: Date;
   }>>([]);
   const [showSavedCarts, setShowSavedCarts] = useState(false);
+  const [variationProduct, setVariationProduct] = useState<any | null>(null);
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
@@ -101,6 +104,7 @@ const POS = () => {
 
     const displayName = variationName ? `${product.name} - ${variationName}` : product.name;
     toast.success(`${displayName} adicionado ao carrinho!`);
+    setIsCartOpen(true);
   };
 
   const updateQuantity = (id: number, quantity: number, variationId?: number) => {
@@ -220,6 +224,14 @@ const POS = () => {
     return stock <= 0;
   };
 
+  const onProductClick = (product: any) => {
+    if (product?.type === "variable" && Array.isArray(product?.variations) && product.variations.length > 0) {
+      setVariationProduct(product);
+      return;
+    }
+    addToCart(product);
+  };
+
   if (orgLoading || productsLoading || categoriesLoading) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -324,7 +336,11 @@ const POS = () => {
       {/* Products Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {filteredProducts.map((product) => (
-          <Card key={product.id} className="overflow-hidden hover:shadow-md transition-shadow">
+          <Card
+            key={product.id}
+            className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => onProductClick(product)}
+          >
             <div className="aspect-square relative bg-muted">
               {product.images?.[0]?.src ? (
                 <img
@@ -367,34 +383,6 @@ const POS = () => {
                     )}
                   </div>
                 </div>
-
-                {product.type === 'variable' && product.variations ? (
-                  <div className="space-y-2">
-                    {product.variations.map((variation: any) => {
-                      const isVariationOutOfStock = isOutOfStock(product, variation.id);
-                      return (
-                        <Button
-                          key={variation.id}
-                          size="sm"
-                          className="w-full text-xs"
-                          disabled={isVariationOutOfStock}
-                          onClick={() => addToCart(product, variation.id, variation.attributes?.map((attr: any) => attr.option).join(', '))}
-                        >
-                          {isVariationOutOfStock ? 'Sem Estoque' : `Adicionar ${variation.attributes?.map((attr: any) => attr.option).join(', ')}`}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="w-full"
-                    disabled={isOutOfStock(product)}
-                    onClick={() => addToCart(product)}
-                  >
-                    {isOutOfStock(product) ? 'Sem Estoque' : 'Adicionar ao Carrinho'}
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -455,6 +443,19 @@ const POS = () => {
             Carrinho ({getTotalItems()})
           </Button>
         </div>
+      )}
+
+      {/* Variation Selector */}
+      {variationProduct && (
+        <VariationSelectorDialog
+          open={!!variationProduct}
+          product={variationProduct}
+          onClose={() => setVariationProduct(null)}
+          onSelect={(variationId, variationName) => {
+            addToCart(variationProduct, variationId, variationName);
+            setVariationProduct(null);
+          }}
+        />
       )}
     </div>
   );
