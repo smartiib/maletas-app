@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -120,53 +121,6 @@ async function fetchProducts(
   } catch (error) {
     logger.error("Error fetching products from WooCommerce:", error);
     return [];
-  }
-}
-
-/**
- * Upserts products into the Supabase database.
- * @param {any[]} products - Array of products to upsert.
- * @param {string | null} organizationId - Organization ID to associate with the products.
- */
-async function upsertProducts(products: any[], organizationId: string | null) {
-  if (!products || products.length === 0) {
-    logger.log("No products to upsert.");
-    return;
-  }
-
-  const productsToUpsert = products.map((product: any) => ({
-    id: product.id,
-    name: product.name,
-    sku: product.sku,
-    type: product.type,
-    status: product.status,
-    description: product.description,
-    short_description: product.short_description,
-    permalink: product.permalink,
-    price: product.price,
-    regular_price: product.regular_price,
-    sale_price: product.sale_price,
-    on_sale: product.on_sale,
-    featured: product.featured,
-    catalog_visibility: product.catalog_visibility,
-    date_created: product.date_created,
-    date_modified: product.date_modified,
-    images: product.images,
-    variations: product.variations,
-    organization_id: organizationId,
-    stock_quantity: product.stock_quantity,
-    stock_status: product.stock_status,
-  }));
-
-  const { data, error } = await supabase
-    .from("wc_products")
-    .upsert(productsToUpsert, { onConflict: "id" })
-    .select();
-
-  if (error) {
-    logger.error("Error upserting products into Supabase:", error);
-  } else {
-    logger.log(`Successfully upserted ${products.length} products.`);
   }
 }
 
@@ -308,7 +262,7 @@ async function upsertVariations(
 }
 
 /**
- * Sincroniza variações para um produto variável
+ * Sincroniza variações para um produto variável - VERSÃO MELHORADA
  */
 async function syncVariationsForProduct(opts: {
   wcBaseUrl: string;
@@ -316,10 +270,43 @@ async function syncVariationsForProduct(opts: {
   consumerSecret: string;
   productId: number;
   organizationId?: string | null;
+  variationIds?: number[];
 }) {
-  const { wcBaseUrl, consumerKey, consumerSecret, productId, organizationId } =
-    opts;
+  const { wcBaseUrl, consumerKey, consumerSecret, productId, organizationId, variationIds } = opts;
 
+  logger.log(`[wc-sync] Sincronizando variações para produto ${productId}`);
+
+  // Se temos IDs específicos, buscar só essas variações
+  if (variationIds && variationIds.length > 0) {
+    const variations = [];
+    
+    for (const variationId of variationIds) {
+      try {
+        const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products/${productId}/variations/${variationId}`);
+        url.searchParams.set("consumer_key", consumerKey);
+        url.searchParams.set("consumer_secret", consumerSecret);
+
+        const response = await fetch(url.toString());
+        if (response.ok) {
+          const variation = await response.json();
+          variations.push(variation);
+          logger.log(`[wc-sync] Variação ${variationId} buscada com sucesso`);
+        } else {
+          logger.warn(`[wc-sync] Erro ao buscar variação ${variationId}: ${response.status}`);
+        }
+      } catch (error) {
+        logger.error(`[wc-sync] Erro ao buscar variação ${variationId}:`, error);
+      }
+    }
+
+    if (variations.length > 0) {
+      await upsertVariations(variations, organizationId ?? null);
+      logger.log(`[wc-sync] ${variations.length} variações específicas sincronizadas para produto ${productId}`);
+    }
+    return;
+  }
+
+  // Senão, buscar todas as variações do produto
   const variations = await fetchProductVariations({
     wcBaseUrl,
     consumerKey,
@@ -328,11 +315,12 @@ async function syncVariationsForProduct(opts: {
   });
 
   if (!variations || variations.length === 0) {
-    console.log("[wc-sync] Produto variável sem variações no Woo", { productId });
+    logger.log(`[wc-sync] Produto variável ${productId} sem variações no WooCommerce`);
     return;
   }
 
   await upsertVariations(variations, organizationId ?? null);
+  logger.log(`[wc-sync] ${variations.length} variações sincronizadas para produto ${productId}`);
 }
 
 /**
@@ -392,92 +380,73 @@ async function syncProducts(
   logger.log(`Total products fetched from WooCommerce: ${allProducts.length}`);
 
   for (const product of allProducts) {
-    // Attach WooCommerce credentials to the product object
-    product.__wcBaseUrl = wcBaseUrl;
-    product.__consumerKey = consumerKey;
-    product.__consumerSecret = consumerSecret;
+    try {
+      // upsert do produto em wc_products
+      const { data, error } = await supabase
+        .from("wc_products")
+        .upsert(
+          [
+            {
+              id: product.id,
+              name: product.name,
+              sku: product.sku,
+              type: product.type,
+              status: product.status,
+              description: product.description,
+              short_description: product.short_description,
+              permalink: product.permalink,
+              price: product.price,
+              regular_price: product.regular_price,
+              sale_price: product.sale_price,
+              on_sale: product.on_sale,
+              featured: product.featured,
+              catalog_visibility: product.catalog_visibility,
+              date_created: product.date_created,
+              date_modified: product.date_modified,
+              images: product.images,
+              variations: product.variations,
+              organization_id: organizationId,
+              stock_quantity: product.stock_quantity,
+              stock_status: product.stock_status,
+            },
+          ],
+          { onConflict: "id" },
+        )
+        .select();
 
-    // upsert do produto em wc_products
-    const { data, error } = await supabase
-      .from("wc_products")
-      .upsert(
-        [
-          {
-            id: product.id,
-            name: product.name,
-            sku: product.sku,
-            type: product.type,
-            status: product.status,
-            description: product.description,
-            short_description: product.short_description,
-            permalink: product.permalink,
-            price: product.price,
-            regular_price: product.regular_price,
-            sale_price: product.sale_price,
-            on_sale: product.on_sale,
-            featured: product.featured,
-            catalog_visibility: product.catalog_visibility,
-            date_created: product.date_created,
-            date_modified: product.date_modified,
-            images: product.images,
-            variations: product.variations,
-            organization_id: organizationId,
-            stock_quantity: product.stock_quantity,
-            stock_status: product.stock_status,
-          },
-        ],
-        { onConflict: "id" },
-      )
-      .select();
+      if (error) {
+        logger.error(`Error upserting product ${product.id}:`, error);
+        continue;
+      }
 
-    if (error) {
-      logger.error("Error upserting products into Supabase:", error);
-    } else {
       logger.log(`Successfully upserted product ${product.id}.`);
-    }
 
-    // Passe a organizationId já determinada no arquivo
-    await afterProductUpsertHook(product, organizationId);
+      // SINCRONIZAR VARIAÇÕES IMEDIATAMENTE APÓS SALVAR O PRODUTO
+      if (product && product.type === "variable" && Array.isArray(product.variations) && product.variations.length > 0) {
+        logger.log(`[wc-sync] Produto ${product.id} é variável com ${product.variations.length} variações`);
+        
+        // Extrair IDs das variações
+        const variationIds = product.variations
+          .map((v: any) => typeof v === 'object' && v?.id ? Number(v.id) : Number(v))
+          .filter((id: any) => typeof id === 'number' && !Number.isNaN(id));
+
+        if (variationIds.length > 0) {
+          await syncVariationsForProduct({
+            wcBaseUrl,
+            consumerKey,
+            consumerSecret,
+            productId: Number(product.id),
+            organizationId: organizationId,
+            variationIds: variationIds,
+          });
+        }
+      }
+    } catch (err) {
+      logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
+    }
   }
 
   logger.log("Product sync completed.");
-}
-
-/**
- * Integra a sync de variações dentro do fluxo de sync de produtos.
- * Chame esta função logo após upsert de cada produto variável.
- */
-async function afterProductUpsertHook(
-  product: any,
-  organizationId?: string | null,
-) {
-  try {
-    if (product && product.type === "variable") {
-      // Recupera credenciais existentes (mantém a mesma estratégia utilizada no arquivo)
-      const wcBaseUrl = (product.__wcBaseUrl ||
-        Deno.env.get("WC_BASE_URL") || "").toString();
-      const consumerKey = (product.__consumerKey ||
-        Deno.env.get("WC_CONSUMER_KEY") || "").toString();
-      const consumerSecret = (product.__consumerSecret ||
-        Deno.env.get("WC_CONSUMER_SECRET") || "").toString();
-
-      if (wcBaseUrl && consumerKey && consumerSecret) {
-        await syncVariationsForProduct({
-          wcBaseUrl,
-          consumerKey,
-          consumerSecret,
-          productId: Number(product.id),
-          organizationId: organizationId ?? null,
-        });
-      } else {
-        console.warn(
-          "[wc-sync] Credenciais WooCommerce ausentes para sync de variações",
-        );
-      }
-    }
-  } catch (err) {
-    console.error("[wc-sync] afterProductUpsertHook error:", err);
-  }
 }
 
 serve(async (req) => {

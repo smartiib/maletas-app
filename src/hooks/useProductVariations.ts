@@ -25,6 +25,8 @@ export const useProductVariations = (parentId?: number) => {
     queryFn: async (): Promise<DbVariation[]> => {
       if (!parentId) return [];
 
+      console.log('[useProductVariations] Buscando variações para produto:', parentId);
+
       // Base da query: sempre por parent_id
       let query = supabase
         .from('wc_product_variations')
@@ -47,10 +49,10 @@ export const useProductVariations = (parentId?: number) => {
         return [];
       }
 
-      console.log('[useProductVariations] Variações carregadas:', {
+      console.log('[useProductVariations] Variações encontradas:', {
         parentId,
         count: data?.length || 0,
-        sample: data?.[0],
+        variations: data,
       });
 
       return (data || []) as DbVariation[];
@@ -69,6 +71,8 @@ export const useProductVariationsByIds = (ids?: number[]) => {
     queryKey: ['wc-variations-by-ids', currentOrganization?.id ?? 'no-org', (ids || []).join(',')],
     queryFn: async (): Promise<DbVariation[]> => {
       if (!ids || ids.length === 0) return [];
+
+      console.log('[useProductVariationsByIds] Buscando variações por IDs:', ids);
 
       let query = supabase
         .from('wc_product_variations')
@@ -89,10 +93,10 @@ export const useProductVariationsByIds = (ids?: number[]) => {
         return [];
       }
 
-      console.log('[useProductVariationsByIds] Variações por IDs carregadas:', {
+      console.log('[useProductVariationsByIds] Variações por IDs encontradas:', {
         ids,
         count: data?.length || 0,
-        sample: data?.[0],
+        variations: data,
       });
 
       return (data || []) as DbVariation[];
