@@ -109,10 +109,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
-                <Badge className={getStatusColor(product.status)}>
+                <Badge className={getStatusColor(product.status)} size="sm">
                   {getStatusLabel(product.status)}
                 </Badge>
-                <Badge className={stockStatus.color}>
+                <Badge className={stockStatus.color} size="sm">
                   {stockStatus.text}
                 </Badge>
               </div>
