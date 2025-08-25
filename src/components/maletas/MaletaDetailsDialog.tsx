@@ -43,7 +43,7 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
     };
 
     const fetchProductImages = async () => {
-      if (maleta?.items) {
+      if (maleta?.items && Array.isArray(maleta.items) && maleta.items.length > 0) {
         try {
           const { wooCommerceAPI } = await import('@/services/woocommerce');
           const config = wooCommerceAPI.getConfig();
@@ -87,6 +87,9 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
   }, [maleta?.representative_id, maleta?.items]);
 
   if (!maleta) return null;
+
+  // Garantir que items seja sempre um array
+  const items = Array.isArray(maleta.items) ? maleta.items : [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -243,91 +246,100 @@ const MaletaDetailsDialog: React.FC<MaletaDetailsDialogProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Package className="w-5 h-5 text-primary" />
-              <h3 className="text-lg font-semibold">Produtos ({maleta.items.length} itens)</h3>
+              <h3 className="text-lg font-semibold">Produtos ({items.length} itens)</h3>
             </div>
             
-            <div className="border rounded-lg overflow-hidden overflow-x-auto">
-              <div className="bg-muted/30 p-3 grid grid-cols-12 gap-3 text-sm font-medium border-b min-w-[800px]">
-                <div className="col-span-1">IMG</div>
-                <div className="col-span-2">SKU</div>
-                <div className="col-span-4">Produto</div>
-                <div className="col-span-1">Qtd</div>
-                <div className="col-span-2">Valor Unit.</div>
-                <div className="col-span-2">Status</div>
-              </div>
-              
-              <div className="divide-y">
-                {maleta.items.map((item) => (
-                  <div key={item.id} className="p-3 grid grid-cols-12 gap-3 text-sm min-w-[800px]">
-                    <div className="col-span-1">
-                      {productImages[item.product_id] ? (
-                        <img 
-                          src={productImages[item.product_id]} 
-                          alt={item.name}
-                          className="w-10 h-10 object-cover rounded-lg"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-10 h-10 bg-muted rounded-lg flex items-center justify-center ${productImages[item.product_id] ? 'hidden' : ''}`}>
-                        <Image className="w-5 h-5 text-muted-foreground" />
+            {items.length > 0 ? (
+              <>
+                <div className="border rounded-lg overflow-hidden overflow-x-auto">
+                  <div className="bg-muted/30 p-3 grid grid-cols-12 gap-3 text-sm font-medium border-b min-w-[800px]">
+                    <div className="col-span-1">IMG</div>
+                    <div className="col-span-2">SKU</div>
+                    <div className="col-span-4">Produto</div>
+                    <div className="col-span-1">Qtd</div>
+                    <div className="col-span-2">Valor Unit.</div>
+                    <div className="col-span-2">Status</div>
+                  </div>
+                  
+                  <div className="divide-y">
+                    {items.map((item) => (
+                      <div key={item.id} className="p-3 grid grid-cols-12 gap-3 text-sm min-w-[800px]">
+                        <div className="col-span-1">
+                          {productImages[item.product_id] ? (
+                            <img 
+                              src={productImages[item.product_id]} 
+                              alt={item.name}
+                              className="w-10 h-10 object-cover rounded-lg"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                target.nextElementSibling?.classList.remove('hidden');
+                              }}
+                            />
+                          ) : null}
+                          <div className={`w-10 h-10 bg-muted rounded-lg flex items-center justify-center ${productImages[item.product_id] ? 'hidden' : ''}`}>
+                            <Image className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                        </div>
+                        <div className="col-span-2 font-mono text-xs">{item.sku}</div>
+                        <div className="col-span-4">
+                          <p className="font-medium">{item.name}</p>
+                          {item.variation_attributes && item.variation_attributes.length > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="col-span-1">{item.quantity}</div>
+                        <div className="col-span-2 font-medium">R$ {parseFloat(item.price).toFixed(2)}</div>
+                        <div className="col-span-2">
+                          <Badge 
+                            variant="outline" 
+                            className={
+                              item.status === 'sold' ? 'bg-success/10 text-success border-success/20' :
+                              item.status === 'returned' ? 'bg-muted text-muted-foreground border-border' :
+                              'bg-warning/10 text-warning border-warning/20'
+                            }
+                          >
+                            {item.status === 'sold' ? 'Vendido' : 
+                             item.status === 'returned' ? 'Devolvido' : 
+                             'Consignado'}
+                          </Badge>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total de Itens</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {items.reduce((sum, item) => sum + item.quantity, 0)}
+                      </p>
                     </div>
-                    <div className="col-span-2 font-mono text-xs">{item.sku}</div>
-                    <div className="col-span-4">
-                      <p className="font-medium">{item.name}</p>
-                      {item.variation_attributes && item.variation_attributes.length > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {item.variation_attributes.map(attr => `${attr.name}: ${attr.value}`).join(', ')}
-                        </p>
-                      )}
+                    <div>
+                      <p className="text-sm text-muted-foreground">Valor Total</p>
+                      <p className="text-2xl font-bold text-success">
+                        R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
+                      </p>
                     </div>
-                    <div className="col-span-1">{item.quantity}</div>
-                    <div className="col-span-2 font-medium">R$ {parseFloat(item.price).toFixed(2)}</div>
-                    <div className="col-span-2">
-                      <Badge 
-                        variant="outline" 
-                        className={
-                          item.status === 'sold' ? 'bg-success/10 text-success border-success/20' :
-                          item.status === 'returned' ? 'bg-muted text-muted-foreground border-border' :
-                          'bg-warning/10 text-warning border-warning/20'
-                        }
-                      >
-                        {item.status === 'sold' ? 'Vendido' : 
-                         item.status === 'returned' ? 'Devolvido' : 
-                         'Consignado'}
-                      </Badge>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Comissão Estimada</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {maleta.commission_percentage ? `${maleta.commission_percentage}%` : 'Global'}
+                      </p>
                     </div>
                   </div>
-                ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 bg-muted/20 rounded-lg">
+                <Package className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground">Nenhum produto encontrado nesta maleta</p>
               </div>
-            </div>
-
-            <div className="mt-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total de Itens</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {maleta.items.reduce((sum, item) => sum + item.quantity, 0)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Valor Total</p>
-                  <p className="text-2xl font-bold text-success">
-                    R$ {parseFloat(maleta.total_value || '0').toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Comissão Estimada</p>
-                  <p className="text-2xl font-bold text-orange-600">
-                    {maleta.commission_percentage ? `${maleta.commission_percentage}%` : 'Global'}
-                  </p>
-                </div>
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Configurações de Comissão */}
