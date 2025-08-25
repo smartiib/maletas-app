@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      changelog_items: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_featured: boolean | null
+          priority: number | null
+          release_date: string | null
+          status: string
+          tags: string[] | null
+          title: string
+          type: string
+          updated_at: string | null
+          version: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_featured?: boolean | null
+          priority?: number | null
+          release_date?: string | null
+          status?: string
+          tags?: string[] | null
+          title: string
+          type: string
+          updated_at?: string | null
+          version?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_featured?: boolean | null
+          priority?: number | null
+          release_date?: string | null
+          status?: string
+          tags?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string | null
+          version?: string | null
+        }
+        Relationships: []
+      }
       commission_tiers: {
         Row: {
           bonus: number | null
@@ -784,6 +832,36 @@ export type Database = {
           settings?: Json | null
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      product_review_status: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          product_id: number
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          product_id: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          product_id?: number
+          status?: string
+          updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

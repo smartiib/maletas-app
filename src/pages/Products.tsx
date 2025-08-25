@@ -16,8 +16,7 @@ import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
 import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
 import { Product } from "@/services/woocommerce";
-
-type ProductStatus = 'normal' | 'em-revisao' | 'nao-alterar';
+import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,12 +25,19 @@ const Products = () => {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
-  const [productStatuses, setProductStatuses] = useState<Record<number, ProductStatus>>({});
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('products');
+
+  const {
+    statuses: productStatuses,
+    loading: statusesLoading,
+    updateProductStatus,
+    bulkUpdateStatuses,
+    getProductStatus
+  } = useProductReviewStatus();
 
   const getTotalStock = (product: any) => {
     if (product.type === 'variable' && product.variations?.length > 0) {
@@ -45,48 +51,38 @@ const Products = () => {
   };
 
   const handleProductStatusChange = (productId: number, status: ProductStatus) => {
-    setProductStatuses(prev => ({
-      ...prev,
-      [productId]: status
-    }));
+    updateProductStatus(productId, status);
   };
 
   const handleBulkAction = (action: BulkAction) => {
-    const newStatuses = { ...productStatuses };
+    const productIds = filteredProducts.map(product => product.id);
 
     switch (action) {
       case 'mark-all-review':
-        filteredProducts.forEach(product => {
-          newStatuses[product.id] = 'em-revisao';
-        });
+        bulkUpdateStatuses(productIds, 'em-revisao');
         break;
       case 'mark-all-no-change':
-        filteredProducts.forEach(product => {
-          newStatuses[product.id] = 'nao-alterar';
-        });
+        bulkUpdateStatuses(productIds, 'nao-alterar');
         break;
       case 'remove-all-review':
-        filteredProducts.forEach(product => {
-          if (newStatuses[product.id] === 'em-revisao') {
-            newStatuses[product.id] = 'normal';
-          }
-        });
+        const reviewProductIds = productIds.filter(id => getProductStatus(id) === 'em-revisao');
+        if (reviewProductIds.length > 0) {
+          bulkUpdateStatuses(reviewProductIds, 'normal');
+        }
         break;
       case 'remove-all-no-change':
-        filteredProducts.forEach(product => {
-          if (newStatuses[product.id] === 'nao-alterar') {
-            newStatuses[product.id] = 'normal';
-          }
-        });
+        const noChangeProductIds = productIds.filter(id => getProductStatus(id) === 'nao-alterar');
+        if (noChangeProductIds.length > 0) {
+          bulkUpdateStatuses(noChangeProductIds, 'normal');
+        }
         break;
       case 'remove-all-marks':
-        filteredProducts.forEach(product => {
-          newStatuses[product.id] = 'normal';
-        });
+        const markedProductIds = productIds.filter(id => getProductStatus(id) !== 'normal');
+        if (markedProductIds.length > 0) {
+          bulkUpdateStatuses(markedProductIds, 'normal');
+        }
         break;
     }
-
-    setProductStatuses(newStatuses);
   };
 
   const handleCreateProduct = () => {
@@ -186,7 +182,7 @@ const Products = () => {
     return { label: 'Em Estoque', color: 'default' };
   };
 
-  if (orgLoading) {
+  if (orgLoading || (currentOrganization && statusesLoading)) {
     return (
       <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -328,7 +324,7 @@ const Products = () => {
               onEdit={handleEditProduct}
               onDelete={handleDeleteProduct}
               getTotalStock={getTotalStock}
-              productStatus={productStatuses[product.id] || 'normal'}
+              productStatus={getProductStatus(product.id)}
               onStatusChange={handleProductStatusChange}
             />
           ))}
