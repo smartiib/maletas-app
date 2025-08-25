@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (maleta && open) {
+    if (maleta && open && maleta.items) {
       setItemReturns(
         maleta.items.map(item => ({
           item_id: item.id,
@@ -97,6 +98,8 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
   };
 
   const getSoldItems = () => {
+    if (!maleta.items) return [];
+    
     return maleta.items
       .map(item => {
         const returnData = itemReturns.find(r => r.item_id === item.id);
@@ -116,6 +119,8 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
   };
 
   const getTotalSoldValue = () => {
+    if (!maleta.items) return 0;
+    
     return maleta.items.reduce((total, item) => {
       const returnData = itemReturns.find(r => r.item_id === item.id);
       if (returnData && returnData.quantity_sold > 0) {
@@ -186,6 +191,41 @@ const MaletaReturnDialog: React.FC<MaletaReturnDialogProps> = ({
   const delayDays = Math.max(0, Math.ceil(
     (new Date().getTime() - new Date(maleta.return_date).getTime()) / (1000 * 60 * 60 * 24)
   ));
+
+  // Early return if maleta.items is not available
+  if (!maleta.items || maleta.items.length === 0) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Package className="w-5 h-5" />
+              Processar Devolução - Maleta #{maleta.number}
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              Cliente: {maleta.customer_name || maleta.representative_name}
+            </p>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center justify-center py-8">
+            <Package className="w-16 h-16 text-muted-foreground mb-4" />
+            <p className="text-lg font-medium text-muted-foreground mb-2">Nenhum item encontrado</p>
+            <p className="text-sm text-muted-foreground">Esta maleta não possui itens para processar.</p>
+          </div>
+          
+          <div className="flex gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
