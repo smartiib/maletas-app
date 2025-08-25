@@ -146,6 +146,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           </div>
         )}
 
+        {/* Categoria */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
@@ -189,7 +190,10 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                   </FormControl>
                   <SelectContent>
                     {categories.map((category) => (
-                      <SelectItem key={category.id} value={String(category.id)}>
+                      <SelectItem
+                        key={category.id}
+                        value={String(category.id)}
+                      >
                         {category.name}
                       </SelectItem>
                     ))}
@@ -201,6 +205,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           />
         </div>
 
+        {/* Fornecedor e Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
