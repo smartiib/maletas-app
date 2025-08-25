@@ -11,9 +11,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Product } from '@/services/woocommerce';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
-import { useProductVariations } from '@/hooks/useProductVariations';
+import { useProductVariations, useProductVariationsByIds, DbVariation } from '@/hooks/useProductVariations';
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
+import VariationStockEditor from './VariationStockEditor';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -40,13 +41,50 @@ interface ProductFormProps {
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading }) => {
   const { data: suppliers = [] } = useSuppliers();
   const { data: categories = [] } = useWooCommerceFilteredCategories();
-  const { data: variations = [] } = useProductVariations(
-    product?.type === 'variable' ? product.id : undefined
+
+  // ---- Carregamento consistente de variações (parent + fallback por IDs) ----
+  const hasVariations = product?.type === 'variable' && Array.isArray((product as any)?.variations) && (product as any).variations.length > 0;
+
+  const variationIds = React.useMemo<number[]>(() => {
+    if (!hasVariations) return [];
+    return ((product as any).variations || [])
+      .map((v: any) => (typeof v === 'object' && v?.id ? Number(v.id) : Number(v)))
+      .filter((id: any) => typeof id === 'number' && !Number.isNaN(id));
+  }, [hasVariations, product]);
+
+  const { data: variationsByParent = [] } = useProductVariations(
+    hasVariations ? Number(product?.id) : undefined
   );
-  
+
+  const missingIds = React.useMemo(() => {
+    if (!hasVariations) return [];
+    if (!variationsByParent?.length) return variationIds;
+    const fetched = new Set<number>(variationsByParent.map(v => Number(v.id)));
+    return variationIds.filter(id => !fetched.has(id));
+  }, [hasVariations, variationIds, variationsByParent]);
+
+  const { data: variationsByIds = [] } = useProductVariationsByIds(
+    missingIds.length > 0 ? missingIds : undefined
+  );
+
+  const effectiveVariations: DbVariation[] = React.useMemo(() => {
+    const map = new Map<number, DbVariation>();
+    (variationsByParent || []).forEach(v => map.set(Number(v.id), v));
+    (variationsByIds || []).forEach(v => map.set(Number(v.id), v));
+    const arr = Array.from(map.values());
+    console.log('[ProductForm] effectiveVariations:', {
+      productId: product?.id,
+      variationIds,
+      parentCount: variationsByParent?.length || 0,
+      byIdsCount: variationsByIds?.length || 0,
+      finalCount: arr.length,
+    });
+    return arr;
+  }, [variationsByParent, variationsByIds, variationIds, product?.id]);
+
   console.log('ProductForm - Received product data:', product);
   console.log('ProductForm - Categories:', categories);
-  console.log('ProductForm - Variations:', variations);
+  console.log('ProductForm - Variations:', effectiveVariations);
   
   // Helper function to safely convert values
   const getDefaultValue = (value: any, fallback: any = '') => {
@@ -55,35 +93,27 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
 
   const getSupplierIdFromProduct = () => {
     if (!product) return '';
-    
-    // Try to get supplier_id from meta_data
     const supplierMeta = (product as any)?.meta_data?.find((meta: any) => meta.key === 'supplier_id');
     if (supplierMeta?.value) {
       return String(supplierMeta.value);
     }
-    
-    // Try direct property
     if ((product as any)?.supplier_id) {
       return String((product as any).supplier_id);
     }
-    
     return '';
   };
 
   const getCategoryIdFromProduct = () => {
     if (!product) return '';
-    
-    // Get first category from categories array
-    if (product.categories && product.categories.length > 0) {
-      return String(product.categories[0].id);
+    if ((product as any).categories && (product as any).categories.length > 0) {
+      return String((product as any).categories[0].id);
     }
-    
     return '';
   };
 
   const getProductImage = () => {
-    if (!product?.images || product.images.length === 0) return null;
-    return product.images[0];
+    if (!(product as any)?.images || (product as any).images.length === 0) return null;
+    return (product as any).images[0];
   };
   
   const form = useForm<ProductFormData>({
@@ -91,13 +121,13 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
     defaultValues: {
       name: getDefaultValue(product?.name),
       sku: getDefaultValue(product?.sku),
-      regular_price: getDefaultValue(product?.regular_price || product?.price),
-      sale_price: getDefaultValue(product?.sale_price),
-      stock_quantity: typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0,
-      status: (product?.status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
+      regular_price: getDefaultValue((product as any)?.regular_price || (product as any)?.price),
+      sale_price: getDefaultValue((product as any)?.sale_price),
+      stock_quantity: typeof (product as any)?.stock_quantity === 'number' ? (product as any).stock_quantity : Number((product as any)?.stock_quantity) || 0,
+      status: ((product as any)?.status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
       description: getDefaultValue(product?.description),
-      short_description: getDefaultValue(product?.short_description),
-      stock_status: (product?.stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
+      short_description: getDefaultValue((product as any)?.short_description),
+      stock_status: ((product as any)?.stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
       supplier_id: getSupplierIdFromProduct(),
       category_id: getCategoryIdFromProduct(),
     },
@@ -106,17 +136,16 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
   React.useEffect(() => {
     if (product) {
       console.log('ProductForm - Updating form values with product:', product);
-      
       form.reset({
         name: getDefaultValue(product.name),
         sku: getDefaultValue(product.sku),
-        regular_price: getDefaultValue(product.regular_price || product.price),
-        sale_price: getDefaultValue(product.sale_price),
-        stock_quantity: typeof product.stock_quantity === 'number' ? product.stock_quantity : Number(product.stock_quantity) || 0,
-        status: (product.status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
+        regular_price: getDefaultValue((product as any).regular_price || (product as any).price),
+        sale_price: getDefaultValue((product as any).sale_price),
+        stock_quantity: typeof (product as any).stock_quantity === 'number' ? (product as any).stock_quantity : Number((product as any).stock_quantity) || 0,
+        status: ((product as any).status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
         description: getDefaultValue(product.description),
-        short_description: getDefaultValue(product.short_description),
-        stock_status: (product.stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
+        short_description: getDefaultValue((product as any).short_description),
+        stock_status: ((product as any).stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
         supplier_id: getSupplierIdFromProduct(),
         category_id: getCategoryIdFromProduct(),
       });
@@ -138,8 +167,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           <div className="flex justify-center">
             <div className="relative w-32 h-32 bg-muted rounded-lg overflow-hidden">
               <img 
-                src={productImage.src} 
-                alt={productImage.alt || product?.name}
+                src={(productImage as any).src}
+                alt={(productImage as any).alt || (product as any)?.name}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -335,27 +364,36 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
         </div>
 
         {/* Variations Section */}
-        {product?.type === 'variable' && variations.length > 0 && (
+        {hasVariations && effectiveVariations.length > 0 && (
           <div className="space-y-4">
             <div>
               <Label className="text-base font-semibold">Variações do Produto</Label>
               <p className="text-sm text-muted-foreground">
-                Este produto possui {variations.length} variações
+                Este produto possui {effectiveVariations.length} variações
               </p>
             </div>
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {variations.map((variation) => {
+              {effectiveVariations.map((variation) => {
                 const attributes = variation.attributes ? 
                   (Array.isArray(variation.attributes) ? variation.attributes : 
                    (typeof variation.attributes === 'string' ? 
-                    JSON.parse(variation.attributes) : [])) : [];
+                    (() => { try { return JSON.parse(variation.attributes as any); } catch { return []; } })() : [])) : [];
                 
+                const imageSrc = (() => {
+                  const img: any = (variation as any).image;
+                  if (!img) return '';
+                  if (typeof img === 'string') return img;
+                  if (typeof img === 'number') return String(img);
+                  if (typeof img === 'object' && img?.src) return String(img.src);
+                  return '';
+                })();
+
                 return (
                   <div key={variation.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                     <div className="flex items-center gap-3">
-                      {variation.image ? (
+                      {imageSrc ? (
                         <img 
-                          src={variation.image.src || variation.image} 
+                          src={imageSrc}
                           alt="Variação"
                           className="w-12 h-12 object-cover rounded"
                         />
@@ -377,7 +415,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline">
-                        {variation.stock_quantity || 0} un.
+                        {Number(variation.stock_quantity || 0)} un.
                       </Badge>
                       <Badge variant="secondary">
                         R$ {parseFloat(String(variation.price ?? variation.regular_price ?? '0')).toFixed(2)}
@@ -387,6 +425,12 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                 );
               })}
             </div>
+
+            {/* Editor de estoque das variações (novo) */}
+            <VariationStockEditor
+              product={product as any}
+              variations={effectiveVariations}
+            />
           </div>
         )}
 

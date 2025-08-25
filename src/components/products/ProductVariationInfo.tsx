@@ -1,9 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useProductVariations } from '@/hooks/useProductVariations';
+import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface ProductVariationInfoProps {
   product: any;
@@ -15,9 +15,37 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
   getTotalStock
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const { data: dbVariations = [] } = useProductVariations(
-    product.type === 'variable' ? product.id : undefined
+
+  const hasVariations = product.type === 'variable' && product.variations?.length;
+  const variationIds = useMemo<number[]>(() => {
+    if (!hasVariations) return [];
+    return (product.variations || [])
+      .map((v: any) => (typeof v === 'object' && v?.id ? Number(v.id) : Number(v)))
+      .filter((id: any) => typeof id === 'number' && !Number.isNaN(id));
+  }, [hasVariations, product.variations]);
+
+  const { data: dbVariationsParent = [] } = useProductVariations(
+    hasVariations ? product.id : undefined
   );
+
+  const missingIds = useMemo(() => {
+    if (!hasVariations || !dbVariationsParent?.length) {
+      return variationIds;
+    }
+    const fetched = new Set<number>(dbVariationsParent.map((v: any) => Number(v.id)));
+    return variationIds.filter(id => !fetched.has(id));
+  }, [hasVariations, variationIds, dbVariationsParent]);
+
+  const { data: dbVariationsByIds = [] } = useProductVariationsByIds(
+    missingIds.length > 0 ? missingIds : undefined
+  );
+
+  const dbVariations = useMemo(() => {
+    const map = new Map<number, any>();
+    (dbVariationsParent || []).forEach((v: any) => map.set(Number(v.id), v));
+    (dbVariationsByIds || []).forEach((v: any) => map.set(Number(v.id), v));
+    return Array.from(map.values());
+  }, [dbVariationsParent, dbVariationsByIds]);
 
   if (product.type !== 'variable' || !product.variations?.length) {
     return null;
@@ -71,7 +99,8 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
   };
 
   const getVariationStock = (variation: any) => {
-    const dbVar = dbVariations.find(v => Number(v.id) === Number(variation.id || variation));
+    const varId = variation.id || variation;
+    const dbVar = dbVariations.find((v: any) => Number(v.id) === Number(varId));
     if (dbVar?.stock_quantity !== undefined && dbVar?.stock_quantity !== null) {
       return Number(dbVar.stock_quantity) || 0;
     }
@@ -111,7 +140,7 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
           {product.variations.map((variation: any) => {
             const varId = variation.id || variation;
             const varObj = typeof variation === 'object' ? variation : {};
-            const dbVar = dbVariations.find(v => Number(v.id) === Number(varId));
+            const dbVar = dbVariations.find((v: any) => Number(v.id) === Number(varId));
             
             const attributes = normalizeAttributes(dbVar?.attributes || varObj?.attributes);
             const stock = getVariationStock(variation);
