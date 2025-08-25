@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,6 +23,8 @@ interface ProductCardProps {
   getTotalStock?: (product: any) => number;
 }
 
+type ProductStatus = 'normal' | 'em-revisao' | 'nao-alterar';
+
 const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
   viewMode, 
@@ -30,6 +33,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
   getTotalStock
 }) => {
+  const [productStatus, setProductStatus] = React.useState<ProductStatus>('normal');
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'publish': return 'bg-success-100 text-success-800';
@@ -73,11 +78,23 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return 'bg-green-500';
   };
 
+  const getProductBackgroundClass = () => {
+    switch (productStatus) {
+      case 'em-revisao': return 'bg-yellow-50';
+      case 'nao-alterar': return 'bg-green-50';
+      default: return '';
+    }
+  };
+
+  const handleStatusChange = (status: ProductStatus) => {
+    setProductStatus(status);
+  };
+
   const stockStatus = getStockStatus(product);
 
   if (viewMode === 'grid') {
     return (
-      <Card className="hover:shadow-md transition-all-smooth h-full">
+      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()}`}>
         <CardContent className="p-4 space-y-3 h-full flex flex-col">
           {/* Image */}
           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
@@ -92,9 +109,45 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Package className="w-8 h-8 text-muted-foreground" />
               </div>
             )}
+            
             {/* Stock status icon */}
-            <div className={`absolute top-2 right-2 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
+            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
               <Package className="w-2.5 h-2.5 text-white" />
+            </div>
+
+            {/* Status tag */}
+            {productStatus === 'em-revisao' && (
+              <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-yellow-500 text-white text-xs px-2 py-1">
+                  Em Revisão
+                </Badge>
+              </div>
+            )}
+
+            {/* Three dots menu */}
+            <div className="absolute top-2 right-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-6 h-6 p-0 bg-white/80 hover:bg-white">
+                    <MoreHorizontal className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuItem onClick={() => onEdit?.(product)}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
+                    Em Revisão
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
+                    Não Alterar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
+                    Remover Marcação
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -109,10 +162,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
-                <Badge className={getStatusColor(product.status)} size="sm">
+                <Badge className={getStatusColor(product.status)}>
                   {getStatusLabel(product.status)}
                 </Badge>
-                <Badge className={stockStatus.color} size="sm">
+                <Badge className={stockStatus.color}>
                   {stockStatus.text}
                 </Badge>
               </div>
@@ -130,41 +183,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
               )}
             </div>
           </div>
-          
-          {/* Actions */}
-          <div className="flex justify-end pt-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => onView?.(product)}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Visualizar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit?.(product)}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={() => onDelete?.(product.id, product.name)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="hover:shadow-md transition-all-smooth">
+    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -184,6 +209,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
                     <Package className="w-2.5 h-2.5 text-white" />
                   </div>
+                  
+                  {/* Status tag for list view */}
+                  {productStatus === 'em-revisao' && (
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-yellow-500 text-white text-xs px-1 py-0">
+                        Em Revisão
+                      </Badge>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <h3 className="font-semibold">{product.name}</h3>
@@ -214,7 +248,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <MoreHorizontal className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="bg-white">
                 <DropdownMenuItem onClick={() => onView?.(product)}>
                   <Eye className="w-4 h-4 mr-2" />
                   Visualizar
@@ -222,6 +256,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <DropdownMenuItem onClick={() => onEdit?.(product)}>
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
+                  Em Revisão
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
+                  Não Alterar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
+                  Remover Marcação
                 </DropdownMenuItem>
                 <DropdownMenuItem 
                   className="text-destructive"
