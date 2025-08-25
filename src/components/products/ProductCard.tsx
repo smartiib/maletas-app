@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -59,6 +60,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return { color: 'bg-success-100 text-success-800', text: `${stock} unidades` };
   };
 
+  const getStockIcon = (product: any) => {
+    const stock = product.stock_quantity || 0;
+    if (product.stock_status === 'outofstock' || stock === 0) {
+      return 'bg-red-500';
+    }
+    if (stock <= 5) {
+      return 'bg-yellow-500';
+    }
+    return 'bg-green-500';
+  };
+
   const stockStatus = getStockStatus(product);
 
   return (
@@ -68,7 +80,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
           <div className="flex-1">
             <div className={viewMode === 'grid' ? 'space-y-3' : 'flex items-center gap-4'}>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                <div className="relative w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
                   {product.images && product.images.length > 0 ? (
                     <img 
                       src={product.images[0].src} 
@@ -78,6 +90,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   ) : (
                     <Package className="w-6 h-6 text-muted-foreground" />
                   )}
+                  {/* Stock status icon */}
+                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
+                    <Package className="w-2.5 h-2.5 text-white" />
+                  </div>
                 </div>
                 <div>
                   <h3 className="font-semibold">{product.name}</h3>
