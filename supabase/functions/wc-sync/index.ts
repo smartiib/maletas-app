@@ -19,6 +19,17 @@ const logger = {
   },
 };
 
+// Normaliza valores numéricos vindos como "", string ou number
+function numOrNull(v: any): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s === "") return null;
+  // Troca vírgula por ponto se vier "0,10"
+  const n = Number(s.replace(",", "."));
+  return Number.isFinite(n) ? n : null;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -381,41 +392,58 @@ async function syncProducts(
 
   for (const product of allProducts) {
     try {
-      // upsert do produto em wc_products
+      // upsert do produto em wc_products com normalização de números
+      const payload = [
+        {
+          id: product.id,
+          name: product.name,
+          sku: typeof product.sku === "string" && product.sku.trim().length > 0 ? product.sku.trim() : null,
+          type: product.type,
+          status: product.status,
+          description: product.description,
+          short_description: product.short_description,
+          permalink: product.permalink,
+          price: numOrNull(product.price),
+          regular_price: numOrNull(product.regular_price),
+          sale_price: numOrNull(product.sale_price),
+          on_sale: !!product.on_sale,
+          featured: !!product.featured,
+          catalog_visibility: product.catalog_visibility,
+          date_created: product.date_created,
+          date_modified: product.date_modified,
+          images: Array.isArray(product.images) ? product.images : [],
+          variations: Array.isArray(product.variations) ? product.variations : [],
+          organization_id: organizationId,
+          stock_quantity: numOrNull(product.stock_quantity),
+          stock_status: product.stock_status,
+        },
+      ];
+
       const { data, error } = await supabase
         .from("wc_products")
-        .upsert(
-          [
-            {
-              id: product.id,
-              name: product.name,
-              sku: product.sku,
-              type: product.type,
-              status: product.status,
-              description: product.description,
-              short_description: product.short_description,
-              permalink: product.permalink,
-              price: product.price,
-              regular_price: product.regular_price,
-              sale_price: product.sale_price,
-              on_sale: product.on_sale,
-              featured: product.featured,
-              catalog_visibility: product.catalog_visibility,
-              date_created: product.date_created,
-              date_modified: product.date_modified,
-              images: product.images,
-              variations: product.variations,
-              organization_id: organizationId,
-              stock_quantity: product.stock_quantity,
-              stock_status: product.stock_status,
-            },
-          ],
-          { onConflict: "id" },
-        )
+        .upsert(payload, { onConflict: "id" })
         .select();
 
       if (error) {
         logger.error(`Error upserting product ${product.id}:`, error);
+
+        // Mesmo com erro no produto, tentar sincronizar variações para não bloquear
+        if (product && product.type === "variable" && Array.isArray(product.variations) && product.variations.length > 0) {
+          const variationIds = product.variations
+            .map((v: any) => (typeof v === "object" && v?.id ? Number(v.id) : Number(v)))
+            .filter((id: any) => typeof id === "number" && !Number.isNaN(id));
+
+          if (variationIds.length > 0) {
+            await syncVariationsForProduct({
+              wcBaseUrl,
+              consumerKey,
+              consumerSecret,
+              productId: Number(product.id),
+              organizationId: organizationId,
+              variationIds: variationIds,
+            });
+          }
+        }
         continue;
       }
 
