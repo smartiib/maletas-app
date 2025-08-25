@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -86,7 +85,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
+  const handleEdit = () => {
+    console.log('Edit clicked for product:', product.id, product.name);
+    onEdit?.(product);
+  };
+
   const handleStatusChange = (status: 'normal' | 'em-revisao' | 'nao-alterar') => {
+    console.log('Status change for product:', product.id, 'new status:', status);
     onStatusChange?.(product.id, status);
   };
 
@@ -253,7 +258,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                   <Eye className="w-4 h-4 mr-2" />
                   Visualizar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onEdit?.(product)}>
+                <DropdownMenuItem onClick={handleEdit}>
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
                 </DropdownMenuItem>

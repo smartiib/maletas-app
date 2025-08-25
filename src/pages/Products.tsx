@@ -15,12 +15,15 @@ import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
 import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
+import { Product } from "@/services/woocommerce";
 
 type ProductStatus = 'normal' | 'em-revisao' | 'nao-alterar';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
   const [productStatuses, setProductStatuses] = useState<Record<number, ProductStatus>>({});
@@ -84,6 +87,30 @@ const Products = () => {
     }
 
     setProductStatuses(newStatuses);
+  };
+
+  const handleCreateProduct = () => {
+    console.log('Opening create product dialog');
+    setEditingProduct(undefined);
+    setDialogMode('create');
+    setIsDialogOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    console.log('Opening edit product dialog for:', product.id, product.name);
+    setEditingProduct(product);
+    setDialogMode('edit');
+    setIsDialogOpen(true);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    console.log('View product:', product.id, product.name);
+    // TODO: Implement view functionality
+  };
+
+  const handleDeleteProduct = (id: number, name: string) => {
+    console.log('Delete product:', id, name);
+    // TODO: Implement delete functionality
   };
 
   const filteredProducts = useMemo(() => {
@@ -259,7 +286,7 @@ const Products = () => {
             onBulkAction={handleBulkAction}
             disabled={filteredProducts.length === 0}
           />
-          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+          <Button onClick={handleCreateProduct} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Novo Produto
           </Button>
@@ -297,9 +324,9 @@ const Products = () => {
               key={product.id}
               product={product}
               viewMode={viewMode}
-              onView={() => {}}
-              onEdit={() => {}}
-              onDelete={() => {}}
+              onView={handleViewProduct}
+              onEdit={handleEditProduct}
+              onDelete={handleDeleteProduct}
               getTotalStock={getTotalStock}
               productStatus={productStatuses[product.id] || 'normal'}
               onStatusChange={handleProductStatusChange}
@@ -333,7 +360,8 @@ const Products = () => {
       <ProductDialog
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
-        mode="create"
+        product={editingProduct}
+        mode={dialogMode}
       />
     </div>
   );
