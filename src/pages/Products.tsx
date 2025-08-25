@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ProductDialog from "@/components/products/ProductDialog";
+import ProductCard from "@/components/products/ProductCard";
 import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -36,14 +37,12 @@ const Products = () => {
     return Math.max(0, qty);
   };
 
-  // Filtros combinados (busca + estoque)
   const filteredProducts = useMemo(() => {
     let filtered = products.filter((product) =>
       product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Aplicar filtro de estoque
     if (stockFilter !== 'all') {
       filtered = filtered.filter((product) => {
         const totalStock = getTotalStock(product);
@@ -65,7 +64,6 @@ const Products = () => {
     return filtered;
   }, [products, searchTerm, stockFilter]);
 
-  // Contadores para os filtros
   const stockCounts = useMemo(() => {
     const counts = {
       all: products.length,
@@ -236,20 +234,36 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Lista compacta no estilo da página Estoque */}
-      <div className="space-y-2">
-        {filteredProducts.map((product) => (
-          <StockRow
-            key={product.id}
-            product={product}
-            isExpanded={expandedProducts.has(product.id)}
-            onToggleExpand={() => toggleProductExpansion(product.id)}
-            getTotalStock={getTotalStock}
-            getStockStatus={getStockStatus}
-            rightExtra={<ProductPriceInfo product={product} />}
-          />
-        ))}
-      </div>
+      {/* Products Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              viewMode={viewMode}
+              onView={() => {}}
+              onEdit={() => {}}
+              onDelete={() => {}}
+              getTotalStock={getTotalStock}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredProducts.map((product) => (
+            <StockRow
+              key={product.id}
+              product={product}
+              isExpanded={expandedProducts.has(product.id)}
+              onToggleExpand={() => toggleProductExpansion(product.id)}
+              getTotalStock={getTotalStock}
+              getStockStatus={getStockStatus}
+              rightExtra={<ProductPriceInfo product={product} />}
+            />
+          ))}
+        </div>
+      )}
 
       {filteredProducts.length === 0 && searchTerm && (
         <div className="text-center py-8">
