@@ -380,7 +380,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                         {variation.stock_quantity || 0} un.
                       </Badge>
                       <Badge variant="secondary">
-                        R$ {parseFloat(variation.price || variation.regular_price || '0').toFixed(2)}
+                        R$ {parseFloat(String(variation.price ?? variation.regular_price ?? '0')).toFixed(2)}
                       </Badge>
                     </div>
                   </div>
