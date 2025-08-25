@@ -2,7 +2,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * z from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,26 +36,67 @@ interface ProductFormProps {
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading }) => {
   const { data: suppliers = [] } = useSuppliers();
   
+  console.log('ProductForm - Received product data:', product);
+  
+  // Helper function to safely convert values
+  const getDefaultValue = (value: any, fallback: any = '') => {
+    return value !== undefined && value !== null ? String(value) : fallback;
+  };
+
+  const getSupplierIdFromProduct = () => {
+    if (!product) return '';
+    
+    // Try to get supplier_id from meta_data
+    const supplierMeta = (product as any)?.meta_data?.find((meta: any) => meta.key === 'supplier_id');
+    if (supplierMeta?.value) {
+      return String(supplierMeta.value);
+    }
+    
+    // Try direct property
+    if ((product as any)?.supplier_id) {
+      return String((product as any).supplier_id);
+    }
+    
+    return '';
+  };
+  
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      name: product?.name || '',
-      sku: product?.sku || '',
-      regular_price: product?.regular_price || '',
-      sale_price: product?.sale_price || '',
-      stock_quantity: product?.stock_quantity || 0,
-      status: product?.status || 'draft',
-      description: product?.description || '',
-      short_description: product?.short_description || '',
-      stock_status: product?.stock_status || 'instock',
-      supplier_id: (() => {
-        const supplierMeta = (product as any)?.meta_data?.find((meta: any) => meta.key === 'supplier_id');
-        return supplierMeta?.value || '';
-      })(),
+      name: getDefaultValue(product?.name),
+      sku: getDefaultValue(product?.sku),
+      regular_price: getDefaultValue(product?.regular_price || product?.price),
+      sale_price: getDefaultValue(product?.sale_price),
+      stock_quantity: typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0,
+      status: (product?.status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
+      description: getDefaultValue(product?.description),
+      short_description: getDefaultValue(product?.short_description),
+      stock_status: (product?.stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
+      supplier_id: getSupplierIdFromProduct(),
     },
   });
 
+  React.useEffect(() => {
+    if (product) {
+      console.log('ProductForm - Updating form values with product:', product);
+      
+      form.reset({
+        name: getDefaultValue(product.name),
+        sku: getDefaultValue(product.sku),
+        regular_price: getDefaultValue(product.regular_price || product.price),
+        sale_price: getDefaultValue(product.sale_price),
+        stock_quantity: typeof product.stock_quantity === 'number' ? product.stock_quantity : Number(product.stock_quantity) || 0,
+        status: (product.status as 'draft' | 'pending' | 'private' | 'publish') || 'draft',
+        description: getDefaultValue(product.description),
+        short_description: getDefaultValue(product.short_description),
+        stock_status: (product.stock_status as 'instock' | 'outofstock' | 'onbackorder') || 'instock',
+        supplier_id: getSupplierIdFromProduct(),
+      });
+    }
+  }, [product, form]);
+
   const handleSubmit = (data: ProductFormData) => {
+    console.log('ProductForm - Submitting data:', data);
     onSubmit(data);
   };
 
@@ -97,7 +138,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Fornecedor</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value || undefined}>
+                <Select onValueChange={field.onChange} value={field.value || undefined}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o fornecedor" />
@@ -173,7 +214,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status do Estoque</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
@@ -196,7 +237,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status do Produto</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione o status" />
