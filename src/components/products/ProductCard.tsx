@@ -21,9 +21,9 @@ interface ProductCardProps {
   onEdit?: (product: Product) => void;
   onDelete?: (id: number, name: string) => void;
   getTotalStock?: (product: any) => number;
+  productStatus?: 'normal' | 'em-revisao' | 'nao-alterar';
+  onStatusChange?: (productId: number, status: 'normal' | 'em-revisao' | 'nao-alterar') => void;
 }
-
-type ProductStatus = 'normal' | 'em-revisao' | 'nao-alterar';
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
   product, 
@@ -31,10 +31,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onView, 
   onEdit, 
   onDelete,
-  getTotalStock
+  getTotalStock,
+  productStatus = 'normal',
+  onStatusChange
 }) => {
-  const [productStatus, setProductStatus] = React.useState<ProductStatus>('normal');
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'publish': return 'bg-success-100 text-success-800';
@@ -86,8 +86,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const handleStatusChange = (status: ProductStatus) => {
-    setProductStatus(status);
+  const handleStatusChange = (status: 'normal' | 'em-revisao' | 'nao-alterar') => {
+    onStatusChange?.(product.id, status);
   };
 
   const stockStatus = getStockStatus(product);

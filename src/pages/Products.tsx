@@ -14,12 +14,16 @@ import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
+import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
+
+type ProductStatus = 'normal' | 'em-revisao' | 'nao-alterar';
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [productStatuses, setProductStatuses] = useState<Record<number, ProductStatus>>({});
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
@@ -35,6 +39,51 @@ const Products = () => {
     }
     const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
     return Math.max(0, qty);
+  };
+
+  const handleProductStatusChange = (productId: number, status: ProductStatus) => {
+    setProductStatuses(prev => ({
+      ...prev,
+      [productId]: status
+    }));
+  };
+
+  const handleBulkAction = (action: BulkAction) => {
+    const newStatuses = { ...productStatuses };
+
+    switch (action) {
+      case 'mark-all-review':
+        filteredProducts.forEach(product => {
+          newStatuses[product.id] = 'em-revisao';
+        });
+        break;
+      case 'mark-all-no-change':
+        filteredProducts.forEach(product => {
+          newStatuses[product.id] = 'nao-alterar';
+        });
+        break;
+      case 'remove-all-review':
+        filteredProducts.forEach(product => {
+          if (newStatuses[product.id] === 'em-revisao') {
+            newStatuses[product.id] = 'normal';
+          }
+        });
+        break;
+      case 'remove-all-no-change':
+        filteredProducts.forEach(product => {
+          if (newStatuses[product.id] === 'nao-alterar') {
+            newStatuses[product.id] = 'normal';
+          }
+        });
+        break;
+      case 'remove-all-marks':
+        filteredProducts.forEach(product => {
+          newStatuses[product.id] = 'normal';
+        });
+        break;
+    }
+
+    setProductStatuses(newStatuses);
   };
 
   const filteredProducts = useMemo(() => {
@@ -205,10 +254,16 @@ const Products = () => {
             Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Produto
-        </Button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <ProductBulkActions 
+            onBulkAction={handleBulkAction}
+            disabled={filteredProducts.length === 0}
+          />
+          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
       </div>
 
       {/* Filtros de estoque */}
@@ -246,6 +301,8 @@ const Products = () => {
               onEdit={() => {}}
               onDelete={() => {}}
               getTotalStock={getTotalStock}
+              productStatus={productStatuses[product.id] || 'normal'}
+              onStatusChange={handleProductStatusChange}
             />
           ))}
         </div>
