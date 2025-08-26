@@ -1,9 +1,9 @@
-
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
+import ProductResyncButton from './ProductResyncButton';
 
 interface ProductVariationInfoProps {
   product: any;
@@ -53,6 +53,7 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
 
   const variationCount = product.variations.length;
   const totalStock = getTotalStock(product);
+  const hasDbVariations = dbVariations.length > 0;
 
   const normalizeAttributes = (src: any): Array<{ name: string; option: string }> => {
     if (!src) return [];
@@ -133,34 +134,52 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
           )}
           {variationCount} variações • {totalStock} total
         </Button>
+        
+        {!hasDbVariations && (
+          <ProductResyncButton
+            productId={product.id}
+            productName={product.name}
+            isVariable={true}
+            hasVariations={hasDbVariations}
+            size="sm"
+            variant="ghost"
+          />
+        )}
       </div>
 
       {isExpanded && (
         <div className="space-y-1">
-          {product.variations.map((variation: any) => {
-            const varId = variation.id || variation;
-            const varObj = typeof variation === 'object' ? variation : {};
-            const dbVar = dbVariations.find((v: any) => Number(v.id) === Number(varId));
-            
-            const attributes = normalizeAttributes(dbVar?.attributes || varObj?.attributes);
-            const stock = getVariationStock(variation);
-            const status = getVariationStatus(stock, dbVar?.stock_status || varObj?.stock_status || 'instock');
+          {hasDbVariations ? (
+            product.variations.map((variation: any) => {
+              const varId = variation.id || variation;
+              const varObj = typeof variation === 'object' ? variation : {};
+              const dbVar = dbVariations.find((v: any) => Number(v.id) === Number(varId));
+              
+              const attributes = normalizeAttributes(dbVar?.attributes || varObj?.attributes);
+              const stock = getVariationStock(variation);
+              const status = getVariationStatus(stock, dbVar?.stock_status || varObj?.stock_status || 'instock');
 
-            return (
-              <div key={varId} className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded">
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">
-                    {formatAttributes(attributes)}
+              return (
+                <div key={varId} className="flex items-center justify-between text-xs p-2 bg-muted/50 rounded">
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">
+                      {formatAttributes(attributes)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant={status.color as any} className="text-xs px-1.5 py-0.5">
+                      {stock}
+                    </Badge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge variant={status.color as any} className="text-xs px-1.5 py-0.5">
-                    {stock}
-                  </Badge>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          ) : (
+            <div className="text-xs text-muted-foreground p-2 bg-amber-50 border border-amber-200 rounded">
+              <p>As variações deste produto não foram sincronizadas ainda.</p>
+              <p className="mt-1">Use o botão "Buscar variações" para sincronizá-las.</p>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Minus, Plus } from 'lucide-react';
 import { useUpdateStock } from '@/hooks/useWooCommerce';
+import ProductResyncButton from './ProductResyncButton';
 import type { DbVariation } from '@/hooks/useProductVariations';
 
 interface VariationStockEditorProps {
@@ -15,7 +16,31 @@ const VariationStockEditor: React.FC<VariationStockEditorProps> = ({ product, va
   const updateStockMutation = useUpdateStock();
   const [temp, setTemp] = React.useState<Record<number, string>>({});
 
-  if (!product?.id || !variations?.length) return null;
+  if (!product?.id) return null;
+
+  // Se produto é variável mas não tem variações, mostrar botão de sync
+  if (product.type === 'variable' && (!variations || variations.length === 0)) {
+    return (
+      <div className="space-y-2">
+        <div className="text-sm font-medium">Variações do Produto</div>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
+          <p className="text-sm text-amber-800 mb-3">
+            Este produto variável não possui variações sincronizadas.
+          </p>
+          <ProductResyncButton
+            productId={product.id}
+            productName={product.name}
+            isVariable={true}
+            hasVariations={false}
+            size="default"
+            variant="outline"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (!variations?.length) return null;
 
   const handleChange = (variationId: number, value: string) => {
     setTemp(prev => ({ ...prev, [variationId]: value }));
@@ -78,7 +103,17 @@ const VariationStockEditor: React.FC<VariationStockEditorProps> = ({ product, va
 
   return (
     <div className="space-y-2">
-      <div className="text-sm font-medium">Editar Estoque das Variações</div>
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium">Editar Estoque das Variações</div>
+        <ProductResyncButton
+          productId={product.id}
+          productName={product.name}
+          isVariable={true}
+          hasVariations={true}
+          size="sm"
+          variant="ghost"
+        />
+      </div>
       {variations.map(v => {
         const vid = Number(v.id);
         const current = Number(v.stock_quantity || 0);

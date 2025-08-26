@@ -1245,6 +1245,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_configs: {
+        Row: {
+          auto_sync_enabled: boolean | null
+          config_data: Json | null
+          created_at: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          next_sync_at: string | null
+          organization_id: string
+          sync_interval: string | null
+          sync_on_startup: boolean | null
+          sync_type: string
+          updated_at: string
+        }
+        Insert: {
+          auto_sync_enabled?: boolean | null
+          config_data?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          next_sync_at?: string | null
+          organization_id: string
+          sync_interval?: string | null
+          sync_on_startup?: boolean | null
+          sync_type: string
+          updated_at?: string
+        }
+        Update: {
+          auto_sync_enabled?: boolean | null
+          config_data?: Json | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          next_sync_at?: string | null
+          organization_id?: string
+          sync_interval?: string | null
+          sync_on_startup?: boolean | null
+          sync_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sync_logs: {
         Row: {
           created_at: string | null
@@ -2116,7 +2161,62 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      wc_categories: {
+        Row: {
+          count: number | null
+          created_at: string | null
+          description: string | null
+          display: string | null
+          id: number | null
+          image: Json | null
+          menu_order: number | null
+          name: string | null
+          organization_id: string | null
+          parent: number | null
+          slug: string | null
+          synced_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string | null
+          description?: string | null
+          display?: string | null
+          id?: number | null
+          image?: Json | null
+          menu_order?: number | null
+          name?: string | null
+          organization_id?: string | null
+          parent?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          count?: number | null
+          created_at?: string | null
+          description?: string | null
+          display?: string | null
+          id?: number | null
+          image?: Json | null
+          menu_order?: number | null
+          name?: string | null
+          organization_id?: string | null
+          parent?: number | null
+          slug?: string | null
+          synced_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wc_product_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_stock_history_entry: {

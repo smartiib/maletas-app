@@ -123,12 +123,6 @@ async function getWooCommerceCredentials(organizationId: string | null) {
 
 /**
  * Fetches products from WooCommerce API with pagination.
- * @param {string} wcBaseUrl - WooCommerce base URL.
- * @param {string} consumerKey - WooCommerce consumer key.
- * @param {string} consumerSecret - WooCommerce consumer secret.
- * @param {number} [page=1] - Page number for pagination.
- * @param {number} [perPage=100] - Number of products per page.
- * @returns {Promise<any[]>} - Array of products from WooCommerce.
  */
 async function fetchProducts(
   wcBaseUrl: string,
@@ -187,7 +181,6 @@ async function fetchProductVariations(opts: {
     );
     url.searchParams.set("per_page", String(perPage));
     url.searchParams.set("page", String(page));
-    // Autenticação via query string (igual ao restante do sync)
     url.searchParams.set("consumer_key", consumerKey);
     url.searchParams.set("consumer_secret", consumerSecret);
 
@@ -211,7 +204,6 @@ async function fetchProductVariations(opts: {
   console.log("[wc-sync] Variações buscadas", {
     productId,
     count: all.length,
-    sample: all[0],
   });
 
   return all;
@@ -288,12 +280,12 @@ async function upsertVariations(
 
   console.log("[wc-sync] Variações upsert concluído", {
     count: data?.length ?? 0,
-    sample: data?.[0],
   });
 }
 
 /**
  * Sincroniza variações para um produto variável - VERSÃO MELHORADA
+ * Agora SEMPRE busca variações, mesmo se product.variations vier vazio
  */
 async function syncVariationsForProduct(opts: {
   wcBaseUrl: string;
@@ -321,7 +313,6 @@ async function syncVariationsForProduct(opts: {
         if (response.ok) {
           const variation = await response.json();
           variations.push(variation);
-          logger.log(`[wc-sync] Variação ${variationId} buscada com sucesso`);
         } else {
           logger.warn(`[wc-sync] Erro ao buscar variação ${variationId}: ${response.status}`);
         }
@@ -337,7 +328,7 @@ async function syncVariationsForProduct(opts: {
     return;
   }
 
-  // Senão, buscar todas as variações do produto
+  // SEMPRE buscar todas as variações do produto (mudança principal)
   const variations = await fetchProductVariations({
     wcBaseUrl,
     consumerKey,
@@ -355,65 +346,153 @@ async function syncVariationsForProduct(opts: {
 }
 
 /**
- * Synchronizes products from WooCommerce to Supabase.
- * Agora aceita credenciais opcionais (vindo do body.config) além do organizationId.
+ * Sincroniza produtos específicos por IDs (novo recurso)
+ */
+async function syncSpecificProducts(
+  organizationId: string | null,
+  productIds: number[],
+  creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
+) {
+  logger.log(`[wc-sync] Sincronizando produtos específicos:`, productIds);
+
+  if (!organizationId) {
+    throw new Error("Organization ID is required for specific product sync");
+  }
+
+  const wooCommerceCredentials = creds ?? (await getWooCommerceCredentials(organizationId));
+  if (!wooCommerceCredentials) {
+    throw new Error(`Could not retrieve WooCommerce credentials for organization ${organizationId}`);
+  }
+
+  const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
+  let processed = 0;
+  let errors = 0;
+
+  for (const productId of productIds) {
+    try {
+      // Buscar produto individual
+      const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products/${productId}`);
+      url.searchParams.set("consumer_key", consumerKey);
+      url.searchParams.set("consumer_secret", consumerSecret);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        logger.error(`[wc-sync] Erro ao buscar produto ${productId}: ${response.status}`);
+        errors++;
+        continue;
+      }
+
+      const product = await response.json();
+
+      // Upsert do produto
+      const payload = [{
+        id: product.id,
+        name: product.name,
+        sku: textOrNull(product.sku),
+        type: product.type,
+        status: product.status,
+        description: product.description,
+        short_description: product.short_description,
+        permalink: product.permalink,
+        price: numOrNull(product.price),
+        regular_price: numOrNull(product.regular_price),
+        sale_price: numOrNull(product.sale_price),
+        on_sale: !!product.on_sale,
+        featured: !!product.featured,
+        catalog_visibility: product.catalog_visibility,
+        date_created: product.date_created,
+        date_modified: product.date_modified,
+        images: Array.isArray(product.images) ? product.images : [],
+        variations: Array.isArray(product.variations) ? product.variations : [],
+        organization_id: organizationId,
+        stock_quantity: intOrNull(product.stock_quantity),
+        stock_status: product.stock_status,
+      }];
+
+      const { error } = await supabase
+        .from("wc_products")
+        .upsert(payload, { onConflict: "id" });
+
+      if (error) {
+        logger.error(`[wc-sync] Erro ao upsert produto ${productId}:`, error);
+        errors++;
+        continue;
+      }
+
+      // SEMPRE sincronizar variações para produtos variáveis
+      if (product.type === "variable") {
+        await syncVariationsForProduct({
+          wcBaseUrl,
+          consumerKey,
+          consumerSecret,
+          productId: Number(product.id),
+          organizationId: organizationId,
+        });
+      }
+
+      processed++;
+      logger.log(`[wc-sync] Produto ${productId} sincronizado com sucesso`);
+    } catch (error) {
+      logger.error(`[wc-sync] Erro ao processar produto ${productId}:`, error);
+      errors++;
+    }
+  }
+
+  return { processed, errors };
+}
+
+/**
+ * Synchronizes products from WooCommerce to Supabase with REAL PAGINATION
  */
 async function syncProducts(
   organizationId: string | null,
-  creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
+  options: {
+    creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string };
+    page?: number;
+    perPage?: number;
+    maxPages?: number;
+  } = {}
 ) {
-  logger.log(`Starting product sync for organization: ${organizationId}`);
+  const { creds, page = 1, perPage = 50, maxPages = 5 } = options;
+  
+  logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}`);
 
   if (!organizationId) {
-    logger.error("Organization ID is null. Cannot proceed with product sync.");
     throw new Error("Organization ID is required for product sync");
   }
 
-  // Buscar credenciais: preferir as fornecidas no body (config), senão buscar no banco
-  const wooCommerceCredentials =
-    creds ??
-    (await getWooCommerceCredentials(organizationId));
-
+  const wooCommerceCredentials = creds ?? (await getWooCommerceCredentials(organizationId));
   if (!wooCommerceCredentials) {
-    const errorMsg = `Could not retrieve WooCommerce credentials for organization ${organizationId}. Please configure WooCommerce settings first.`;
-    logger.error(errorMsg);
-    throw new Error(errorMsg);
+    throw new Error(`Could not retrieve WooCommerce credentials for organization ${organizationId}`);
   }
 
   const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
 
-  let page = 1;
-  const perPage = 100;
-  let allProducts: any[] = [];
+  let currentPage = page;
+  let totalProcessed = 0;
+  let totalErrors = 0;
+  let pagesProcessed = 0;
 
-  while (true) {
+  while (pagesProcessed < maxPages) {
     const productsFromWoo = await fetchProducts(
       wcBaseUrl,
       consumerKey,
       consumerSecret,
-      page,
+      currentPage,
       perPage,
     );
 
     if (!productsFromWoo || productsFromWoo.length === 0) {
-      logger.log("No more products to fetch from WooCommerce.");
+      logger.log("[wc-sync] No more products to fetch from WooCommerce.");
       break;
     }
 
-    logger.log(
-      `Fetched ${productsFromWoo.length} products from WooCommerce (page ${page}).`,
-    );
-    allProducts = allProducts.concat(productsFromWoo);
-    page++;
-  }
+    logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage}`);
 
-  logger.log(`Total products fetched from WooCommerce: ${allProducts.length}`);
-
-  for (const product of allProducts) {
-    try {
-      // upsert do produto em wc_products com normalização de números
-      const payload = [
-        {
+    for (const product of productsFromWoo) {
+      try {
+        // upsert do produto em wc_products com normalização de números
+        const payload = [{
           id: product.id,
           name: product.name,
           sku: textOrNull(product.sku),
@@ -435,65 +514,58 @@ async function syncProducts(
           organization_id: organizationId,
           stock_quantity: intOrNull(product.stock_quantity),
           stock_status: product.stock_status,
-        },
-      ];
+        }];
 
-      const { data, error } = await supabase
-        .from("wc_products")
-        .upsert(payload, { onConflict: "id" })
-        .select();
+        const { error } = await supabase
+          .from("wc_products")
+          .upsert(payload, { onConflict: "id" });
 
-      if (error) {
-        logger.error(`Error upserting product ${product.id}:`, error);
-
-        // Mesmo com erro no produto, tentar sincronizar variações para não bloquear
-        if (product && product.type === "variable" && Array.isArray(product.variations) && product.variations.length > 0) {
-          const variationIds = product.variations
-            .map((v: any) => (typeof v === "object" && v?.id ? Number(v.id) : Number(v)))
-            .filter((id: any) => typeof id === "number" && !Number.isNaN(id));
-
-          if (variationIds.length > 0) {
-            await syncVariationsForProduct({
-              wcBaseUrl,
-              consumerKey,
-              consumerSecret,
-              productId: Number(product.id),
-              organizationId: organizationId,
-              variationIds: variationIds,
-            });
-          }
+        if (error) {
+          logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
+          totalErrors++;
+          continue;
         }
-        continue;
-      }
 
-      logger.log(`Successfully upserted product ${product.id}.`);
-
-      // SINCRONIZAR VARIAÇÕES IMEDIATAMENTE APÓS SALVAR O PRODUTO
-      if (product && product.type === "variable" && Array.isArray(product.variations) && product.variations.length > 0) {
-        logger.log(`[wc-sync] Produto ${product.id} é variável com ${product.variations.length} variações`);
-        
-        // Extrair IDs das variações
-        const variationIds = product.variations
-          .map((v: any) => typeof v === 'object' && v?.id ? Number(v.id) : Number(v))
-          .filter((id: any) => typeof id === 'number' && !Number.isNaN(id));
-
-        if (variationIds.length > 0) {
+        // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS
+        if (product.type === "variable") {
           await syncVariationsForProduct({
             wcBaseUrl,
             consumerKey,
             consumerSecret,
             productId: Number(product.id),
             organizationId: organizationId,
-            variationIds: variationIds,
           });
         }
+
+        totalProcessed++;
+      } catch (err) {
+        logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
+        totalErrors++;
       }
-    } catch (err) {
-      logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
+    }
+
+    currentPage++;
+    pagesProcessed++;
+
+    // Se pegou menos produtos que o perPage, acabaram os produtos
+    if (productsFromWoo.length < perPage) {
+      logger.log("[wc-sync] Reached end of products");
+      break;
     }
   }
 
-  logger.log("Product sync completed.");
+  const hasMore = pagesProcessed >= maxPages;
+  const nextPage = hasMore ? currentPage : null;
+
+  logger.log(`[wc-sync] Batch completed. Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
+
+  return {
+    processed: totalProcessed,
+    errors: totalErrors,
+    currentPage: currentPage - 1,
+    nextPage,
+    hasMore
+  };
 }
 
 serve(async (req) => {
@@ -503,7 +575,6 @@ serve(async (req) => {
   }
 
   try {
-    // Tentar ler o body (pode vir em dois formatos)
     let body: any = {};
     try {
       body = await req.json();
@@ -511,11 +582,12 @@ serve(async (req) => {
       body = {};
     }
 
-    // Suporte aos dois formatos:
-    // - legado: { organizationId }
-    // - novo: { organization_id, config: { url, consumer_key, consumer_secret }, ... }
-    const organizationId: string | null =
-      body?.organization_id || body?.organizationId || null;
+    const organizationId: string | null = body?.organization_id || body?.organizationId || null;
+    const syncType = body?.sync_type || 'products';
+    const batchSize = body?.batch_size || 50;
+    const maxPages = body?.max_pages || 5;
+    const startPage = body?.page || 1;
+    const productIds = body?.product_ids; // Novo: IDs específicos
 
     if (!organizationId) {
       logger.error("Organization ID is missing in the request body.");
@@ -528,45 +600,74 @@ serve(async (req) => {
       );
     }
 
-    let creds:
-      | { wcBaseUrl: string; consumerKey: string; consumerSecret: string }
-      | undefined;
-
+    let creds: { wcBaseUrl: string; consumerKey: string; consumerSecret: string } | undefined;
     const cfg = body?.config;
-    const hasConfig =
-      cfg &&
-      typeof cfg?.url === "string" &&
-      typeof cfg?.consumer_key === "string" &&
-      typeof cfg?.consumer_secret === "string";
+    const hasConfig = cfg && typeof cfg?.url === "string" && typeof cfg?.consumer_key === "string" && typeof cfg?.consumer_secret === "string";
 
     if (hasConfig) {
-      // Usar credenciais enviadas pelo frontend para esta execução
       creds = {
         wcBaseUrl: cfg.url,
         consumerKey: cfg.consumer_key,
         consumerSecret: cfg.consumer_secret,
       };
-      logger.log("[wc-sync] Using credentials from request body.config (masked):", {
-        url: creds.wcBaseUrl,
-        consumer_key: "***",
-        consumer_secret: "***",
-        organizationId,
-      });
+      logger.log("[wc-sync] Using credentials from request body.config");
     } else {
-      logger.log("[wc-sync] No config provided, will load credentials from database.", {
-        organizationId,
-      });
+      logger.log("[wc-sync] No config provided, will load credentials from database.");
     }
 
-    await syncProducts(organizationId, creds);
+    // Novo: Sync de produtos específicos
+    if (productIds && Array.isArray(productIds) && productIds.length > 0) {
+      logger.log(`[wc-sync] Syncing specific products: ${productIds.join(', ')}`);
+      const result = await syncSpecificProducts(organizationId, productIds, creds);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Synced ${result.processed} specific products, ${result.errors} errors`,
+          processed: result.processed,
+          errors: result.errors,
+          sync_type: 'specific_products'
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
+    // Sync normal com paginação
+    if (syncType === 'products' || syncType === 'full') {
+      const result = await syncProducts(organizationId, {
+        creds,
+        page: startPage,
+        perPage: batchSize,
+        maxPages
+      });
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Processed ${result.processed} products from page ${startPage}${result.nextPage ? `, next page: ${result.nextPage}` : ' (completed)'}`,
+          processed: result.processed,
+          errors: result.errors,
+          currentPage: result.currentPage,
+          nextPage: result.nextPage,
+          hasMore: result.hasMore,
+          sync_type: syncType
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Outros tipos de sync (categories, orders, etc.) podem ser implementados aqui
     return new Response(
       JSON.stringify({
-        success: true,
-        message: "Product sync completed successfully.",
+        success: false,
+        message: `Sync type '${syncType}' not implemented yet`
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
     );
+
   } catch (error: any) {
     logger.error("An unexpected error occurred:", error);
     return new Response(

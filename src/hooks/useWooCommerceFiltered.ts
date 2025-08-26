@@ -1,5 +1,4 @@
 
-
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -19,7 +18,7 @@ export const useWooCommerceFilteredProducts = () => {
       const { data, error } = await supabase
         .from('wc_products')
         .select('*')
-        .eq('organization_id', currentOrganization.id) // buscar somente da org atual
+        .eq('organization_id', currentOrganization.id)
         .order('name');
 
       if (error) {
@@ -48,7 +47,7 @@ export const useWooCommerceFilteredOrders = () => {
       const { data, error } = await supabase
         .from('wc_orders')
         .select('*')
-        .eq('organization_id', currentOrganization.id) // somente da org atual
+        .eq('organization_id', currentOrganization.id)
         .order('date_created', { ascending: false });
 
       if (error) {
@@ -77,7 +76,7 @@ export const useWooCommerceFilteredCustomers = () => {
       const { data, error } = await supabase
         .from('wc_customers')
         .select('*')
-        .eq('organization_id', currentOrganization.id) // somente da org atual
+        .eq('organization_id', currentOrganization.id)
         .order('first_name');
 
       if (error) {
@@ -103,10 +102,11 @@ export const useWooCommerceFilteredCategories = () => {
         return [];
       }
 
+      // Usar wc_product_categories diretamente (não wc_categories que é uma view)
       const { data, error } = await supabase
         .from('wc_product_categories')
         .select('*')
-        .eq('organization_id', currentOrganization.id) // somente da org atual
+        .eq('organization_id', currentOrganization.id)
         .order('name');
 
       if (error) {
@@ -121,3 +121,61 @@ export const useWooCommerceFilteredCategories = () => {
   });
 };
 
+// Novo hook para buscar logs de sync (corrigindo erro 400)
+export const useLastSyncStatus = () => {
+  const { currentOrganization } = useOrganization();
+  
+  return useQuery({
+    queryKey: ['last-sync-status', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return null;
+
+      // Buscar último log ordenado por data, sem filtros problemáticos
+      const { data, error } = await supabase
+        .from('sync_logs')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar status do sync:', error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!currentOrganization,
+    staleTime: 30 * 1000, // 30 segundos
+  });
+};
+
+// Novo hook para buscar configuração de sync (corrigindo erro 404)
+export const useSyncConfig = () => {
+  const { currentOrganization } = useOrganization();
+  
+  return useQuery({
+    queryKey: ['sync-config', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return null;
+
+      // Usar sync_configs (não sync_config)
+      const { data, error } = await supabase
+        .from('sync_configs')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar config do sync:', error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!currentOrganization,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+};
