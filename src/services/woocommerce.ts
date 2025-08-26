@@ -1,5 +1,5 @@
-import WooCommerceRestApi from "@woocommerce/woocommerce-rest-api";
 
+// Custom WooCommerce REST API implementation for browser compatibility
 export interface Customer {
   id: number;
   date_created: string;
@@ -130,7 +130,7 @@ export interface Order {
   order_key: string;
   created_via: string;
   version: string;
-  status: string;
+  status: "processing" | "completed" | "pending" | "on-hold" | "cancelled" | "refunded" | "failed";
   currency: string;
   date_created: string;
   date_created_gmt: string;
@@ -217,38 +217,119 @@ export interface OrderLineItem {
   parent_name: string | null;
 }
 
-interface WooCommerceConfig {
+export interface WooCommerceConfig {
   apiUrl: string;
   consumerKey: string;
   consumerSecret: string;
 }
 
+// Custom OAuth1 signature generation
+async function generateOAuth1Signature(
+  method: string,
+  url: string,
+  params: Record<string, string>,
+  consumerSecret: string
+): Promise<string> {
+  const encoder = new TextEncoder();
+  
+  // Sort parameters
+  const sortedParams = Object.keys(params)
+    .sort()
+    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+    .join('&');
+  
+  // Create signature base string
+  const signatureBaseString = `${method}&${encodeURIComponent(url)}&${encodeURIComponent(sortedParams)}`;
+  
+  // Create signing key
+  const signingKey = `${encodeURIComponent(consumerSecret)}&`;
+  
+  // Generate signature using HMAC-SHA1 (simplified for browser)
+  const keyData = encoder.encode(signingKey);
+  const messageData = encoder.encode(signatureBaseString);
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-1' },
+    false,
+    ['sign']
+  );
+  
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  return btoa(String.fromCharCode(...new Uint8Array(signature)));
+}
+
 export class WooCommerceService {
-  private api: WooCommerceRestApi | null = null;
+  private config?: WooCommerceConfig;
 
   constructor() {
-    this.api = null;
+    this.config = undefined;
   }
 
-  private getApiInstance(config: WooCommerceConfig) {
-    if (this.api) {
-      return this.api;
+  private async makeRequest(endpoint: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'GET', data?: any, params?: Record<string, string>) {
+    if (!this.config) {
+      throw new Error('WooCommerce não configurado');
     }
 
-    this.api = new WooCommerceRestApi({
-      url: config.apiUrl,
-      consumerKey: config.consumerKey,
-      consumerSecret: config.consumerSecret,
-      version: 'wc/v3'
+    const url = `${this.config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/${endpoint}`;
+    
+    // OAuth1 parameters
+    const oauthParams = {
+      oauth_consumer_key: this.config.consumerKey,
+      oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+      oauth_nonce: Math.random().toString(36).substring(2, 15),
+      oauth_signature_method: 'HMAC-SHA1',
+      oauth_version: '1.0',
+      ...params
+    };
+
+    // Generate signature
+    const signature = await generateOAuth1Signature(method, url, oauthParams, this.config.consumerSecret);
+    oauthParams.oauth_signature = signature;
+
+    // Build URL with OAuth parameters
+    const urlWithParams = new URL(url);
+    Object.keys(oauthParams).forEach(key => {
+      urlWithParams.searchParams.append(key, oauthParams[key]);
     });
 
-    return this.api;
+    const requestOptions: RequestInit = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    if (data && (method === 'POST' || method === 'PUT')) {
+      requestOptions.body = JSON.stringify(data);
+    }
+
+    const response = await fetch(urlWithParams.toString(), requestOptions);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const responseData = await response.json();
+    return {
+      data: responseData,
+      headers: Object.fromEntries(response.headers.entries())
+    };
+  }
+
+  setConfig(config: WooCommerceConfig) {
+    this.config = config;
   }
 
   async getCustomers(config: WooCommerceConfig, page: number = 1, perPage: number = 10): Promise<{ data: Customer[]; total: number }> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.get('customers', { per_page: perPage, page: page });
+      this.setConfig(config);
+      const response = await this.makeRequest('customers', 'GET', undefined, { 
+        per_page: perPage.toString(), 
+        page: page.toString() 
+      });
       const total = parseInt(response.headers['x-wp-total'] || '0', 10);
       return { data: response.data as Customer[], total };
     } catch (error: any) {
@@ -259,8 +340,8 @@ export class WooCommerceService {
 
   async createCustomer(config: WooCommerceConfig, data: Partial<Customer>): Promise<Customer> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.post('customers', data);
+      this.setConfig(config);
+      const response = await this.makeRequest('customers', 'POST', data);
       return response.data as Customer;
     } catch (error: any) {
       console.error('Erro ao criar cliente:', error);
@@ -270,8 +351,8 @@ export class WooCommerceService {
 
   async updateCustomer(config: WooCommerceConfig, id: number, data: Partial<Customer>): Promise<Customer> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.put(`customers/${id}`, data);
+      this.setConfig(config);
+      const response = await this.makeRequest(`customers/${id}`, 'PUT', data);
       return response.data as Customer;
     } catch (error: any) {
       console.error('Erro ao atualizar cliente:', error);
@@ -281,8 +362,11 @@ export class WooCommerceService {
 
   async getProducts(config: WooCommerceConfig, page: number = 1, perPage: number = 10): Promise<{ data: Product[]; total: number }> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.get('products', { per_page: perPage, page: page });
+      this.setConfig(config);
+      const response = await this.makeRequest('products', 'GET', undefined, { 
+        per_page: perPage.toString(), 
+        page: page.toString() 
+      });
       const total = parseInt(response.headers['x-wp-total'] || '0', 10);
       return { data: response.data as Product[], total };
     } catch (error: any) {
@@ -291,10 +375,21 @@ export class WooCommerceService {
     }
   }
 
+  async getProduct(config: WooCommerceConfig, id: number): Promise<Product> {
+    try {
+      this.setConfig(config);
+      const response = await this.makeRequest(`products/${id}`, 'GET');
+      return response.data as Product;
+    } catch (error: any) {
+      console.error('Erro ao buscar produto:', error);
+      throw error;
+    }
+  }
+
   async createProduct(config: WooCommerceConfig, data: Partial<Product>): Promise<Product> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.post('products', data);
+      this.setConfig(config);
+      const response = await this.makeRequest('products', 'POST', data);
       return response.data as Product;
     } catch (error: any) {
       console.error('Erro ao criar produto:', error);
@@ -304,8 +399,8 @@ export class WooCommerceService {
 
   async updateProduct(config: WooCommerceConfig, id: number, data: Partial<Product>): Promise<Product> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.put(`products/${id}`, data);
+      this.setConfig(config);
+      const response = await this.makeRequest(`products/${id}`, 'PUT', data);
       return response.data as Product;
     } catch (error: any) {
       console.error('Erro ao atualizar produto:', error);
@@ -315,8 +410,11 @@ export class WooCommerceService {
 
   async getOrders(config: WooCommerceConfig, page: number = 1, perPage: number = 10): Promise<{ data: Order[]; total: number }> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.get('orders', { per_page: perPage, page: page });
+      this.setConfig(config);
+      const response = await this.makeRequest('orders', 'GET', undefined, { 
+        per_page: perPage.toString(), 
+        page: page.toString() 
+      });
       const total = parseInt(response.headers['x-wp-total'] || '0', 10);
       return { data: response.data as Order[], total };
     } catch (error: any) {
@@ -327,8 +425,8 @@ export class WooCommerceService {
 
   async createOrder(config: WooCommerceConfig, data: Partial<Order>): Promise<Order> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.post('orders', data);
+      this.setConfig(config);
+      const response = await this.makeRequest('orders', 'POST', data);
       return response.data as Order;
     } catch (error: any) {
       console.error('Erro ao criar pedido:', error);
@@ -338,8 +436,8 @@ export class WooCommerceService {
 
   async updateOrderStatus(config: WooCommerceConfig, id: number, status: string): Promise<Order> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.put(`orders/${id}`, { status: status });
+      this.setConfig(config);
+      const response = await this.makeRequest(`orders/${id}`, 'PUT', { status: status });
       return response.data as Order;
     } catch (error: any) {
       console.error('Erro ao atualizar status do pedido:', error);
@@ -349,8 +447,8 @@ export class WooCommerceService {
 
   async updateProductStock(config: WooCommerceConfig, productId: number, newStock: number): Promise<Product> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.put(`products/${productId}`, { stock_quantity: newStock });
+      this.setConfig(config);
+      const response = await this.makeRequest(`products/${productId}`, 'PUT', { stock_quantity: newStock });
       return response.data as Product;
     } catch (error: any) {
       console.error('Erro ao atualizar estoque do produto:', error);
@@ -360,13 +458,17 @@ export class WooCommerceService {
 
   async updateVariationStock(config: WooCommerceConfig, productId: number, variationId: number, newStock: number): Promise<any> {
     try {
-      const api = this.getApiInstance(config);
-      const response = await api.put(`products/${productId}/variations/${variationId}`, { stock_quantity: newStock });
+      this.setConfig(config);
+      const response = await this.makeRequest(`products/${productId}/variations/${variationId}`, 'PUT', { stock_quantity: newStock });
       return response.data;
     } catch (error: any) {
       console.error('Erro ao atualizar estoque da variação:', error);
       throw error;
     }
+  }
+
+  getConfig(): WooCommerceConfig | undefined {
+    return this.config;
   }
 }
 
