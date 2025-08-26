@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -27,6 +28,23 @@ function numOrNull(v: any): number | null {
   // Troca vírgula por ponto se vier "0,10"
   const n = Number(s.replace(",", "."));
   return Number.isFinite(n) ? n : null;
+}
+
+// Sanitiza valores de texto que podem vir vazios
+function textOrNull(v: any): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
+
+// Sanitiza valores inteiros
+function intOrNull(v: any): number | null {
+  if (typeof v === "number" && Number.isInteger(v)) return v;
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  if (s === "") return null;
+  const n = parseInt(s, 10);
+  return Number.isInteger(n) ? n : null;
 }
 
 const corsHeaders = {
@@ -200,7 +218,7 @@ async function fetchProductVariations(opts: {
 }
 
 /**
- * Upsert das variações na tabela wc_product_variations
+ * Upsert das variações na tabela wc_product_variations com sanitização adequada
  */
 async function upsertVariations(
   variations: any[],
@@ -208,15 +226,15 @@ async function upsertVariations(
 ) {
   if (!variations || variations.length === 0) return;
 
-  // Mapeia campos pertinentes para a tabela wc_product_variations
+  // Mapeia campos pertinentes para a tabela wc_product_variations COM SANITIZAÇÃO
   const rows = variations.map((v) => ({
     id: Number(v.id),
     parent_id: Number(v.parent_id ?? v.product_id),
     date_created: v.date_created ? new Date(v.date_created).toISOString() : null,
     date_modified: v.date_modified ? new Date(v.date_modified).toISOString() : null,
-    price: v.price ?? null,
-    regular_price: v.regular_price ?? null,
-    sale_price: v.sale_price ?? null,
+    price: numOrNull(v.price),
+    regular_price: numOrNull(v.regular_price),
+    sale_price: numOrNull(v.sale_price),
     date_on_sale_from: v.date_on_sale_from
       ? new Date(v.date_on_sale_from).toISOString()
       : null,
@@ -228,44 +246,33 @@ async function upsertVariations(
     virtual: !!v.virtual,
     downloadable: !!v.downloadable,
     downloads: v.downloads ?? [],
-    download_limit: v.download_limit ?? -1,
-    download_expiry: v.download_expiry ?? -1,
+    download_limit: intOrNull(v.download_limit) ?? -1,
+    download_expiry: intOrNull(v.download_expiry) ?? -1,
     manage_stock: !!v.manage_stock,
-    stock_quantity:
-      typeof v.stock_quantity === "number"
-        ? v.stock_quantity
-        : v.stock_quantity
-        ? Number(v.stock_quantity)
-        : null,
+    stock_quantity: intOrNull(v.stock_quantity),
     backorders_allowed: !!v.backorders_allowed,
     backordered: !!v.backordered,
-    low_stock_amount:
-      typeof v.low_stock_amount === "number"
-        ? v.low_stock_amount
-        : v.low_stock_amount
-        ? Number(v.low_stock_amount)
-        : null,
+    low_stock_amount: intOrNull(v.low_stock_amount),
     dimensions: v.dimensions ?? {},
-    shipping_class_id:
-      typeof v.shipping_class_id === "number" ? v.shipping_class_id : null,
+    shipping_class_id: intOrNull(v.shipping_class_id),
     image: v.image ?? {},
     attributes: Array.isArray(v.attributes) ? v.attributes : [],
-    menu_order: typeof v.menu_order === "number" ? v.menu_order : 0,
+    menu_order: intOrNull(v.menu_order) ?? 0,
     meta_data: Array.isArray(v.meta_data) ? v.meta_data : [],
     synced_at: new Date().toISOString(),
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     organization_id: organizationId ?? null,
-    tax_status: v.tax_status ?? "taxable",
-    tax_class: v.tax_class ?? null,
-    backorders: v.backorders ?? "no",
-    description: v.description ?? null,
-    permalink: v.permalink ?? null,
-    sku: typeof v.sku === "string" && v.sku.trim().length > 0 ? v.sku.trim() : null,
-    weight: v.weight ?? null,
-    shipping_class: v.shipping_class ?? null,
-    status: v.status ?? "publish",
-    stock_status: v.stock_status ?? "instock",
+    tax_status: textOrNull(v.tax_status) ?? "taxable",
+    tax_class: textOrNull(v.tax_class),
+    backorders: textOrNull(v.backorders) ?? "no",
+    description: textOrNull(v.description),
+    permalink: textOrNull(v.permalink),
+    sku: textOrNull(v.sku),
+    weight: textOrNull(v.weight),
+    shipping_class: textOrNull(v.shipping_class),
+    status: textOrNull(v.status) ?? "publish",
+    stock_status: textOrNull(v.stock_status) ?? "instock",
   }));
 
   const { data, error } = await supabase
@@ -409,7 +416,7 @@ async function syncProducts(
         {
           id: product.id,
           name: product.name,
-          sku: typeof product.sku === "string" && product.sku.trim().length > 0 ? product.sku.trim() : null,
+          sku: textOrNull(product.sku),
           type: product.type,
           status: product.status,
           description: product.description,
@@ -426,7 +433,7 @@ async function syncProducts(
           images: Array.isArray(product.images) ? product.images : [],
           variations: Array.isArray(product.variations) ? product.variations : [],
           organization_id: organizationId,
-          stock_quantity: numOrNull(product.stock_quantity),
+          stock_quantity: intOrNull(product.stock_quantity),
           stock_status: product.stock_status,
         },
       ];
