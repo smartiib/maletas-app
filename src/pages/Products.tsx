@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { ProductStockFilters, StockFilter } from "@/components/products/ProductS
 import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
 import { Product } from "@/services/woocommerce";
 import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
+import { useQueryClient } from "@tanstack/react-query";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +40,20 @@ const Products = () => {
     bulkUpdateStatuses,
     getProductStatus
   } = useProductReviewStatus();
+
+  const queryClient = useQueryClient();
+  const prevDialogOpenRef = useRef(isDialogOpen);
+
+  useEffect(() => {
+    // Quando o diálogo fechar (true -> false), invalidar a lista para atualizar imediatamente
+    if (prevDialogOpenRef.current && !isDialogOpen) {
+      console.log('[Products] Dialog fechou, invalidando queries para recarregar lista');
+      queryClient.invalidateQueries({ queryKey: ['wc-products-filtered'] });
+      // Caso algum componente use o hook de estoque do supabase, invalidamos também
+      queryClient.invalidateQueries({ queryKey: ['supabase-product-stock'] });
+    }
+    prevDialogOpenRef.current = isDialogOpen;
+  }, [isDialogOpen, queryClient]);
 
   const getTotalStock = (product: any) => {
     if (product.type === 'variable' && product.variations?.length > 0) {
@@ -364,3 +380,4 @@ const Products = () => {
 };
 
 export default Products;
+
