@@ -1,9 +1,11 @@
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCreateProduct, useUpdateProduct, useUpdateStock } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import ProductForm from './ProductForm';
 import { logger } from '@/services/logger';
+import { useSupabaseProductStock } from '@/hooks/useSupabaseProductStock';
 
 interface ProductDialogProps {
   open: boolean;
@@ -17,16 +19,42 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
   const updateProduct = useUpdateProduct();
   const updateStock = useUpdateStock();
 
+  // Quando for produto simples, buscar estoque atual no Supabase para usar como fonte da verdade.
+  const isSimple = (product as any)?.type !== 'variable';
+  const { data: supStockData } = useSupabaseProductStock(isSimple && product ? Number(product.id) : undefined);
+
+  // Mergiar o produto recebido com o estoque do Supabase (quando disponível)
+  const mergedProduct: Product | undefined = useMemo(() => {
+    if (!product) return product;
+    if (!isSimple) return product;
+    if (!supStockData) return product;
+
+    return {
+      ...product,
+      stock_quantity: typeof supStockData.stock_quantity === 'number'
+        ? supStockData.stock_quantity
+        : (product as any)?.stock_quantity,
+      stock_status: supStockData.stock_status || (product as any)?.stock_status,
+    } as Product;
+  }, [product, isSimple, supStockData]);
+
   const handleSubmit = async (data: any) => {
     try {
       if (mode === 'create') {
         await createProduct.mutateAsync(data);
         logger.success('Produto Criado', `Produto "${data.name}" foi criado com sucesso`);
       } else if (product) {
-        const isSimple = (product as any)?.type !== 'variable';
+        const isSimpleLocal = (product as any)?.type !== 'variable';
+
+        // Usar o estoque atual do Supabase como "previous"
         const newStock = Number(data?.stock_quantity);
-        const prevStock = Number((product as any)?.stock_quantity ?? 0);
-        const shouldUpdateStock = isSimple && !Number.isNaN(newStock) && newStock !== prevStock;
+        const prevStock = Number(
+          supStockData?.stock_quantity ??
+          (product as any)?.stock_quantity ??
+          0
+        );
+        const shouldUpdateStock =
+          isSimpleLocal && !Number.isNaN(newStock) && newStock !== prevStock;
 
         if (shouldUpdateStock) {
           await updateStock.mutateAsync({
@@ -35,6 +63,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
           });
         }
 
+        // Evitar sobrescrever o que acabamos de salvar de estoque
         const { stock_quantity, stock_status, ...rest } = data || {};
         await updateProduct.mutateAsync({ id: product.id, data: rest });
 
@@ -47,7 +76,10 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
     }
   };
 
-  const isLoading = createProduct.isPending || updateProduct.isPending || updateStock.isPending;
+  const isLoading =
+    createProduct.isPending ||
+    updateProduct.isPending ||
+    updateStock.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,7 +91,7 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
         </DialogHeader>
         
         <ProductForm
-          product={product}
+          product={mergedProduct ?? product}
           onSubmit={handleSubmit}
           isLoading={isLoading}
         />
