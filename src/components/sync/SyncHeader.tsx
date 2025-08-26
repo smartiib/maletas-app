@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { RefreshCw, Clock, AlertCircle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Clock, CheckCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
