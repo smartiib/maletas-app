@@ -29,33 +29,7 @@ const Maletas = () => {
   const { currentOrganization } = useOrganization();
   const { isConfigured } = useWooCommerceConfig();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [representativeFilter, setRepresentativeFilter] = useState('');
-  
-  // Estados dos diálogos
-  const [selectedMaleta, setSelectedMaleta] = useState<any>(null);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
-  const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
-  const [soldItems, setSoldItems] = useState<any[]>([]);
-  
-  // Estados para formulários
-  const [newReturnDate, setNewReturnDate] = useState('');
-  const [returnNotes, setReturnNotes] = useState('');
-
-  const { data: maletasResponse, isLoading, error } = useMaletas();
-  const allMaletas = maletasResponse?.data || [];
-  
-  console.log('Maletas carregadas:', allMaletas.length);
-  
-  const { viewMode, toggleViewMode } = useViewMode('maletas');
-  const extendDeadline = useExtendMaletaDeadline();
-  const processReturn = useProcessMaletaReturn();
-
-  // Verificar se WooCommerce está configurado
+  // Move early returns BEFORE any hooks are called
   if (!currentOrganization) {
     return (
       <div className="container mx-auto p-6">
@@ -84,6 +58,33 @@ const Maletas = () => {
       </div>
     );
   }
+
+  // Now all hooks can be called safely after early returns
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [representativeFilter, setRepresentativeFilter] = useState('');
+  
+  // Estados dos diálogos
+  const [selectedMaleta, setSelectedMaleta] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
+  const [soldItems, setSoldItems] = useState<any[]>([]);
+  
+  // Estados para formulários
+  const [newReturnDate, setNewReturnDate] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
+
+  const { data: maletasResponse, isLoading, error } = useMaletas();
+  const allMaletas = maletasResponse?.data || [];
+  
+  console.log('Maletas carregadas:', allMaletas.length);
+  
+  const { viewMode, toggleViewMode } = useViewMode('maletas');
+  const extendDeadline = useExtendMaletaDeadline();
+  const processReturn = useProcessMaletaReturn();
 
   // Filter and paginate data
   const filteredMaletas = useMemo(() => {
