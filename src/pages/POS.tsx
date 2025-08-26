@@ -1,22 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Badge } from '@/components/ui/badge';
-import { toast } from '@/hooks/use-toast';
+import { Plus, ShoppingCart, User, CreditCard, Search } from 'lucide-react';
+import { useProducts, useCreateOrder } from '@/hooks/useWooCommerce';
+import { Customer } from '@/services/woocommerce';
 import { useSupabaseCustomers } from '@/hooks/useSupabaseSync';
-import { useCreateOrder } from '@/hooks/useWooCommerce';
-import { Product } from '@/services/woocommerce';
-import { Search, ShoppingCart, User, CreditCard, Plus, Minus, X } from 'lucide-react';
 
-interface CartItem extends Product {
-  quantity: number;
+interface CartItem {
+  id: number;
+  name: string;
+  price: string | number;
+  quantity: number | string;
+  sku: string;
   variation_id?: number;
-  variation_attributes?: any;
+  variation_attributes?: { name: string; option: string }[];
 }
 
 interface PaymentMethod {
@@ -26,12 +29,8 @@ interface PaymentMethod {
 }
 
 const POS = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isGuestSale, setIsGuestSale] = useState(false);
   const [guestData, setGuestData] = useState({ name: '', email: '', phone: '' });
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([
@@ -39,101 +38,135 @@ const POS = () => {
   ]);
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [maletaCheckoutData, setMaletaCheckoutData] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isCheckoutDialogOpen, setIsCheckoutDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
+  const { data: productsData } = useProducts(1, 100);
+  const products = productsData?.data || [];
+  const createOrder = useCreateOrder();
   const { data: customersData } = useSupabaseCustomers(1, '');
   const customers = customersData?.customers || [];
-  const createOrder = useCreateOrder();
 
+  // Load data from localStorage on component mount
   useEffect(() => {
-    // Carregar dados da maleta do localStorage se estiver vindo da maleta
-    const params = new URLSearchParams(location.search);
-    const fromMaleta = params.get('from_maleta') === 'true';
-
-    if (fromMaleta) {
-      const maletaData = localStorage.getItem('maleta_checkout_data');
-      if (maletaData) {
-        const parsedData = JSON.parse(maletaData);
-        setMaletaCheckoutData(parsedData);
-        setCartItems(parsedData.items);
-        
-        // Preencher dados do cliente se existirem
-        if (parsedData.has_associated_customer) {
-          // Não precisa fazer nada, pois os campos serão preenchidos automaticamente
-        } else if (parsedData.guest_data) {
-          setIsGuestSale(true);
-          setGuestData(parsedData.guest_data);
-        } else if (parsedData.selected_customer) {
-          setSelectedCustomer(parsedData.selected_customer);
-        }
-        
-        // Limpar localStorage após carregar os dados
-        localStorage.removeItem('maleta_checkout_data');
-      }
+    const storedCart = localStorage.getItem('pos_cart');
+    if (storedCart) {
+      setCartItems(JSON.parse(storedCart));
     }
-  }, [location]);
 
-  const handleSearch = async () => {
-    // Implementar lógica de busca de produtos aqui
-    // Atualizar o estado searchResults com os resultados da busca
-    setSearchResults([]); // Remover esta linha quando a busca estiver implementada
-    toast({
-      title: "Aviso",
-      description: "A busca de produtos ainda não foi implementada.",
-    });
+    // Load maleta checkout data if available
+    const maletaCheckoutData = localStorage.getItem('maleta_checkout_data');
+    if (maletaCheckoutData && location.search.includes('from_maleta=true')) {
+      const data = JSON.parse(maletaCheckoutData);
+      setCartItems(data.items);
+
+      // Set customer data if available
+      if (data.has_associated_customer) {
+        setIsGuestSale(false);
+        setSelectedCustomer({
+          first_name: data.customer_name.split(' ')[0] || 'Cliente',
+          last_name: data.customer_name.split(' ').slice(1).join(' ') || '',
+          email: '',
+          billing: {
+            phone: ''
+          }
+        } as Customer);
+      } else if (data.guest_data) {
+        setIsGuestSale(true);
+        setGuestData(data.guest_data);
+      } else if (data.selected_customer) {
+        setIsGuestSale(false);
+        setSelectedCustomer(data.selected_customer);
+      }
+
+      // Clear the localStorage
+      localStorage.removeItem('maleta_checkout_data');
+    }
+  }, []);
+
+  // Save cart items to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('pos_cart', JSON.stringify(cartItems));
+  }, [cartItems]);
+
+  const filteredProducts = products.filter((product) => {
+    const searchTermLower = searchTerm.toLowerCase();
+    const productNameLower = product.name.toLowerCase();
+    const productSKU = product.sku?.toLowerCase() || '';
+
+    const matchesSearch =
+      productNameLower.includes(searchTermLower) ||
+      productSKU.includes(searchTermLower);
+
+    const matchesCategory =
+      categoryFilter === '' ||
+      product.categories.some((cat: any) => cat.name === categoryFilter);
+
+    return matchesSearch && matchesCategory;
+  });
+
+  const calculateItemTotal = (item: CartItem) => {
+    const price = typeof item.price === 'string' ? parseFloat(item.price) : item.price;
+    return price * item.quantity;
   };
 
-  const handleAddToCart = (product: Product, variation?: any) => {
-    const existingItemIndex = cartItems.findIndex(item =>
-      item.id === product.id && item.variation_id === (variation ? variation.id : 0)
-    );
-  
+  const getTotal = () => {
+    return cartItems.reduce((sum, item) => {
+      const itemTotal = calculateItemTotal(item);
+      return sum + itemTotal;
+    }, 0);
+  };
+
+  const getTotalItems = () => {
+    return cartItems.reduce((sum, item) => {
+      const quantity = typeof item.quantity === 'string' ? parseInt(item.quantity) : item.quantity;
+      return sum + quantity;
+    }, 0);
+  };
+
+  const addToCart = (product: any, quantity: number = 1) => {
+    const existingItemIndex = cartItems.findIndex((item) => item.id === product.id);
+
     if (existingItemIndex > -1) {
-      // Se o produto já existe no carrinho, aumentar a quantidade
-      const updatedCartItems = [...cartItems];
-      updatedCartItems[existingItemIndex].quantity += 1;
-      setCartItems(updatedCartItems);
+      const newCartItems = [...cartItems];
+      const existingItem = newCartItems[existingItemIndex];
+      const newQuantity = (typeof existingItem.quantity === 'string' ? parseInt(existingItem.quantity) : existingItem.quantity) + quantity;
+      newCartItems[existingItemIndex] = { ...existingItem, quantity: newQuantity };
+      setCartItems(newCartItems);
     } else {
-      // Se for uma variação, adicionar os atributos da variação ao item do carrinho
-      if (variation) {
-        setCartItems([...cartItems, {
-          ...product,
-          quantity: 1,
-          variation_id: variation.id,
-          variation_attributes: variation.attributes
-        }]);
-      } else {
-        // Se o produto não existe no carrinho, adicionar com quantidade 1
-        setCartItems([...cartItems, { ...product, quantity: 1 }]);
-      }
+      setCartItems([...cartItems, {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: quantity,
+        sku: product.sku,
+        variation_id: product.variation_id,
+        variation_attributes: product.attributes
+      }]);
     }
   };
 
-  const updateCartItemQuantity = (item: CartItem, quantity: number) => {
-    if (quantity < 0) return;
-    
-    const updatedCartItems = cartItems.map(cartItem => {
-      if (cartItem.id === item.id && cartItem.variation_id === item.variation_id) {
-        return { ...cartItem, quantity };
+  const updateQuantity = (id: number, quantity: number) => {
+    const newCartItems = cartItems.map((item) => {
+      if (item.id === id) {
+        return { ...item, quantity: quantity };
       }
-      return cartItem;
+      return item;
     });
-    setCartItems(updatedCartItems);
+    setCartItems(newCartItems);
   };
 
-  const removeCartItem = (item: CartItem) => {
-    const updatedCartItems = cartItems.filter(cartItem =>
-      !(cartItem.id === item.id && cartItem.variation_id === item.variation_id)
-    );
-    setCartItems(updatedCartItems);
+  const removeItem = (id: number) => {
+    const newCartItems = cartItems.filter((item) => item.id !== id);
+    setCartItems(newCartItems);
   };
 
   const clearCart = () => {
     setCartItems([]);
-  };
-
-  const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
   };
 
   const addPaymentMethod = () => {
@@ -165,8 +198,8 @@ const POS = () => {
 
   const handleFinalizePurchase = async () => {
     const totalPayments = getTotalPayments();
-    const orderTotal = getTotalPrice();
-    
+    const orderTotal = getTotal();
+
     if (Math.abs(totalPayments - orderTotal) > 0.01) {
       toast({
         title: "Erro",
@@ -193,59 +226,59 @@ const POS = () => {
         payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
         status: 'processing' as const,
         line_items: cartItems.map((item, index) => ({
-          id: 0, // WooCommerce will assign the actual ID
+          id: 0,
           product_id: item.id,
           variation_id: item.variation_id || 0,
-          quantity: item.quantity,
+          quantity: typeof item.quantity === 'string' ? parseInt(item.quantity) : item.quantity,
           name: item.name,
-          price: item.price,
-          total: (item.price * item.quantity).toFixed(2),
-          subtotal: (item.price * item.quantity).toFixed(2),
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
+          total: calculateItemTotal(item).toFixed(2),
+          subtotal: calculateItemTotal(item).toFixed(2),
           subtotal_tax: '0.00',
           total_tax: '0.00',
           taxes: [],
           meta_data: [],
           sku: item.sku || '',
-          image: { src: '' }
+          image: { src: '' },
+          parent_name: null,
+          tax_class: ''
         })),
         billing: isGuestSale ? {
           first_name: guestData.name.split(' ')[0] || 'Convidado',
           last_name: guestData.name.split(' ').slice(1).join(' ') || '',
-          email: guestData.email || 'convidado@loja.com',
-          phone: guestData.phone || '',
+          company: '',
           address_1: 'Loja Física',
+          address_2: '',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
-          country: 'BR'
+          country: 'BR',
+          email: guestData.email || 'convidado@loja.com',
+          phone: guestData.phone || ''
         } : {
-          first_name: selectedCustomer.first_name,
-          last_name: selectedCustomer.last_name,
-          email: selectedCustomer.email,
-          phone: selectedCustomer.billing?.phone || '',
-          address_1: selectedCustomer.billing?.address_1 || 'Loja Física',
-          city: selectedCustomer.billing?.city || 'Cidade',
-          state: selectedCustomer.billing?.state || 'Estado',
-          postcode: selectedCustomer.billing?.postcode || '00000-000',
-          country: 'BR'
+          first_name: selectedCustomer?.first_name || 'Cliente',
+          last_name: selectedCustomer?.last_name || '',
+          company: selectedCustomer?.billing?.company || '',
+          address_1: selectedCustomer?.billing?.address_1 || 'Loja Física',
+          address_2: selectedCustomer?.billing?.address_2 || '',
+          city: selectedCustomer?.billing?.city || 'Cidade',
+          state: selectedCustomer?.billing?.state || 'Estado',
+          postcode: selectedCustomer?.billing?.postcode || '00000-000',
+          country: 'BR',
+          email: selectedCustomer?.email || 'cliente@loja.com',
+          phone: selectedCustomer?.billing?.phone || ''
         },
         customer_note: notes,
-        total: getTotalPrice().toFixed(2)
+        total: getTotal().toFixed(2)
       };
 
-      const createdOrder = await createOrder.mutateAsync(orderData);
-      
+      await createOrder.mutateAsync(orderData);
       toast({
         title: "Pedido Finalizado",
-        description: `Pedido #${createdOrder?.id} foi criado com sucesso no WooCommerce`,
+        description: "Pedido foi criado com sucesso no WooCommerce",
       });
-
       clearCart();
-      setSelectedCustomer(null);
-      setIsGuestSale(false);
-      setGuestData({ name: '', email: '', phone: '' });
-      setPaymentMethods([{ id: '1', name: 'PIX', amount: 0 }]);
-      setNotes('');
+      setIsCheckoutDialogOpen(false);
     } catch (error) {
       toast({
         title: "Erro",
@@ -257,266 +290,290 @@ const POS = () => {
     }
   };
 
+  const handleOpenCheckoutDialog = () => {
+    if (cartItems.length === 0) {
+      toast({
+        title: "Carrinho Vazio",
+        description: "Adicione produtos ao carrinho antes de finalizar a compra",
+        variant: "warning"
+      });
+      return;
+    }
+    setIsCheckoutDialogOpen(true);
+  };
+
+  const handleCloseCheckoutDialog = () => {
+    setIsCheckoutDialogOpen(false);
+  };
+
   return (
-    <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-semibold mb-4">Ponto de Venda</h1>
-
-      {/* Product Search */}
-      <div className="flex items-center mb-4">
-        <Input
-          type="text"
-          placeholder="Buscar produtos..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-        <Button className="ml-2" onClick={handleSearch}>
-          <Search className="w-4 h-4 mr-2" />
-          Buscar
-        </Button>
+    <div className="min-h-screen bg-background">
+      <div className="p-6 border-b">
+        <h1 className="text-2xl font-semibold">Ponto de Venda</h1>
       </div>
-
-      {/* Search Results */}
-      {searchResults.length > 0 && (
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold mb-2">Resultados da Busca</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {searchResults.map(product => (
-              <div key={product.id} className="border rounded-lg p-2">
-                <h3 className="text-md font-semibold">{product.name}</h3>
-                <p className="text-gray-600">R$ {product.price}</p>
-                <Button className="w-full mt-2" onClick={() => handleAddToCart(product)}>
-                  Adicionar ao Carrinho
-                </Button>
+      
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full flex">
+          <div className="flex-1 p-6 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  type="search"
+                  placeholder="Buscar produtos..."
+                  className="pl-9"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Shopping Cart */}
-        <div className="lg:col-span-2">
-          <h2 className="text-lg font-semibold mb-2">Carrinho de Compras</h2>
-          {cartItems.length === 0 ? (
-            <p>O carrinho está vazio.</p>
-          ) : (
-            <div className="space-y-3">
-              {cartItems.map(item => (
-                <div key={`${item.id}-${item.variation_id || 0}`} className="flex items-center justify-between border rounded-lg p-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-md truncate">{item.name}</div>
-                    {item.variation_attributes && (
-                      <div className="text-sm text-gray-500">
-                        {Object.entries(item.variation_attributes).map(([key, value]) => (
-                          <div key={key}>{key}: {value}</div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="text-gray-600 text-sm">R$ {item.price}</div>
-                  </div>
-                  <div className="flex items-center">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateCartItemQuantity(item, item.quantity - 1)}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <Input
-                      type="number"
-                      className="w-16 text-center"
-                      value={item.quantity}
-                      onChange={(e) => updateCartItemQuantity(item, parseInt(e.target.value))}
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => updateCartItemQuantity(item, item.quantity + 1)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-8 w-8 ml-2"
-                      onClick={() => removeCartItem(item)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-              <div className="flex justify-between font-semibold text-lg">
-                <span>Total:</span>
-                <span>R$ {getTotalPrice().toFixed(2)}</span>
-              </div>
-              <Button className="w-full" onClick={clearCart}>
-                Limpar Carrinho
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Checkout */}
-        <div>
-          <h2 className="text-lg font-semibold mb-2">Finalizar Compra</h2>
-
-          {/* Customer Selection */}
-          <div className="space-y-4 mb-4">
-            <h3 className="font-semibold">Cliente</h3>
-            <RadioGroup
-              value={isGuestSale ? 'guest' : 'customer'}
-              onValueChange={(value) => setIsGuestSale(value === 'guest')}
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="customer" id="customer" />
-                <Label htmlFor="customer">Cliente Cadastrado</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="guest" id="guest" />
-                <Label htmlFor="guest">Venda de Convidado</Label>
-              </div>
-            </RadioGroup>
-
-            {!isGuestSale ? (
-              <Select value={selectedCustomer?.id?.toString() || ''} onValueChange={(value) => {
-                const customer = customers.find(c => c.id.toString() === value);
-                setSelectedCustomer(customer || null);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecionar cliente" />
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  {customers.map(customer => (
-                    <SelectItem key={customer.id} value={customer.id.toString()}>
-                      {customer.first_name} {customer.last_name} - {customer.email}
+                  <SelectItem value="">Todas</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.name}>
+                      {category.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="guest-name">Nome</Label>
-                  <Input
-                    id="guest-name"
-                    value={guestData.name}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nome do cliente"
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {filteredProducts.map((product) => (
+                <div key={product.id} className="bg-white rounded-lg border p-4 hover:shadow-md transition-shadow">
+                  <img
+                    src={product.images[0]?.src}
+                    alt={product.name}
+                    className="w-full h-32 object-cover rounded-md mb-2"
                   />
+                  <h3 className="font-semibold">{product.name}</h3>
+                  <p className="text-sm text-muted-foreground">{product.categories.map((cat: any) => cat.name).join(', ')}</p>
+                  
+                  <div className="mt-3 flex items-center justify-between">
+                    <span className="font-semibold">
+                      R$ {typeof product.price === 'string' ? parseFloat(product.price).toFixed(2) : product.price?.toFixed(2)}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => addToCart(product)}
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="guest-email">E-mail</Label>
-                  <Input
-                    id="guest-email"
-                    type="email"
-                    value={guestData.email}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="E-mail do cliente"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="guest-phone">Telefone</Label>
-                  <Input
-                    id="guest-phone"
-                    value={guestData.phone}
-                    onChange={(e) => setGuestData(prev => ({ ...prev, phone: e.target.value }))}
-                    placeholder="Telefone do cliente"
-                  />
-                </div>
-              </div>
-            )}
+              ))}
+            </div>
           </div>
 
-          {/* Payment Methods */}
-          <div className="space-y-4 mb-4">
-            <h3 className="font-semibold">Formas de Pagamento</h3>
-            <div className="space-y-3">
-              {paymentMethods.map((payment, index) => (
-                <div key={payment.id} className="flex gap-3 items-end">
-                  <div className="flex-1">
-                    <Label>Forma de Pagamento {index + 1}</Label>
-                    <Select 
-                      value={payment.name} 
+          <div className="w-96 p-6 bg-gray-50 border-l flex flex-col">
+            <h2 className="text-xl font-semibold mb-4">Carrinho</h2>
+            
+            <div className="overflow-y-auto flex-1">
+              {cartItems.length === 0 ? (
+                <p className="text-muted-foreground">Nenhum item no carrinho.</p>
+              ) : (
+                <div className="space-y-3">
+                  {cartItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-medium">{item.name}</h3>
+                        <p className="text-sm text-muted-foreground">
+                          R$ {typeof item.price === 'string' ? parseFloat(item.price).toFixed(2) : item.price?.toFixed(2)}
+                        </p>
+                        {item.variation_attributes && item.variation_attributes.length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {item.variation_attributes.map((attr, index) => (
+                              <div key={index}>
+                                {attr.name}: {attr.option}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          type="number"
+                          className="w-20 text-center"
+                          value={item.quantity}
+                          onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
+                        />
+                        <Button variant="ghost" size="sm" onClick={() => removeItem(item.id)}>
+                          Remover
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 border-t pt-4">
+              <div className="flex justify-between font-semibold">
+                <span>Total de Itens:</span>
+                <span>{getTotalItems()}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-xl">
+                <span>Total:</span>
+                <span>R$ {getTotal().toFixed(2)}</span>
+              </div>
+              <Button
+                className="w-full mt-4 bg-primary hover:bg-primary/90"
+                onClick={handleOpenCheckoutDialog}
+                disabled={cartItems.length === 0}
+              >
+                Finalizar Compra
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full mt-2"
+                onClick={clearCart}
+                disabled={cartItems.length === 0}
+              >
+                Limpar Carrinho
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {isCheckoutDialogOpen && (
+        <div className="fixed inset-0 z-50 overflow-auto bg-black/50">
+          <div className="relative m-auto mt-20 max-w-4xl bg-white rounded-lg p-6">
+            <h2 className="text-xl font-semibold mb-4">Finalizar Compra</h2>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Cliente:</Label>
+                <RadioGroup
+                  defaultValue="guest"
+                  className="flex space-x-2"
+                  onValueChange={(value) => setIsGuestSale(value === 'guest')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="customer" id="customer" />
+                    <Label htmlFor="customer">Cliente Cadastrado</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="guest" id="guest" />
+                    <Label htmlFor="guest">Venda de Convidado</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {!isGuestSale ? (
+                <div>
+                  <Select onValueChange={(value) => {
+                    const customer = customers.find(c => c.id.toString() === value);
+                    setSelectedCustomer(customer || null);
+                  }}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecionar cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map(customer => (
+                        <SelectItem key={customer.id} value={customer.id.toString()}>
+                          {customer.first_name} {customer.last_name} - {customer.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="guest-name">Nome:</Label>
+                    <Input
+                      type="text"
+                      id="guest-name"
+                      value={guestData.name}
+                      onChange={(e) => setGuestData({ ...guestData, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="guest-email">Email:</Label>
+                    <Input
+                      type="email"
+                      id="guest-email"
+                      value={guestData.email}
+                      onChange={(e) => setGuestData({ ...guestData, email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="guest-phone">Telefone:</Label>
+                    <Input
+                      type="tel"
+                      id="guest-phone"
+                      value={guestData.phone}
+                      onChange={(e) => setGuestData({ ...guestData, phone: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>Formas de Pagamento:</Label>
+                {paymentMethods.map((payment, index) => (
+                  <div key={payment.id} className="flex items-center space-x-2 mb-2">
+                    <Select
+                      defaultValue="PIX"
                       onValueChange={(value) => updatePaymentMethod(payment.id, 'name', value)}
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Selecionar" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="PIX">PIX</SelectItem>
                         <SelectItem value="Dinheiro">Dinheiro</SelectItem>
-                        <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
                         <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                        <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="w-32">
-                    <Label>Valor</Label>
                     <Input
                       type="number"
-                      step="0.01"
+                      placeholder="Valor"
                       value={payment.amount}
-                      onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value) || 0)}
-                      placeholder="0,00"
+                      onChange={(e) => updatePaymentMethod(payment.id, 'amount', parseFloat(e.target.value))}
                     />
-                  </div>
-                  {paymentMethods.length > 1 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removePaymentMethod(payment.id)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => removePaymentMethod(payment.id)}>
                       Remover
                     </Button>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+                <Button variant="outline" size="sm" onClick={addPaymentMethod}>
+                  Adicionar Forma de Pagamento
+                </Button>
+              </div>
+
+              <div>
+                <Label htmlFor="notes">Observações:</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Alguma observação?"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="flex justify-between items-center">
-              <Button variant="outline" onClick={addPaymentMethod}>
-                Adicionar Forma de Pagamento
+            <div className="mt-4 flex justify-between">
+              <Button variant="ghost" onClick={handleCloseCheckoutDialog}>
+                Cancelar
               </Button>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Total Pagamentos:</p>
-                <p className="text-lg font-bold">R$ {getTotalPayments().toFixed(2)}</p>
-              </div>
+              <Button
+                className="bg-primary hover:bg-primary/90"
+                onClick={handleFinalizePurchase}
+                disabled={isProcessing}
+              >
+                {isProcessing ? 'Finalizando...' : 'Finalizar Compra'}
+              </Button>
             </div>
-
-            {Math.abs(getTotalPayments() - getTotalPrice()) > 0.01 && (
-              <div className="bg-orange-50 dark:bg-orange-950 border border-orange-200 dark:border-orange-800 rounded-lg p-3">
-                <p className="text-sm text-orange-800 dark:text-orange-200">
-                  <strong>Diferença:</strong> R$ {(getTotalPrice() - getTotalPayments()).toFixed(2)}
-                  {getTotalPayments() > getTotalPrice() ? ' (Troco)' : ' (Faltando)'}
-                </p>
-              </div>
-            )}
           </div>
-
-          {/* Notes */}
-          <div className="space-y-2 mb-4">
-            <Label htmlFor="order-notes">Observações do Pedido</Label>
-            <Textarea
-              id="order-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Observações sobre o pedido..."
-              className="h-20"
-            />
-          </div>
-
-          <Button
-            className="w-full bg-gradient-primary"
-            onClick={handleFinalizePurchase}
-            disabled={isProcessing || Math.abs(getTotalPayments() - getTotalPrice()) > 0.01}
-          >
-            {isProcessing ? 'Finalizando...' : 'Finalizar Pedido'}
-          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 };

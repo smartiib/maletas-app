@@ -140,38 +140,46 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
           taxes: [],
           meta_data: [],
           sku: item.sku || '',
-          image: { src: '' }
+          image: { src: '' },
+          parent_name: null,
+          tax_class: ''
         })),
         billing: hasAssociatedCustomer ? {
           first_name: maleta?.customer_name?.split(' ')[0] || 'Cliente',
           last_name: maleta?.customer_name?.split(' ').slice(1).join(' ') || '',
-          email: maleta?.customer_email || 'cliente@loja.com',
-          phone: '',
+          company: '',
           address_1: 'Loja Física',
+          address_2: '',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
-          country: 'BR'
+          country: 'BR',
+          email: maleta?.customer_email || 'cliente@loja.com',
+          phone: ''
         } : isGuestSale ? {
           first_name: guestData.name.split(' ')[0] || 'Convidado',
           last_name: guestData.name.split(' ').slice(1).join(' ') || '',
-          email: guestData.email || 'convidado@loja.com',
-          phone: guestData.phone || '',
+          company: '',
           address_1: 'Loja Física',
+          address_2: '',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
-          country: 'BR'
+          country: 'BR',
+          email: guestData.email || 'convidado@loja.com',
+          phone: guestData.phone || ''
         } : {
           first_name: selectedCustomer.first_name,
           last_name: selectedCustomer.last_name,
-          email: selectedCustomer.email,
-          phone: selectedCustomer.billing?.phone || '',
+          company: selectedCustomer.billing?.company || '',
           address_1: selectedCustomer.billing?.address_1 || 'Loja Física',
+          address_2: selectedCustomer.billing?.address_2 || '',
           city: selectedCustomer.billing?.city || 'Cidade',
           state: selectedCustomer.billing?.state || 'Estado',
           postcode: selectedCustomer.billing?.postcode || '00000-000',
-          country: 'BR'
+          country: 'BR',
+          email: selectedCustomer.email,
+          phone: selectedCustomer.billing?.phone || ''
         },
         customer_note: notes,
         total: getTotalPrice().toFixed(2),

@@ -40,6 +40,8 @@ export interface Customer {
   is_paying_customer: boolean;
   avatar_url: string;
   meta_data: any[];
+  orders_count: number;
+  total_spent: string;
 }
 
 export interface Product {
@@ -370,3 +372,6 @@ export class WooCommerceService {
 
 // Export a singleton instance
 export const wooCommerceService = new WooCommerceService();
+
+// Export wooCommerceAPI for backwards compatibility
+export const wooCommerceAPI = wooCommerceService;
