@@ -38,7 +38,7 @@ const ROLE_PERMISSIONS = {
 };
 
 const Settings = () => {
-  const { config, testConnection, saveConfig, isConfigured } = useWooCommerceConfig();
+  const { config, isConfigured, isLoading } = useWooCommerceConfig();
   
   // Hook para buscar configurações de comissão
   const commissionQuery = useQuery({
