@@ -180,7 +180,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
                 <Badge className={getStatusColor(product.status)}>
-                  {getStatusLabel(product.status)} • {totalStock} unidades
+                  {getStatusLabel(product.status)}
+                </Badge>
+                <Badge variant="outline">
+                  {totalStock} unidades
                 </Badge>
                 <Badge className={stockStatus.color}>
                   {stockStatus.text}
@@ -247,7 +250,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             
             <div className="flex items-center gap-4 ml-16">
               <Badge className={getStatusColor(product.status)}>
-                {getStatusLabel(product.status)} • {totalStock} unidades
+                {getStatusLabel(product.status)}
+              </Badge>
+              <Badge variant="outline">
+                {totalStock} unidades
               </Badge>
               <Badge className={stockStatus.color}>
                 {stockStatus.text}
