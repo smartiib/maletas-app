@@ -1,4 +1,4 @@
-import { Product, Category, Order, Customer } from '@/types';
+import { Product, Category, Order, Customer, WooCommerceConfig } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
 class WooCommerceService {
@@ -86,6 +86,16 @@ class WooCommerceService {
       console.error('[WooCommerceService] Erro na configuração:', error);
       this.isConfigured = false;
     }
+  }
+
+  getConfig(): WooCommerceConfig {
+    return {
+      apiUrl: this.baseURL,
+      consumerKey: this.consumerKey,
+      consumerSecret: this.consumerSecret,
+      isConfigured: this.isConfigured,
+      url: this.baseURL
+    };
   }
 
   private async ensureConfigured() {
@@ -229,3 +239,6 @@ class WooCommerceService {
 }
 
 export const wooCommerceAPI = new WooCommerceService();
+
+// Re-export types for convenience
+export type { Product, Category, Order, Customer, WooCommerceConfig } from '@/types';
