@@ -10,7 +10,6 @@ export const useWooCommerceProducts = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getProducts(perPage),
     enabled: !!currentOrganization,
   });
@@ -22,7 +21,6 @@ export const useWooCommerceFilteredProducts = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getProducts(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
@@ -56,7 +54,6 @@ export const useWooCommerceOrders = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getOrders(perPage),
     enabled: !!currentOrganization,
   });
@@ -68,7 +65,6 @@ export const useWooCommerceFilteredOrders = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getOrders(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
@@ -82,7 +78,6 @@ export const useWooCommerceCustomers = (page = 1, perPage = 10) => {
 
   return useQuery({
     queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getCustomers(perPage),
     enabled: !!currentOrganization,
   });
@@ -94,7 +89,6 @@ export const useWooCommerceFilteredCustomers = (page = 1, perPage = 20) => {
 
   return useQuery({
     queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
-    // Ajuste: serviço espera number, não objeto
     queryFn: () => wooCommerceAPI.getCustomers(perPage),
     enabled: !!currentOrganization,
     staleTime: 5000, // 5 seconds
@@ -356,7 +350,7 @@ export const useUpdateProduct = () => {
   });
 };
 
-// Stock hook
+// Updated Stock hook with proper error handling and WooCommerce config check
 export const useUpdateStock = () => {
   const queryClient = useQueryClient();
   const { currentOrganization } = useOrganization();
@@ -375,28 +369,60 @@ export const useUpdateStock = () => {
         throw new Error('Organização não encontrada. Não é possível salvar no Supabase.');
       }
 
+      console.log(`[useUpdateStock] Iniciando atualização de estoque:`, {
+        productId,
+        variationId,
+        newStock,
+        organizationId: currentOrganization.id
+      });
+
       const stockStatus = newStock > 0 ? 'instock' : 'outofstock';
 
-      // 1) Persistir primeiro no Supabase
+      // 1) Buscar configuração do WooCommerce ANTES de tentar atualizar
+      const { data: orgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('settings')
+        .eq('id', currentOrganization.id)
+        .single();
+
+      if (orgError) {
+        console.error('[useUpdateStock] Erro ao buscar configurações da organização:', orgError);
+        throw new Error('Erro ao buscar configurações da organização');
+      }
+
+      const settings = orgData?.settings as any;
+      const wooConfig = {
+        url: settings?.woocommerce_url || '',
+        consumerKey: settings?.woocommerce_consumer_key || '',
+        consumerSecret: settings?.woocommerce_consumer_secret || ''
+      };
+
+      const isWooConfigured = !!(wooConfig.url && wooConfig.consumerKey && wooConfig.consumerSecret);
+
+      console.log('[useUpdateStock] Configuração WooCommerce:', {
+        hasUrl: !!wooConfig.url,
+        hasConsumerKey: !!wooConfig.consumerKey,
+        hasConsumerSecret: !!wooConfig.consumerSecret,
+        isConfigured: isWooConfigured
+      });
+
+      // 2) Persistir primeiro no Supabase (sempre funciona)
       if (variationId) {
-        // Tentar UPDATE primeiro
+        // Variação
         const { data: updatedVar, error: updateVarError } = await supabase
           .from('wc_product_variations')
           .update({
             stock_quantity: newStock,
             stock_status: stockStatus,
             updated_at: new Date().toISOString(),
-            // Opcional: garantir org (só terá efeito se RLS permitir)
             organization_id: currentOrganization.id,
           })
           .eq('id', variationId)
           .select('id')
           .maybeSingle();
 
-        // Se não atualizou (sem linha, ou RLS bloqueou), fazer UPSERT com org
         if (updateVarError || !updatedVar) {
-          // console para diagnóstico
-          console.log('[useUpdateStock] Update variação falhou ou não encontrou linha. Tentando upsert...', {
+          console.log('[useUpdateStock] Update variação falhou, tentando upsert...', {
             variationId,
             updateVarError,
           });
@@ -417,7 +443,7 @@ export const useUpdateStock = () => {
 
           if (upsertVarError) {
             console.error('[useUpdateStock] Erro no upsert da variação:', upsertVarError);
-            throw upsertVarError;
+            throw new Error(`Erro ao salvar variação no banco: ${upsertVarError.message}`);
           }
         }
       } else {
@@ -435,7 +461,7 @@ export const useUpdateStock = () => {
           .maybeSingle();
 
         if (updateProdError || !updatedProd) {
-          console.log('[useUpdateStock] Update produto falhou ou não encontrou linha. Tentando upsert...', {
+          console.log('[useUpdateStock] Update produto falhou, tentando upsert...', {
             productId,
             updateProdError,
           });
@@ -455,30 +481,55 @@ export const useUpdateStock = () => {
 
           if (upsertProdError) {
             console.error('[useUpdateStock] Erro no upsert do produto:', upsertProdError);
-            throw upsertProdError;
+            throw new Error(`Erro ao salvar produto no banco: ${upsertProdError.message}`);
           }
         }
       }
 
-      // 2) Depois sincronizar no WooCommerce
-      const result = await wooCommerceAPI.updateStock(productId, newStock, variationId);
+      console.log('[useUpdateStock] Salvo com sucesso no Supabase');
 
-      return result;
+      // 3) Tentar sincronizar no WooCommerce (se configurado)
+      if (isWooConfigured) {
+        try {
+          console.log('[useUpdateStock] Tentando sincronizar com WooCommerce...');
+          const result = await wooCommerceAPI.updateStock(productId, newStock, variationId);
+          console.log('[useUpdateStock] Sincronizado com WooCommerce com sucesso');
+          return result;
+        } catch (wooError: any) {
+          console.warn('[useUpdateStock] Falha na sincronização com WooCommerce (não crítico):', wooError);
+          // Não falha a operação, apenas avisa
+          toast.warning('Estoque salvo localmente, mas falha na sincronização com WooCommerce: ' + wooError.message);
+          return { success: true, warning: 'Sincronização WooCommerce falhou' };
+        }
+      } else {
+        console.log('[useUpdateStock] WooCommerce não configurado, apenas salvo localmente');
+        toast.success('Estoque atualizado localmente (WooCommerce não configurado)');
+        return { success: true, localOnly: true };
+      }
     },
-    onSuccess: async () => {
-      // 3) Invalidate queries para refletir imediatamente
-      // - Produtos (lista/filtrados)
+    onSuccess: async (result) => {
+      console.log('[useUpdateStock] Operação concluída:', result);
+      
+      // 4) Invalidar queries para refletir as mudanças na UI
       await queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) && q.queryKey[0] === 'woocommerce-products',
       });
-      // - Variações (por parent_id e por ids)
+      
       await queryClient.invalidateQueries({
         predicate: (q) =>
           Array.isArray(q.queryKey) &&
           (q.queryKey[0] === 'wc-variations' || q.queryKey[0] === 'wc-variations-by-ids'),
       });
+
+      if (!result?.warning && !result?.localOnly) {
+        toast.success('Estoque atualizado com sucesso!');
+      }
     },
+    onError: (error: any) => {
+      console.error('[useUpdateStock] Erro na operação:', error);
+      toast.error(`Erro ao atualizar estoque: ${error.message}`);
+    }
   });
 };
 
@@ -488,7 +539,6 @@ export const useRepresentantes = () => {
   
   return useQuery({
     queryKey: ['woocommerce-representantes', currentOrganization?.id],
-    // Ajuste: remover objeto, serviço espera number; usar um limite razoável
     queryFn: () => wooCommerceAPI.getCustomers(100),
     enabled: !!currentOrganization,
   });
