@@ -119,7 +119,10 @@ const SupplierDialog = ({ open, onOpenChange, mode, supplier }: SupplierDialogPr
           description: 'Fornecedor criado com sucesso.',
         });
       } else {
-        await updateSupplier.mutateAsync({ id: supplier.id, ...data });
+        await updateSupplier.mutateAsync({ 
+          id: supplier.id, 
+          data: data 
+        });
         toast({
           title: 'Sucesso',
           description: 'Fornecedor atualizado com sucesso.',
