@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { wooCommerceAPI } from '@/services/woocommerce';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -363,10 +362,122 @@ export const useUpdateStock = () => {
   const { currentOrganization } = useOrganization();
   
   return useMutation({
-    mutationFn: ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => 
-      wooCommerceAPI.updateStock(productId, newStock, variationId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', currentOrganization?.id] });
+    mutationFn: async ({
+      productId,
+      newStock,
+      variationId,
+    }: {
+      productId: number;
+      newStock: number;
+      variationId?: number;
+    }) => {
+      if (!currentOrganization?.id) {
+        throw new Error('Organização não encontrada. Não é possível salvar no Supabase.');
+      }
+
+      const stockStatus = newStock > 0 ? 'instock' : 'outofstock';
+
+      // 1) Persistir primeiro no Supabase
+      if (variationId) {
+        // Tentar UPDATE primeiro
+        const { data: updatedVar, error: updateVarError } = await supabase
+          .from('wc_product_variations')
+          .update({
+            stock_quantity: newStock,
+            stock_status: stockStatus,
+            updated_at: new Date().toISOString(),
+            // Opcional: garantir org (só terá efeito se RLS permitir)
+            organization_id: currentOrganization.id,
+          })
+          .eq('id', variationId)
+          .select('id')
+          .maybeSingle();
+
+        // Se não atualizou (sem linha, ou RLS bloqueou), fazer UPSERT com org
+        if (updateVarError || !updatedVar) {
+          // console para diagnóstico
+          console.log('[useUpdateStock] Update variação falhou ou não encontrou linha. Tentando upsert...', {
+            variationId,
+            updateVarError,
+          });
+
+          const { error: upsertVarError } = await supabase
+            .from('wc_product_variations')
+            .upsert(
+              {
+                id: variationId,
+                parent_id: productId,
+                stock_quantity: newStock,
+                stock_status: stockStatus,
+                organization_id: currentOrganization.id,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'id' }
+            );
+
+          if (upsertVarError) {
+            console.error('[useUpdateStock] Erro no upsert da variação:', upsertVarError);
+            throw upsertVarError;
+          }
+        }
+      } else {
+        // Produto simples
+        const { data: updatedProd, error: updateProdError } = await supabase
+          .from('wc_products')
+          .update({
+            stock_quantity: newStock,
+            stock_status: stockStatus,
+            updated_at: new Date().toISOString(),
+            organization_id: currentOrganization.id,
+          })
+          .eq('id', productId)
+          .select('id')
+          .maybeSingle();
+
+        if (updateProdError || !updatedProd) {
+          console.log('[useUpdateStock] Update produto falhou ou não encontrou linha. Tentando upsert...', {
+            productId,
+            updateProdError,
+          });
+
+          const { error: upsertProdError } = await supabase
+            .from('wc_products')
+            .upsert(
+              {
+                id: productId,
+                stock_quantity: newStock,
+                stock_status: stockStatus,
+                organization_id: currentOrganization.id,
+                updated_at: new Date().toISOString(),
+              },
+              { onConflict: 'id' }
+            );
+
+          if (upsertProdError) {
+            console.error('[useUpdateStock] Erro no upsert do produto:', upsertProdError);
+            throw upsertProdError;
+          }
+        }
+      }
+
+      // 2) Depois sincronizar no WooCommerce
+      const result = await wooCommerceAPI.updateStock(productId, newStock, variationId);
+
+      return result;
+    },
+    onSuccess: async () => {
+      // 3) Invalidate queries para refletir imediatamente
+      // - Produtos (lista/filtrados)
+      await queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) && q.queryKey[0] === 'woocommerce-products',
+      });
+      // - Variações (por parent_id e por ids)
+      await queryClient.invalidateQueries({
+        predicate: (q) =>
+          Array.isArray(q.queryKey) &&
+          (q.queryKey[0] === 'wc-variations' || q.queryKey[0] === 'wc-variations-by-ids'),
+      });
     },
   });
 };
