@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +16,6 @@ import { useProductVariations, useProductVariationsByIds, DbVariation } from '@/
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
 import VariationStockEditor from './VariationStockEditor';
-import SimpleProductStockEditor from './SimpleProductStockEditor';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -321,53 +321,51 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="stock_quantity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Quantidade em Estoque</FormLabel>
-                <FormControl>
-                  <Input 
-                    {...field} 
-                    type="number" 
-                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    value={field.value}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="stock_status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Status do Estoque</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+        {/* Stock fields - only show for simple products */}
+        {isSimpleProduct && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="stock_quantity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Quantidade em Estoque</FormLabel>
                   <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o status" />
-                    </SelectTrigger>
+                    <Input 
+                      {...field} 
+                      type="number" 
+                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      value={field.value}
+                    />
                   </FormControl>
-                  <SelectContent>
-                    <SelectItem value="instock">Em Estoque</SelectItem>
-                    <SelectItem value="outofstock">Sem Estoque</SelectItem>
-                    <SelectItem value="onbackorder">Em Reposição</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Simple Product Stock Editor */}
-        {isSimpleProduct && product?.id && (
-          <SimpleProductStockEditor product={product as Product} />
+            <FormField
+              control={form.control}
+              name="stock_status"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Status do Estoque</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="instock">Em Estoque</SelectItem>
+                      <SelectItem value="outofstock">Sem Estoque</SelectItem>
+                      <SelectItem value="onbackorder">Em Reposição</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         )}
 
         {/* Variations Section */}
