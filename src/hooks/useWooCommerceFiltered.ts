@@ -102,7 +102,7 @@ export const useWooCommerceFilteredCategories = () => {
         return [];
       }
 
-      // Usar wc_product_categories diretamente (não wc_categories que é uma view)
+      // FIXED: Use wc_product_categories instead of wc_categories
       const { data, error } = await supabase
         .from('wc_product_categories')
         .select('*')
@@ -121,7 +121,7 @@ export const useWooCommerceFilteredCategories = () => {
   });
 };
 
-// Novo hook para buscar logs de sync (corrigindo erro 400)
+// FIXED: Simplified last sync status query
 export const useLastSyncStatus = () => {
   const { currentOrganization } = useOrganization();
   
@@ -130,7 +130,7 @@ export const useLastSyncStatus = () => {
     queryFn: async () => {
       if (!currentOrganization) return null;
 
-      // Buscar último log ordenado por data, sem filtros problemáticos
+      // FIXED: Get latest sync log without problematic filters
       const { data, error } = await supabase
         .from('sync_logs')
         .select('*')
@@ -151,7 +151,7 @@ export const useLastSyncStatus = () => {
   });
 };
 
-// Novo hook para buscar configuração de sync (corrigindo erro 404)
+// FIXED: Correct sync config query
 export const useSyncConfig = () => {
   const { currentOrganization } = useOrganization();
   
@@ -160,7 +160,7 @@ export const useSyncConfig = () => {
     queryFn: async () => {
       if (!currentOrganization) return null;
 
-      // Usar sync_configs (não sync_config)
+      // FIXED: Use sync_configs table (plural) 
       const { data, error } = await supabase
         .from('sync_configs')
         .select('*')

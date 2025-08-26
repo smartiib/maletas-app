@@ -29,6 +29,7 @@ interface SyncResponse {
   nextPage?: number | null;
   hasMore?: boolean;
   sync_type: string;
+  timeElapsed?: number;
 }
 
 export const useWooCommerceOperations = () => {
@@ -43,31 +44,38 @@ export const useWooCommerceOperations = () => {
     resetProgress
   } = useSyncProgress();
 
-  // Função recursiva para sincronização progressiva
+  // IMPROVED: Progressive sync with smaller, safer batches
   const performProgressiveSync = async (
     params: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
       config: { url: string; consumer_key: string; consumer_secret: string; };
       batchSize?: number;
-      maxPages?: number;
       productIds?: number[];
     },
     page: number = 1,
     totalProcessed: number = 0,
-    totalErrors: number = 0
+    totalErrors: number = 0,
+    iteration: number = 1
   ): Promise<{ processed: number; errors: number }> => {
     
     const requestBody: SyncRequest = {
       sync_type: params.syncType,
       config: params.config,
-      batch_size: params.batchSize || 50,
-      max_pages: params.maxPages || 5,
+      batch_size: params.batchSize || 25, // REDUCED from 50
+      max_pages: 1, // ALWAYS 1 page per request to prevent timeout
       page,
       organization_id: currentOrganization!.id,
       product_ids: params.productIds
     };
 
-    console.log(`[Progressive Sync] Página ${page}, processados até agora: ${totalProcessed}`);
+    console.log(`[Progressive Sync] Iteração ${iteration}, Página ${page}, processados até agora: ${totalProcessed}`);
+
+    // Update progress before each call
+    updateProgress({
+      progress: Math.min(20 + (iteration * 10), 90), // Progressive increase
+      currentStep: `Processando lote ${iteration} (página ${page})...`,
+      itemsProcessed: totalProcessed,
+    });
 
     const { data, error } = await supabase.functions.invoke('wc-sync', {
       body: requestBody
@@ -86,20 +94,33 @@ export const useWooCommerceOperations = () => {
     const newTotalProcessed = totalProcessed + response.processed;
     const newTotalErrors = totalErrors + response.errors;
 
-    // Atualizar progresso
-    updateProgress({
-      itemsProcessed: newTotalProcessed,
-      currentStep: `Página ${page} concluída - ${response.processed} itens processados`,
-      progress: response.hasMore ? 50 : 100 // Se tem mais, mostra 50%, senão 100%
+    console.log(`[Progressive Sync] Lote ${iteration} concluído:`, {
+      processed: response.processed,
+      errors: response.errors,
+      totalProcessed: newTotalProcessed,
+      hasMore: response.hasMore,
+      nextPage: response.nextPage,
+      timeElapsed: response.timeElapsed
     });
 
-    // Se há próxima página, continuar recursivamente
+    // Update progress after processing
+    updateProgress({
+      itemsProcessed: newTotalProcessed,
+      currentStep: `Lote ${iteration} concluído - ${response.processed} itens processados`,
+      progress: response.hasMore ? Math.min(30 + (iteration * 15), 85) : 95
+    });
+
+    // If there's more data, continue with next page
     if (response.nextPage && response.hasMore) {
+      // Small delay between requests to prevent overwhelming the server
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       return await performProgressiveSync(
         params,
         response.nextPage,
         newTotalProcessed,
-        newTotalErrors
+        newTotalErrors,
+        iteration + 1
       );
     }
 
@@ -110,14 +131,12 @@ export const useWooCommerceOperations = () => {
     mutationFn: async ({ 
       syncType, 
       config, 
-      batchSize = 50, 
-      maxPages = 5,
+      batchSize = 25, // REDUCED from 50
       productIds
     }: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
       config: { url: string; consumer_key: string; consumer_secret: string; };
       batchSize?: number;
-      maxPages?: number;
       productIds?: number[];
     }) => {
       if (!currentOrganization) {
@@ -131,12 +150,11 @@ export const useWooCommerceOperations = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      // Executar sincronização progressiva
+      // Execute progressive sync with safer parameters
       const result = await performProgressiveSync({
         syncType,
         config,
         batchSize,
-        maxPages,
         productIds
       });
 

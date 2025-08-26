@@ -1,4 +1,3 @@
-
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -58,9 +57,11 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, serviceKey);
 
+// Time budget constants (18 seconds to leave 2 seconds buffer for response)
+const TIME_BUDGET_MS = 18000;
+
 /**
  * Gets WooCommerce credentials from the Supabase database.
- * Agora busca tanto nos campos diretos quanto no settings JSON.
  */
 async function getWooCommerceCredentials(organizationId: string | null) {
   if (!organizationId) {
@@ -122,6 +123,13 @@ async function getWooCommerceCredentials(organizationId: string | null) {
 }
 
 /**
+ * Check if we've exceeded our time budget
+ */
+function isTimeBudgetExceeded(startTime: number): boolean {
+  return (Date.now() - startTime) > TIME_BUDGET_MS;
+}
+
+/**
  * Fetches products from WooCommerce API with pagination.
  */
 async function fetchProducts(
@@ -129,7 +137,7 @@ async function fetchProducts(
   consumerKey: string,
   consumerSecret: string,
   page: number = 1,
-  perPage: number = 100,
+  perPage: number = 50,
 ): Promise<any[]> {
   const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products`);
   url.searchParams.set("per_page", String(perPage));
@@ -171,7 +179,7 @@ async function fetchProductVariations(opts: {
 }): Promise<any[]> {
   const { wcBaseUrl, consumerKey, consumerSecret, productId } = opts;
 
-  const perPage = 100;
+  const perPage = 50; // Reduced from 100
   let page = 1;
   const all: any[] = [];
 
@@ -284,8 +292,7 @@ async function upsertVariations(
 }
 
 /**
- * Sincroniza variações para um produto variável - VERSÃO MELHORADA
- * Agora SEMPRE busca variações, mesmo se product.variations vier vazio
+ * Sincroniza variações para um produto variável com time budget check
  */
 async function syncVariationsForProduct(opts: {
   wcBaseUrl: string;
@@ -294,8 +301,15 @@ async function syncVariationsForProduct(opts: {
   productId: number;
   organizationId?: string | null;
   variationIds?: number[];
-}) {
-  const { wcBaseUrl, consumerKey, consumerSecret, productId, organizationId, variationIds } = opts;
+  startTime: number;
+}): Promise<boolean> {
+  const { wcBaseUrl, consumerKey, consumerSecret, productId, organizationId, variationIds, startTime } = opts;
+
+  // Check time budget before processing variations
+  if (isTimeBudgetExceeded(startTime)) {
+    logger.log(`[wc-sync] Time budget exceeded, skipping variations for product ${productId}`);
+    return false;
+  }
 
   logger.log(`[wc-sync] Sincronizando variações para produto ${productId}`);
 
@@ -304,6 +318,11 @@ async function syncVariationsForProduct(opts: {
     const variations = [];
     
     for (const variationId of variationIds) {
+      if (isTimeBudgetExceeded(startTime)) {
+        logger.log(`[wc-sync] Time budget exceeded during specific variation sync`);
+        break;
+      }
+
       try {
         const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products/${productId}/variations/${variationId}`);
         url.searchParams.set("consumer_key", consumerKey);
@@ -325,10 +344,10 @@ async function syncVariationsForProduct(opts: {
       await upsertVariations(variations, organizationId ?? null);
       logger.log(`[wc-sync] ${variations.length} variações específicas sincronizadas para produto ${productId}`);
     }
-    return;
+    return true;
   }
 
-  // SEMPRE buscar todas as variações do produto (mudança principal)
+  // SEMPRE buscar todas as variações do produto
   const variations = await fetchProductVariations({
     wcBaseUrl,
     consumerKey,
@@ -338,21 +357,23 @@ async function syncVariationsForProduct(opts: {
 
   if (!variations || variations.length === 0) {
     logger.log(`[wc-sync] Produto variável ${productId} sem variações no WooCommerce`);
-    return;
+    return true;
   }
 
   await upsertVariations(variations, organizationId ?? null);
   logger.log(`[wc-sync] ${variations.length} variações sincronizadas para produto ${productId}`);
+  return true;
 }
 
 /**
- * Sincroniza produtos específicos por IDs (novo recurso)
+ * Sincroniza produtos específicos por IDs com time budget
  */
 async function syncSpecificProducts(
   organizationId: string | null,
   productIds: number[],
   creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
 ) {
+  const startTime = Date.now();
   logger.log(`[wc-sync] Sincronizando produtos específicos:`, productIds);
 
   if (!organizationId) {
@@ -369,6 +390,11 @@ async function syncSpecificProducts(
   let errors = 0;
 
   for (const productId of productIds) {
+    if (isTimeBudgetExceeded(startTime)) {
+      logger.log(`[wc-sync] Time budget exceeded during specific product sync`);
+      break;
+    }
+
     try {
       // Buscar produto individual
       const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products/${productId}`);
@@ -421,13 +447,16 @@ async function syncSpecificProducts(
 
       // SEMPRE sincronizar variações para produtos variáveis
       if (product.type === "variable") {
-        await syncVariationsForProduct({
+        const success = await syncVariationsForProduct({
           wcBaseUrl,
           consumerKey,
           consumerSecret,
           productId: Number(product.id),
           organizationId: organizationId,
+          startTime,
         });
+        
+        if (!success) break; // Time budget exceeded
       }
 
       processed++;
@@ -442,7 +471,7 @@ async function syncSpecificProducts(
 }
 
 /**
- * Synchronizes products from WooCommerce to Supabase with REAL PAGINATION
+ * Synchronizes products from WooCommerce to Supabase with TIME BUDGET and reduced batch size
  */
 async function syncProducts(
   organizationId: string | null,
@@ -453,7 +482,8 @@ async function syncProducts(
     maxPages?: number;
   } = {}
 ) {
-  const { creds, page = 1, perPage = 50, maxPages = 5 } = options;
+  const startTime = Date.now();
+  const { creds, page = 1, perPage = 25, maxPages = 1 } = options; // REDUCED: perPage 50->25, maxPages 5->1
   
   logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}`);
 
@@ -474,6 +504,12 @@ async function syncProducts(
   let pagesProcessed = 0;
 
   while (pagesProcessed < maxPages) {
+    // Check time budget before processing each page
+    if (isTimeBudgetExceeded(startTime)) {
+      logger.log("[wc-sync] Time budget exceeded, stopping sync");
+      break;
+    }
+
     const productsFromWoo = await fetchProducts(
       wcBaseUrl,
       consumerKey,
@@ -490,6 +526,12 @@ async function syncProducts(
     logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage}`);
 
     for (const product of productsFromWoo) {
+      // Check time budget before processing each product
+      if (isTimeBudgetExceeded(startTime)) {
+        logger.log("[wc-sync] Time budget exceeded during product processing");
+        break;
+      }
+
       try {
         // upsert do produto em wc_products com normalização de números
         const payload = [{
@@ -526,15 +568,18 @@ async function syncProducts(
           continue;
         }
 
-        // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS
+        // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS (com time budget)
         if (product.type === "variable") {
-          await syncVariationsForProduct({
+          const success = await syncVariationsForProduct({
             wcBaseUrl,
             consumerKey,
             consumerSecret,
             productId: Number(product.id),
             organizationId: organizationId,
+            startTime,
           });
+          
+          if (!success) break; // Time budget exceeded
         }
 
         totalProcessed++;
@@ -552,24 +597,32 @@ async function syncProducts(
       logger.log("[wc-sync] Reached end of products");
       break;
     }
+
+    // Additional time budget check at end of page
+    if (isTimeBudgetExceeded(startTime)) {
+      logger.log("[wc-sync] Time budget exceeded after page completion");
+      break;
+    }
   }
 
-  const hasMore = pagesProcessed >= maxPages;
+  const timeElapsed = Date.now() - startTime;
+  const hasMore = pagesProcessed >= maxPages && !isTimeBudgetExceeded(startTime);
   const nextPage = hasMore ? currentPage : null;
 
-  logger.log(`[wc-sync] Batch completed. Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
+  logger.log(`[wc-sync] Batch completed in ${timeElapsed}ms. Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
 
   return {
     processed: totalProcessed,
     errors: totalErrors,
     currentPage: currentPage - 1,
     nextPage,
-    hasMore
+    hasMore,
+    timeElapsed
   };
 }
 
 serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -584,8 +637,8 @@ serve(async (req) => {
 
     const organizationId: string | null = body?.organization_id || body?.organizationId || null;
     const syncType = body?.sync_type || 'products';
-    const batchSize = body?.batch_size || 50;
-    const maxPages = body?.max_pages || 5;
+    const batchSize = body?.batch_size || 25; // REDUCED from 50
+    const maxPages = body?.max_pages || 1; // REDUCED from 5
     const startPage = body?.page || 1;
     const productIds = body?.product_ids; // Novo: IDs específicos
 
@@ -632,7 +685,7 @@ serve(async (req) => {
       );
     }
 
-    // Sync normal com paginação
+    // Sync normal com paginação E TIME BUDGET
     if (syncType === 'products' || syncType === 'full') {
       const result = await syncProducts(organizationId, {
         creds,
@@ -644,13 +697,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: `Processed ${result.processed} products from page ${startPage}${result.nextPage ? `, next page: ${result.nextPage}` : ' (completed)'}`,
+          message: `Processed ${result.processed} products from page ${startPage}${result.nextPage ? `, next page: ${result.nextPage}` : ' (completed)'} in ${result.timeElapsed}ms`,
           processed: result.processed,
           errors: result.errors,
           currentPage: result.currentPage,
           nextPage: result.nextPage,
           hasMore: result.hasMore,
-          sync_type: syncType
+          sync_type: syncType,
+          timeElapsed: result.timeElapsed
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );

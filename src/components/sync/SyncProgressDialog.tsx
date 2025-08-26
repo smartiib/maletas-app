@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, RefreshCw, XCircle, Clock } from 'lucide-react';
@@ -62,6 +62,9 @@ export const SyncProgressDialog: React.FC<SyncProgressProps> = ({
             {getStatusIcon()}
             Sincronização {syncType}
           </DialogTitle>
+          <DialogDescription>
+            Acompanhe o progresso da sincronização dos dados do WooCommerce
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4">

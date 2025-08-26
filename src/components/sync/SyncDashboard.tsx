@@ -11,7 +11,7 @@ import { useSyncStats, useSyncStatus, useTimeSinceLastSync, useSyncLogs, useSync
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { toast } from 'sonner';
 import { SyncProgressDialog } from './SyncProgressDialog';
-import { useSyncProgress } from '@/hooks/useSyncProgress';
+import { useWooCommerceOperations } from '@/hooks/useWooCommerceOperations';
 
 interface SyncDashboardProps {
   className?: string;
@@ -24,10 +24,10 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
   const { data: logs } = useSyncLogs();
   const { data: configs } = useSyncConfig();
   const saveSyncConfig = useSaveSyncConfig();
-  const manualSync = useManualSync();
   const { config: wooConfig, isConfigured } = useWooCommerceConfig();
   
-  const { progressState, startSync, updateProgress, completeSync, closeProgress } = useSyncProgress();
+  // Use the improved WooCommerce operations
+  const { syncData, progressState, closeProgress } = useWooCommerceOperations();
 
   const [selectedConfig, setSelectedConfig] = useState<any>(null);
 
@@ -45,6 +45,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
     saveSyncConfig.mutate(newConfig);
   };
 
+  // Use the progressive sync directly
   const handleManualSync = async (syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full') => {
     if (!isConfigured) {
       toast.error('Configure as credenciais do WooCommerce na aba WooCommerce antes de sincronizar');
@@ -53,78 +54,23 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
 
     console.log('Iniciando sincronização:', syncType, 'com config:', wooConfig);
 
-    // Iniciar o progresso visual
-    startSync(syncType);
-    
     try {
-      // Simular progresso inicial
-      updateProgress({
-        progress: 10,
-        currentStep: 'Conectando com WooCommerce...'
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      updateProgress({
-        progress: 20,
-        currentStep: 'Validando credenciais...'
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      updateProgress({
-        progress: 30,
-        currentStep: `Iniciando sincronização de ${syncType}...`
-      });
-
-      const result = await manualSync.mutateAsync({
-        sync_type: syncType,
+      await syncData.mutateAsync({
+        syncType,
         config: {
           url: wooConfig.apiUrl,
           consumer_key: wooConfig.consumerKey,
           consumer_secret: wooConfig.consumerSecret
         },
-        batch_size: 50,
-        force_full_sync: false
+        batchSize: 25, // Safer batch size
       });
-
-      // Simular progresso durante a sincronização
-      for (let i = 40; i <= 90; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        updateProgress({
-          progress: i,
-          currentStep: `Processando ${syncType}...`,
-          itemsProcessed: Math.floor((i - 30) / 60 * 100),
-          totalItems: 100
-        });
-      }
-
-      updateProgress({
-        progress: 100,
-        currentStep: 'Finalizando sincronização...'
-      });
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      completeSync(true);
-      
-      setTimeout(() => {
-        closeProgress();
-        toast.success(`Sincronização de ${syncType} concluída com sucesso!`);
-      }, 2000);
-
     } catch (error: any) {
       console.error('Erro na sincronização:', error);
-      completeSync(false, error.message);
-      
-      setTimeout(() => {
-        closeProgress();
-        toast.error(`Erro na sincronização: ${error.message}`);
-      }, 3000);
+      // Error handling is done in the hook
     }
   };
 
-  const isSyncDisabled = !isConfigured || manualSync.isPending || syncStatus?.is_syncing;
+  const isSyncDisabled = !isConfigured || syncData.isPending || syncStatus?.is_syncing;
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -205,7 +151,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Status</CardTitle>
-            {syncStatus?.is_syncing ? (
+            {syncData.isPending || syncStatus?.is_syncing ? (
               <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
             ) : (
               <CheckCircle className="h-4 w-4 text-green-500" />
@@ -213,7 +159,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
           </CardHeader>
           <CardContent>
             <div className="text-sm font-bold">
-              {syncStatus?.is_syncing ? 'Sincronizando...' : 'Pronto'}
+              {syncData.isPending || syncStatus?.is_syncing ? 'Sincronizando...' : 'Pronto'}
             </div>
             <p className="text-xs text-muted-foreground">
               {stats?.active_configs?.length || 0} config{stats?.active_configs?.length !== 1 ? 's' : ''} ativa{stats?.active_configs?.length !== 1 ? 's' : ''}
@@ -236,7 +182,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
             <CardHeader>
               <CardTitle>Sincronização Manual</CardTitle>
               <CardDescription>
-                Execute sincronizações manuais ou configure sincronizações automáticas
+                Execute sincronizações manuais com processamento progressivo e seguro
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -248,7 +194,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <Database className="h-4 w-4" />
-                    {progressState.isOpen && progressState.syncType === 'products' ? 'Sincronizando...' : 'Sincronizar Produtos'}
+                    {syncData.isPending && progressState.syncType === 'products' ? 'Sincronizando...' : 'Sincronizar Produtos'}
                   </Button>
 
                   <Button
@@ -258,7 +204,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
-                    {progressState.isOpen && progressState.syncType === 'categories' ? 'Sincronizando...' : 'Sincronizar Categorias'}
+                    {syncData.isPending && progressState.syncType === 'categories' ? 'Sincronizando...' : 'Sincronizar Categorias'}
                   </Button>
                 </div>
 
@@ -270,7 +216,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <Database className="h-4 w-4" />
-                    {progressState.isOpen && progressState.syncType === 'orders' ? 'Sincronizando...' : 'Sincronizar Pedidos'}
+                    {syncData.isPending && progressState.syncType === 'orders' ? 'Sincronizando...' : 'Sincronizar Pedidos'}
                   </Button>
 
                   <Button
@@ -280,7 +226,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <TrendingUp className="h-4 w-4" />
-                    {progressState.isOpen && progressState.syncType === 'customers' ? 'Sincronizando...' : 'Sincronizar Clientes'}
+                    {syncData.isPending && progressState.syncType === 'customers' ? 'Sincronizando...' : 'Sincronizar Clientes'}
                   </Button>
                 </div>
 
@@ -292,12 +238,12 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     className="flex items-center gap-2"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    {progressState.isOpen && progressState.syncType === 'full' ? 'Sincronizando...' : 'Sincronização Completa'}
+                    {syncData.isPending && progressState.syncType === 'full' ? 'Sincronizando...' : 'Sincronização Completa'}
                   </Button>
                 </div>
               </div>
 
-              {syncStatus?.is_syncing && (
+              {(syncData.isPending || syncStatus?.is_syncing) && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-center gap-2">
                     <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />
@@ -306,7 +252,7 @@ export const SyncDashboard: React.FC<SyncDashboardProps> = ({ className }) => {
                     </span>
                   </div>
                   <p className="text-blue-600 text-sm mt-1">
-                    Iniciada em {new Date(syncStatus.started_at).toLocaleString()}
+                    Processamento progressivo com lotes menores para maior segurança
                   </p>
                 </div>
               )}
