@@ -115,7 +115,8 @@ class MaletasAPI {
       .from('maletas')
       .select(`
         *,
-        representative:representatives(*)
+        representative:representatives(*),
+        items:maleta_items(*)
       `, { count: 'exact' })
       .eq('organization_id', organizationId);
 
@@ -139,6 +140,7 @@ class MaletasAPI {
     }
 
     console.log('Maletas encontradas:', data?.length || 0, 'de', count || 0);
+    console.log('Dados das maletas com itens:', data?.map(m => ({ id: m.id, number: m.number, items_count: m.items?.length || 0 })));
 
     return {
       data: data || [],
@@ -165,6 +167,8 @@ class MaletasAPI {
       console.error('Erro ao buscar maleta:', error);
       throw error;
     }
+    
+    console.log('Maleta individual encontrada:', { id: data.id, items_count: data.items?.length || 0 });
     return data;
   }
 
@@ -262,7 +266,6 @@ class MaletasAPI {
     return data;
   }
 
-  // Representatives methods
   async getRepresentatives(page = 1, search = '') {
     const organizationId = getCurrentOrganizationId();
     
@@ -332,7 +335,6 @@ class MaletasAPI {
     return result;
   }
 
-  // Commission calculation methods
   calculateCommission(
     amount: number,
     tiers?: any[],

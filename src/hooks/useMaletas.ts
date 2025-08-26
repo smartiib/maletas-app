@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { maletasAPI, Maleta, Representative, CreateMaletaData, MaletaReturn, CommissionCalculation } from '@/services/maletas';
 import { toast } from '@/hooks/use-toast';
@@ -12,7 +11,12 @@ export const useMaletas = (page = 1, status = '', representative_id = '') => {
 
   return useQuery({
     queryKey: ['maletas', currentOrganization?.id, page, status, representative_id],
-    queryFn: () => maletasAPI.getMaletas(page, status, representative_id),
+    queryFn: async () => {
+      console.log('Hook useMaletas: iniciando busca...');
+      const result = await maletasAPI.getMaletas(page, status, representative_id);
+      console.log('Hook useMaletas: resultado recebido:', result);
+      return result;
+    },
     enabled: !!currentOrganization && isConfigured,
     staleTime: 30000, // 30 segundos
     refetchOnWindowFocus: false,
@@ -25,7 +29,12 @@ export const useMaleta = (id: string) => {
 
   return useQuery({
     queryKey: ['maleta', currentOrganization?.id, id],
-    queryFn: () => maletasAPI.getMaleta(id),
+    queryFn: async () => {
+      console.log('Hook useMaleta: buscando maleta individual:', id);
+      const result = await maletasAPI.getMaleta(id);
+      console.log('Hook useMaleta: resultado recebido:', result);
+      return result;
+    },
     enabled: !!id && !!currentOrganization && isConfigured,
   });
 };
