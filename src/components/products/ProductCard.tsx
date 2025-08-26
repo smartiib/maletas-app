@@ -185,9 +185,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Badge variant="outline">
                   {totalStock} unidades
                 </Badge>
-                <Badge className={stockStatus.color}>
-                  {stockStatus.text}
-                </Badge>
+                {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
+                {!(product.type === 'variable' && getTotalStock) && (
+                  <Badge className={stockStatus.color}>
+                    {stockStatus.text}
+                  </Badge>
+                )}
               </div>
               
               <div className="text-sm font-semibold">
@@ -255,9 +258,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge variant="outline">
                 {totalStock} unidades
               </Badge>
-              <Badge className={stockStatus.color}>
-                {stockStatus.text}
-              </Badge>
+              {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
+              {!(product.type === 'variable' && getTotalStock) && (
+                <Badge className={stockStatus.color}>
+                  {stockStatus.text}
+                </Badge>
+              )}
               <span className="font-semibold">
                 R$ {parseFloat(product.price || '0').toFixed(2)}
               </span>
