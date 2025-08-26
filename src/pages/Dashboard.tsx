@@ -69,12 +69,12 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
         <Card className="p-4 md:p-6">
           <h3 className="text-base md:text-lg font-semibold mb-4">Vendas dos Últimos 7 Dias</h3>
-          <SalesChart data={salesData} />
+          <SalesChart orders={[]} />
         </Card>
 
         <Card className="p-4 md:p-6">
           <h3 className="text-base md:text-lg font-semibold mb-4">Atividades Recentes</h3>
-          <RecentActivity activities={recentActivities} />
+          <RecentActivity orders={[]} customers={[]} products={[]} />
         </Card>
       </div>
 

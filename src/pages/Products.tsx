@@ -49,9 +49,9 @@ const Products = () => {
 
   const {
     statuses,
-    isLoading: statusesLoading,
-    updateStatus,
-    bulkUpdateStatus
+    loading: statusesLoading,
+    updateProductStatus,
+    bulkUpdateStatuses
   } = useProductReviewStatus();
 
   useEffect(() => {
