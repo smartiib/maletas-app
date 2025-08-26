@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useCreateProduct, useUpdateProduct } from '@/hooks/useWooCommerce';
+import { useCreateProduct, useUpdateProduct, useUpdateStock } from '@/hooks/useWooCommerce';
 import { Product } from '@/services/woocommerce';
 import ProductForm from './ProductForm';
 import { logger } from '@/services/logger';
@@ -16,6 +15,7 @@ interface ProductDialogProps {
 const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, product, mode }) => {
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const updateStock = useUpdateStock();
 
   const handleSubmit = async (data: any) => {
     try {
@@ -23,17 +23,31 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
         await createProduct.mutateAsync(data);
         logger.success('Produto Criado', `Produto "${data.name}" foi criado com sucesso`);
       } else if (product) {
-        await updateProduct.mutateAsync({ id: product.id, data });
+        const isSimple = (product as any)?.type !== 'variable';
+        const newStock = Number(data?.stock_quantity);
+        const prevStock = Number((product as any)?.stock_quantity ?? 0);
+        const shouldUpdateStock = isSimple && !Number.isNaN(newStock) && newStock !== prevStock;
+
+        if (shouldUpdateStock) {
+          await updateStock.mutateAsync({
+            productId: Number(product.id),
+            newStock,
+          });
+        }
+
+        const { stock_quantity, stock_status, ...rest } = data || {};
+        await updateProduct.mutateAsync({ id: product.id, data: rest });
+
         logger.success('Produto Atualizado', `Produto "${data.name}" foi atualizado com sucesso`);
       }
       onOpenChange(false);
     } catch (error) {
       const action = mode === 'create' ? 'criar' : 'atualizar';
-      logger.error(`Erro ao ${action} produto`, `Falha ao ${action} produto "${data.name}"`);
+      logger.error(`Erro ao ${action} produto`, `Falha ao ${action} produto "${data?.name}"`);
     }
   };
 
-  const isLoading = createProduct.isPending || updateProduct.isPending;
+  const isLoading = createProduct.isPending || updateProduct.isPending || updateStock.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -55,4 +69,3 @@ const ProductDialog: React.FC<ProductDialogProps> = ({ open, onOpenChange, produ
 };
 
 export default ProductDialog;
-
