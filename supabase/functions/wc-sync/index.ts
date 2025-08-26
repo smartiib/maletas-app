@@ -1,4 +1,3 @@
-
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -43,8 +42,7 @@ const supabase = createClient(supabaseUrl, serviceKey);
 
 /**
  * Gets WooCommerce credentials from the Supabase database.
- * @param {string} organizationId - The ID of the organization.
- * @returns {Promise<{wcBaseUrl: string, consumerKey: string, consumerSecret: string} | null>} - WooCommerce credentials or null if not found.
+ * Agora busca tanto nos campos diretos quanto no settings JSON.
  */
 async function getWooCommerceCredentials(organizationId: string | null) {
   if (!organizationId) {
@@ -54,7 +52,7 @@ async function getWooCommerceCredentials(organizationId: string | null) {
 
   const { data, error } = await supabase
     .from("organizations")
-    .select("wc_base_url, wc_consumer_key, wc_consumer_secret")
+    .select("wc_base_url, wc_consumer_key, wc_consumer_secret, settings")
     .eq("id", organizationId)
     .single();
 
@@ -73,12 +71,27 @@ async function getWooCommerceCredentials(organizationId: string | null) {
     return null;
   }
 
-  const { wc_base_url, wc_consumer_key, wc_consumer_secret } = data;
+  // Tentar primeiro os campos diretos (formato legado)
+  let { wc_base_url, wc_consumer_key, wc_consumer_secret } = data;
+
+  // Se não encontrou nos campos diretos, buscar no settings JSON
+  if (!wc_base_url || !wc_consumer_key || !wc_consumer_secret) {
+    const settings = (data.settings as any) || {};
+    wc_base_url = wc_base_url || settings.woocommerce_url;
+    wc_consumer_key = wc_consumer_key || settings.woocommerce_consumer_key;
+    wc_consumer_secret = wc_consumer_secret || settings.woocommerce_consumer_secret;
+
+    logger.log(`[wc-sync] Usando credenciais do campo settings para org ${organizationId}`);
+  }
 
   if (!wc_base_url || !wc_consumer_key || !wc_consumer_secret) {
     logger.warn(
       `Incomplete WooCommerce credentials for organization ${organizationId}.`,
-      data,
+      {
+        hasUrl: !!wc_base_url,
+        hasKey: !!wc_consumer_key,
+        hasSecret: !!wc_consumer_secret,
+      }
     );
     return null;
   }
@@ -346,7 +359,7 @@ async function syncProducts(
 
   if (!organizationId) {
     logger.error("Organization ID is null. Cannot proceed with product sync.");
-    return;
+    throw new Error("Organization ID is required for product sync");
   }
 
   // Buscar credenciais: preferir as fornecidas no body (config), senão buscar no banco
@@ -355,10 +368,9 @@ async function syncProducts(
     (await getWooCommerceCredentials(organizationId));
 
   if (!wooCommerceCredentials) {
-    logger.error(
-      `Could not retrieve WooCommerce credentials for organization ${organizationId}.`,
-    );
-    return;
+    const errorMsg = `Could not retrieve WooCommerce credentials for organization ${organizationId}. Please configure WooCommerce settings first.`;
+    logger.error(errorMsg);
+    throw new Error(errorMsg);
   }
 
   const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
