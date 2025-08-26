@@ -2,97 +2,180 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
-export const useWooCommerceFilteredCategories = () => {
+export const useWooCommerceFilteredProducts = () => {
   const { currentOrganization } = useOrganization();
-
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
-    queryKey: ['wc-product-categories', currentOrganization?.id],
-    enabled: !!currentOrganization?.id,
+    queryKey: ['wc-products-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      console.log('[useWooCommerceFilteredCategories] Fetching categories from Supabase...');
-      
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
       const { data, error } = await supabase
-        .from('wc_product_categories')
+        .from('wc_products')
         .select('*')
-        .eq('organization_id', currentOrganization!.id)
-        .order('name', { ascending: true });
+        .eq('organization_id', currentOrganization.id)
+        .order('name');
 
       if (error) {
-        console.error('[useWooCommerceFilteredCategories] Error:', error);
+        console.error('Erro ao buscar produtos:', error);
         throw error;
       }
 
-      console.log(`[useWooCommerceFilteredCategories] Found ${data?.length || 0} categories`);
       return data || [];
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!currentOrganization && isConfigured,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
-export const useWooCommerceFilteredProducts = (page = 1, perPage = 100, searchTerm = '') => {
+export const useWooCommerceFilteredOrders = () => {
   const { currentOrganization } = useOrganization();
-
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
-    queryKey: ['wc-products-filtered', currentOrganization?.id, page, perPage, searchTerm],
-    enabled: !!currentOrganization?.id,
+    queryKey: ['wc-orders-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      let query = supabase
-        .from('wc_products')
-        .select('*', { count: 'exact' })
-        .eq('organization_id', currentOrganization!.id);
-
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,sku.ilike.%${searchTerm}%`);
+      if (!currentOrganization || !isConfigured) {
+        return [];
       }
 
-      const { data, error, count } = await query
-        .order('date_created', { ascending: false })
-        .range((page - 1) * perPage, page * perPage - 1);
-
-      if (error) throw error;
-
-      // Return just the products array to maintain compatibility
-      return data || [];
-    },
-    staleTime: 30 * 1000, // 30 seconds
-  });
-};
-
-export const useWooCommerceFilteredOrders = (page = 1, perPage = 100) => {
-  const { currentOrganization } = useOrganization();
-
-  return useQuery({
-    queryKey: ['wc-orders-filtered', currentOrganization?.id, page, perPage],
-    enabled: !!currentOrganization?.id,
-    queryFn: async () => {
-      const { data, error, count } = await supabase
+      const { data, error } = await supabase
         .from('wc_orders')
-        .select('*', { count: 'exact' })
-        .eq('organization_id', currentOrganization!.id)
-        .order('date_created', { ascending: false })
-        .range((page - 1) * perPage, page * perPage - 1);
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('date_created', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao buscar pedidos:', error);
+        throw error;
+      }
 
-      // Return just the orders array to maintain compatibility
       return data || [];
     },
-    staleTime: 30 * 1000, // 30 seconds
+    enabled: !!currentOrganization && isConfigured,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };
 
-export const useWooCommerceFilteredCustomers = (page = 1, perPage = 100) => {
+export const useWooCommerceFilteredCustomers = () => {
   const { currentOrganization } = useOrganization();
-
+  const { isConfigured } = useWooCommerceConfig();
+  
   return useQuery({
-    queryKey: ['wc-customers-filtered', currentOrganization?.id, page, perPage],
-    enabled: !!currentOrganization?.id,
+    queryKey: ['wc-customers-filtered', currentOrganization?.id, isConfigured],
     queryFn: async () => {
-      // Since we don't have a wc_customers table, return empty array for now
-      console.log('[useWooCommerceFilteredCustomers] No customers table available');
-      return [];
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('wc_customers')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('first_name');
+
+      if (error) {
+        console.error('Erro ao buscar clientes:', error);
+        throw error;
+      }
+
+      return data || [];
     },
-    staleTime: 30 * 1000, // 30 seconds
+    enabled: !!currentOrganization && isConfigured,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
+};
+
+export const useWooCommerceFilteredCategories = () => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+  
+  return useQuery({
+    queryKey: ['wc-categories-filtered', currentOrganization?.id, isConfigured],
+    queryFn: async () => {
+      if (!currentOrganization || !isConfigured) {
+        return [];
+      }
+
+      // FIXED: Use wc_product_categories instead of wc_categories
+      const { data, error } = await supabase
+        .from('wc_product_categories')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('name');
+
+      if (error) {
+        console.error('Erro ao buscar categorias:', error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: !!currentOrganization && isConfigured,
+    staleTime: 10 * 60 * 1000, // 10 minutos
+  });
+};
+
+// FIXED: Simplified last sync status query
+export const useLastSyncStatus = () => {
+  const { currentOrganization } = useOrganization();
+  
+  return useQuery({
+    queryKey: ['last-sync-status', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return null;
+
+      // FIXED: Get latest sync log without problematic filters
+      const { data, error } = await supabase
+        .from('sync_logs')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar status do sync:', error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!currentOrganization,
+    staleTime: 30 * 1000, // 30 segundos
+  });
+};
+
+// FIXED: Correct sync config query
+export const useSyncConfig = () => {
+  const { currentOrganization } = useOrganization();
+  
+  return useQuery({
+    queryKey: ['sync-config', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return null;
+
+      // FIXED: Use sync_configs table (plural) 
+      const { data, error } = await supabase
+        .from('sync_configs')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Erro ao buscar config do sync:', error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!currentOrganization,
+    staleTime: 5 * 60 * 1000, // 5 minutos
   });
 };

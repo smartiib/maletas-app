@@ -114,10 +114,8 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
   };
 
   const getProductImage = () => {
-    // Prioritize Supabase image data if available
-    const images = (product as any)?.images;
-    if (!images || !Array.isArray(images) || images.length === 0) return null;
-    return images[0];
+    if (!(product as any)?.images || (product as any).images.length === 0) return null;
+    return (product as any).images[0];
   };
   
   const form = useForm<ProductFormData>({
@@ -179,7 +177,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           </div>
         )}
 
-        {/* Basic Info */}
+        {/* Categoria */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormField
             control={form.control}
@@ -238,7 +236,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           />
         </div>
 
-        {/* Supplier and Status */}
+        {/* Fornecedor e Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -293,7 +291,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           />
         </div>
 
-        {/* Pricing */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -380,7 +377,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
                 Este produto possui {effectiveVariations.length} variações
               </p>
             </div>
-            
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {effectiveVariations.map((variation) => {
                 const attributes = variation.attributes ? 
@@ -443,7 +439,6 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           </div>
         )}
 
-        {/* Descriptions */}
         <FormField
           control={form.control}
           name="short_description"
