@@ -2,10 +2,16 @@
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { cors } from "../_shared/cors.ts";
 import { load } from "https://deno.land/std@0.182.0/dotenv/mod.ts";
 
 const env = await load();
+
+// Definir headers CORS corretamente
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+};
 
 const logger = {
   log: (...args: any[]) => {
@@ -29,12 +35,6 @@ function numOrNull(v: any): number | null {
   const n = Number(s.replace(",", "."));
   return Number.isFinite(n) ? n : null;
 }
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 // Adiciona/garante o Supabase client com Service Role (mantém se já existir)
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -478,7 +478,7 @@ async function syncProducts(
 }
 
 serve(async (req) => {
-  // This is needed if you're planning to invoke your function from a browser.
+  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
