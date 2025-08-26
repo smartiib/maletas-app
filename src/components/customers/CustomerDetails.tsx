@@ -1,11 +1,10 @@
-
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { User, Calendar, DollarSign, MapPin, Mail, Phone, Building } from 'lucide-react';
-import { Customer } from '@/services/woocommerce';
+import { Customer } from '@/types';
 
 interface CustomerDetailsProps {
   open: boolean;
@@ -51,7 +50,7 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({ open, onOpenChange, c
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-600">Total de Pedidos</p>
-                    <p className="text-2xl font-bold">{customer.orders_count}</p>
+                    <p className="text-2xl font-bold">{customer.orders_count || 0}</p>
                   </div>
                   <DollarSign className="w-8 h-8 text-blue-600" />
                 </div>
@@ -63,7 +62,7 @@ const CustomerDetails: React.FC<CustomerDetailsProps> = ({ open, onOpenChange, c
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-slate-600">Total Gasto</p>
-                    <p className="text-2xl font-bold">R$ {parseFloat(customer.total_spent).toFixed(2)}</p>
+                    <p className="text-2xl font-bold">R$ {parseFloat(customer.total_spent || '0').toFixed(2)}</p>
                   </div>
                   <DollarSign className="w-8 h-8 text-success-600" />
                 </div>

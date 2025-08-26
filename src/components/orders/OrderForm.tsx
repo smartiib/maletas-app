@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -7,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Order } from '@/services/woocommerce';
+import { Order, OrderStatus } from '@/types';
 
 const orderSchema = z.object({
   status: z.enum(['pending', 'processing', 'on-hold', 'completed', 'cancelled', 'refunded', 'failed']),
@@ -37,7 +36,7 @@ const OrderForm: React.FC<OrderFormProps> = ({ order, onSubmit, isLoading }) => 
   const form = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
-      status: order?.status || 'pending',
+      status: (order?.status as OrderStatus) || 'pending',
       billing: {
         first_name: order?.billing?.first_name || '',
         last_name: order?.billing?.last_name || '',

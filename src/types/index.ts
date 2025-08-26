@@ -1,4 +1,3 @@
-
 // WooCommerce API Types
 export interface Product {
   id: number;
@@ -107,6 +106,9 @@ export interface CategoryImage {
   alt: string;
 }
 
+// Order status type for better type safety
+export type OrderStatus = 'pending' | 'processing' | 'on-hold' | 'completed' | 'cancelled' | 'refunded' | 'failed';
+
 export interface Order {
   id: number;
   parent_id: number;
@@ -114,7 +116,7 @@ export interface Order {
   order_key: string;
   created_via: string;
   version: string;
-  status: string;
+  status: OrderStatus;
   currency: string;
   date_created: string;
   date_modified: string;
@@ -162,6 +164,7 @@ export interface Customer {
   avatar_url: string;
   meta_data: MetaData[];
   total_spent?: string;
+  orders_count?: number; // Add the missing orders_count property
 }
 
 export interface BillingAddress {
