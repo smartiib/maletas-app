@@ -8,13 +8,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Product } from '@/services/woocommerce';
+import { Product } from '@/types';
 import { useSuppliers } from '@/hooks/useSuppliers';
 import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
 import { useProductVariations, useProductVariationsByIds, DbVariation } from '@/hooks/useProductVariations';
 import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
 import VariationStockEditor from './VariationStockEditor';
+import SimpleProductStockEditor from './SimpleProductStockEditor';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -44,6 +45,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
 
   // ---- Carregamento consistente de variações (parent + fallback por IDs) ----
   const hasVariations = product?.type === 'variable' && Array.isArray((product as any)?.variations) && (product as any).variations.length > 0;
+  const isSimpleProduct = !hasVariations && product?.type !== 'variable';
 
   const variationIds = React.useMemo<number[]>(() => {
     if (!hasVariations) return [];
@@ -363,6 +365,11 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
           />
         </div>
 
+        {/* Simple Product Stock Editor */}
+        {isSimpleProduct && product?.id && (
+          <SimpleProductStockEditor product={product as Product} />
+        )}
+
         {/* Variations Section */}
         {hasVariations && effectiveVariations.length > 0 && (
           <div className="space-y-4">
@@ -426,7 +433,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
               })}
             </div>
 
-            {/* Editor de estoque das variações (novo) */}
+            {/* Editor de estoque das variações */}
             <VariationStockEditor
               product={product as any}
               variations={effectiveVariations}
