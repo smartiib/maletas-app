@@ -1,4 +1,3 @@
-
 // Custom WooCommerce REST API implementation for browser compatibility
 export interface Customer {
   id: number;
@@ -274,14 +273,14 @@ export class WooCommerceService {
 
     const url = `${this.config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/${endpoint}`;
     
-    // OAuth1 parameters
-    const oauthParams = {
+    // OAuth1 parameters - widen type to allow adding oauth_signature
+    const oauthParams: Record<string, string> = {
       oauth_consumer_key: this.config.consumerKey,
       oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
       oauth_nonce: Math.random().toString(36).substring(2, 15),
       oauth_signature_method: 'HMAC-SHA1',
       oauth_version: '1.0',
-      ...params
+      ...(params || {})
     };
 
     // Generate signature
@@ -375,14 +374,25 @@ export class WooCommerceService {
     }
   }
 
-  async getProduct(config: WooCommerceConfig, id: number): Promise<Product> {
-    try {
-      this.setConfig(config);
-      const response = await this.makeRequest(`products/${id}`, 'GET');
+  // Overloads para compatibilidade: permite chamar getProduct(id) sem passar config
+  async getProduct(config: WooCommerceConfig, id: number): Promise<Product>;
+  async getProduct(id: number): Promise<Product>;
+  async getProduct(arg1: WooCommerceConfig | number, arg2?: number): Promise<Product> {
+    if (typeof arg1 === 'number') {
+      // Chamada compatível: getProduct(id)
+      if (!this.config) {
+        throw new Error('WooCommerce não configurado');
+      }
+      const response = await this.makeRequest(`products/${arg1}`, 'GET');
       return response.data as Product;
-    } catch (error: any) {
-      console.error('Erro ao buscar produto:', error);
-      throw error;
+    } else {
+      // Chamada padrão: getProduct(config, id)
+      this.setConfig(arg1);
+      if (typeof arg2 !== 'number') {
+        throw new Error('ID do produto inválido');
+      }
+      const response = await this.makeRequest(`products/${arg2}`, 'GET');
+      return response.data as Product;
     }
   }
 

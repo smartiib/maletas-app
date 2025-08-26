@@ -93,7 +93,7 @@ export default function POS() {
         line_items: cartItems.map((item, index) => ({
           id: index + 1,
           product_id: item.id,
-          variation_id: item.variation_id || 0,
+          variation_id: 0, // não há seleção de variação no POS; usar 0
           quantity: item.quantity,
           name: item.name,
           price: parseFloat(item.price),
@@ -106,7 +106,7 @@ export default function POS() {
           sku: item.sku || "",
           tax_class: "",
           image: {
-            src: item.image || ""
+            src: item.images?.[0]?.src || ""
           },
           parent_name: null
         })),
