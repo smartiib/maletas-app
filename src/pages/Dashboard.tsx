@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   TrendingUp,
@@ -8,10 +9,10 @@ import {
 import { Card } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { SalesChart } from '@/components/dashboard/SalesChart';
-import { RecentActivity } from '@/components/dashboard/RecentActivity';
-import { QuickActions } from '@/components/dashboard/QuickActions';
-import { KPICard } from '@/components/dashboard/KPICard';
+import SalesChart from '@/components/dashboard/SalesChart';
+import RecentActivity from '@/components/dashboard/RecentActivity';
+import QuickActions from '@/components/dashboard/QuickActions';
+import KPICard from '@/components/dashboard/KPICard';
 
 const Dashboard = () => {
   const {
@@ -42,25 +43,25 @@ const Dashboard = () => {
           title="Vendas Hoje"
           value={formatCurrency(salesToday)}
           icon={TrendingUp}
-          trend={salesTrend}
+          trend={`+${salesTrend.value}%`}
         />
         <KPICard
           title="Pedidos"
           value={ordersCount.toString()}
           icon={ShoppingCart}
-          trend={{ value: 5, isPositive: true }}
+          trend="+5%"
         />
         <KPICard
           title="Produtos"
           value={productsCount.toString()}
           icon={Package}
-          trend={{ value: 2, isPositive: true }}
+          trend="+2%"
         />
         <KPICard
           title="Clientes"
           value={customersCount.toString()}
           icon={Users}
-          trend={{ value: 12, isPositive: true }}
+          trend="+12%"
         />
       </div>
 

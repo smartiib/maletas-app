@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNavigation from './BottomNavigation';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const isMobile = useIsMobile();

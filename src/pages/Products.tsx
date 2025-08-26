@@ -1,20 +1,18 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Plus, Package, ShoppingCart, Users, TrendingUp } from 'lucide-react';
-import { ProductCard } from '@/components/product/ProductCard';
-import { ProductDialog } from '@/components/product/ProductDialog';
-import { ProductStockFilters } from '@/components/product/ProductStockFilters';
-import { PaginationControls } from '@/components/ui/pagination-controls';
+import PaginationControls from '@/components/ui/pagination-controls';
 import { useProducts } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
 import { useToast } from '@/components/ui/use-toast';
 import { useSearchParams } from 'react-router-dom';
-import { ProductBulkActions } from '@/components/product/ProductBulkActions';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useProductReviewStatus } from '@/hooks/useProductReviewStatus';
 import { cn } from '@/lib/utils';
 
 const Products = () => {
@@ -29,7 +27,6 @@ const Products = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [productStatuses, setProductStatuses] = useState({});
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const isMobile = useIsMobile();
   const { toast } = useToast();
@@ -50,6 +47,13 @@ const Products = () => {
     page: currentPage,
   });
 
+  const {
+    statuses,
+    isLoading: statusesLoading,
+    updateStatus,
+    bulkUpdateStatus
+  } = useProductReviewStatus();
+
   useEffect(() => {
     const newParams = new URLSearchParams();
     if (searchTerm) newParams.set('search', searchTerm);
@@ -65,12 +69,7 @@ const Products = () => {
     setDialogOpen(true);
   };
 
-  const updateProductStatus = (productId: number, status: 'normal' | 'warning' | 'error') => {
-    setProductStatuses(prev => ({ ...prev, [productId]: status }));
-  };
-
   const handleBulkStatusUpdate = useCallback((status: 'active' | 'inactive') => {
-    // Simulate API call to update status in bulk
     setTimeout(() => {
       toast({
         title: "Status atualizado",
@@ -98,11 +97,6 @@ const Products = () => {
           </p>
         </div>
         <div className="flex flex-col gap-2 md:flex-row md:gap-4">
-          <ProductBulkActions 
-            selectedProducts={selectedProducts}
-            onClearSelection={() => setSelectedProducts([])}
-            onStatusUpdate={handleBulkStatusUpdate}
-          />
           <Button 
             onClick={() => setDialogOpen(true)}
             className="w-full md:w-auto"
@@ -128,18 +122,17 @@ const Products = () => {
         ))}
       </div>
 
-      {/* Filters - Mobile optimized */}
-      <ProductStockFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
-        stockFilter={stockFilter}
-        onStockFilterChange={setStockFilter}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        isMobile={isMobile}
-      />
+      {/* Search and Filters */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center">
+        <div className="flex-1">
+          <Input
+            placeholder="Buscar produtos..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+        </div>
+      </div>
 
       {/* Products Grid/List - Responsive */}
       <div className="space-y-4">
@@ -163,49 +156,32 @@ const Products = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
             {products.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEdit={handleEdit}
-                isSelected={selectedProducts.includes(product.id)}
-                onSelect={(selected) => {
-                  if (selected) {
-                    setSelectedProducts([...selectedProducts, product.id]);
-                  } else {
-                    setSelectedProducts(selectedProducts.filter(id => id !== product.id));
-                  }
-                }}
-                reviewStatus={productStatuses[product.id] || 'normal'}
-                onStatusChange={(status) => updateProductStatus(product.id, status)}
-                isMobile={isMobile}
-              />
+              <Card key={product.id} className="p-4">
+                <div className="space-y-3">
+                  <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
+                    <Package className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium truncate">{product.name}</h3>
+                    <p className="text-sm text-muted-foreground">R$ {product.price}</p>
+                    <p className="text-xs text-muted-foreground">Estoque: {product.stock_quantity}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(product)}
+                      className="flex-1"
+                    >
+                      Editar
+                    </Button>
+                  </div>
+                </div>
+              </Card>
             ))}
           </div>
         )}
       </div>
-
-      {/* Pagination - Mobile friendly */}
-      {totalPages > 1 && (
-        <div className="flex justify-center mt-6">
-          <PaginationControls
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
-      )}
-
-      {/* Dialog */}
-      <ProductDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        product={selectedProduct}
-        onSave={() => {
-          setDialogOpen(false);
-          setSelectedProduct(null);
-          refetch();
-        }}
-      />
     </div>
   );
 };
