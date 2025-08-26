@@ -59,7 +59,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
       return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
     }
     
-    const stock = product.stock_quantity || 0;
+    // Usar a função getTotalStock se disponível, senão usar stock_quantity simples
+    const stock = getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
+    
+    if (stock <= 0) {
+      return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
+    }
     if (stock <= 5) {
       return { color: 'bg-warning-100 text-warning-800', text: `${stock} unidades` };
     }
@@ -67,7 +72,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const getStockIcon = (product: any) => {
-    const stock = getTotalStock ? getTotalStock(product) : (product.stock_quantity || 0);
+    const stock = getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
     if (product.stock_status === 'outofstock' || stock === 0) {
       return 'bg-red-500';
     }

@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -47,12 +48,24 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
     return Array.from(map.values());
   }, [dbVariationsParent, dbVariationsByIds]);
 
+  // Calcular estoque total corretamente - somar apenas valores positivos
+  const calculateCorrectTotalStock = useMemo(() => {
+    if (!hasVariations || !dbVariations.length) return 0;
+    
+    return dbVariations.reduce((total, variation) => {
+      const stock = Number(variation.stock_quantity) || 0;
+      // Apenas somar valores positivos ou zero
+      return total + Math.max(0, stock);
+    }, 0);
+  }, [hasVariations, dbVariations]);
+
   if (product.type !== 'variable' || !product.variations?.length) {
     return null;
   }
 
   const variationCount = product.variations.length;
-  const totalStock = getTotalStock(product);
+  // Usar o cálculo correto do estoque total
+  const totalStock = calculateCorrectTotalStock;
   const hasDbVariations = dbVariations.length > 0;
 
   const normalizeAttributes = (src: any): Array<{ name: string; option: string }> => {
@@ -103,9 +116,9 @@ const ProductVariationInfo: React.FC<ProductVariationInfoProps> = ({
     const varId = variation.id || variation;
     const dbVar = dbVariations.find((v: any) => Number(v.id) === Number(varId));
     if (dbVar?.stock_quantity !== undefined && dbVar?.stock_quantity !== null) {
-      return Number(dbVar.stock_quantity) || 0;
+      return Math.max(0, Number(dbVar.stock_quantity) || 0); // Garantir que não seja negativo
     }
-    return Number(variation.stock_quantity) || 0;
+    return Math.max(0, Number(variation.stock_quantity) || 0); // Garantir que não seja negativo
   };
 
   const getVariationStatus = (stock: number, status: string) => {
