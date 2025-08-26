@@ -1,3 +1,4 @@
+
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
@@ -29,7 +30,7 @@ export const useWooCommerceFilteredCategories = () => {
   });
 };
 
-export const useWooCommerceFilteredProducts = (page = 1, perPage = 20, searchTerm = '') => {
+export const useWooCommerceFilteredProducts = (page = 1, perPage = 100, searchTerm = '') => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
@@ -51,18 +52,14 @@ export const useWooCommerceFilteredProducts = (page = 1, perPage = 20, searchTer
 
       if (error) throw error;
 
-      return {
-        products: data || [],
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / perPage),
-        currentPage: page,
-      };
+      // Return just the products array to maintain compatibility
+      return data || [];
     },
     staleTime: 30 * 1000, // 30 seconds
   });
 };
 
-export const useWooCommerceFilteredOrders = (page = 1, perPage = 20) => {
+export const useWooCommerceFilteredOrders = (page = 1, perPage = 100) => {
   const { currentOrganization } = useOrganization();
 
   return useQuery({
@@ -78,12 +75,23 @@ export const useWooCommerceFilteredOrders = (page = 1, perPage = 20) => {
 
       if (error) throw error;
 
-      return {
-        orders: data || [],
-        totalCount: count || 0,
-        totalPages: Math.ceil((count || 0) / perPage),
-        currentPage: page,
-      };
+      // Return just the orders array to maintain compatibility
+      return data || [];
+    },
+    staleTime: 30 * 1000, // 30 seconds
+  });
+};
+
+export const useWooCommerceFilteredCustomers = (page = 1, perPage = 100) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['wc-customers-filtered', currentOrganization?.id, page, perPage],
+    enabled: !!currentOrganization?.id,
+    queryFn: async () => {
+      // Since we don't have a wc_customers table, return empty array for now
+      console.log('[useWooCommerceFilteredCustomers] No customers table available');
+      return [];
     },
     staleTime: 30 * 1000, // 30 seconds
   });
