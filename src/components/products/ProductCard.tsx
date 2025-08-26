@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import ProductVariationInfo from './ProductVariationInfo';
+import { useProductVariations } from '@/hooks/useProductVariations'; // ADDED
 
 interface ProductCardProps {
   product: Product;
@@ -55,6 +56,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
+  // Buscar variações do Supabase quando for produto variável (para corrigir total quando getTotalStock não estiver disponível)
+  const { data: dbVariations = [] } = useProductVariations(
+    product?.type === 'variable' ? Number(product.id) : undefined
+  ); // ADDED
+
   const getStockStatus = (product: any) => {
     if (product.stock_status === 'outofstock') {
       return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
@@ -72,20 +78,30 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return { color: 'bg-success-100 text-success-800', text: `${stock} unidades` };
   };
 
-  const getStockIcon = (product: any) => {
-    const stock = getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
+  // Ícone usa a mesma lógica de severidade do estoque (usaremos o total computado se for fornecido)
+  const getStockIcon = (product: any, computedTotal?: number) => {
+    const stock = typeof computedTotal === 'number'
+      ? computedTotal
+      : (getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0));
     if (product.stock_status === 'outofstock' || stock === 0) {
-      return 'bg-red-500';
+      return 'bg-destructive'; // usar token semântico
     }
     if (stock <= 5) {
-      return 'bg-yellow-500';
+      return 'bg-warning';
     }
-    return 'bg-green-500';
+    return 'bg-success';
   };
 
   // Função para obter o estoque total correto
   const getTotalStockForDisplay = (product: any) => {
     return getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
+  };
+
+  // Classe para a tag de unidades com fundo colorido
+  const getUnitsBadgeClass = (qty: number) => {
+    if (qty <= 0) return 'bg-destructive-100 text-destructive-800';
+    if (qty <= 5) return 'bg-warning-100 text-warning-800';
+    return 'bg-success-100 text-success-800';
   };
 
   const getProductBackgroundClass = () => {
@@ -107,7 +123,27 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const stockStatus = getStockStatus(product);
-  const totalStock = getTotalStockForDisplay(product);
+
+  // Corrigir total: usar getTotalStock se vier do pai, senão somar variações do Supabase quando for produto variável
+  const totalStock = React.useMemo(() => {
+    // Se o pai fornece um total, priorizar
+    if (typeof getTotalStock === 'function') {
+      const val = Number(getTotalStock(product));
+      if (Number.isFinite(val) && val >= 0) return val;
+    }
+    if (product?.type === 'variable') {
+      if (dbVariations && dbVariations.length > 0) {
+        return dbVariations.reduce((sum, v: any) => {
+          const n = Number(v?.stock_quantity ?? 0);
+          return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+        }, 0);
+      }
+      // fallback (caso ainda não tenha variações no banco)
+      return Math.max(0, Number(product?.stock_quantity ?? 0));
+    }
+    // simples
+    return Math.max(0, Number(product?.stock_quantity ?? 0));
+  }, [getTotalStock, product, dbVariations]); // ADDED
 
   if (viewMode === 'grid') {
     return (
@@ -128,7 +164,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
             
             {/* Stock status icon */}
-            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
+            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(product, totalStock)} rounded-full flex items-center justify-center`}>
               <Package className="w-2.5 h-2.5 text-white" />
             </div>
 
@@ -182,7 +218,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Badge className={getStatusColor(product.status)}>
                   {getStatusLabel(product.status)}
                 </Badge>
-                <Badge variant="outline">
+                <Badge className={getUnitsBadgeClass(totalStock)}>
                   {totalStock} unidades
                 </Badge>
                 {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
@@ -229,7 +265,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     <Package className="w-6 h-6 text-muted-foreground" />
                   )}
                   {/* Stock status icon */}
-                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(product)} rounded-full flex items-center justify-center`}>
+                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(product, totalStock)} rounded-full flex items-center justify-center`}>
                     <Package className="w-2.5 h-2.5 text-white" />
                   </div>
                   
@@ -255,7 +291,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge className={getStatusColor(product.status)}>
                 {getStatusLabel(product.status)}
               </Badge>
-              <Badge variant="outline">
+              <Badge className={getUnitsBadgeClass(totalStock)}>
                 {totalStock} unidades
               </Badge>
               {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
