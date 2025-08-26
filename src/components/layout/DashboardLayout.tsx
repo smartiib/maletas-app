@@ -4,7 +4,6 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNavigation from './BottomNavigation';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { cn } from '@/lib/utils';
 
 const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const isMobile = useIsMobile();
@@ -17,10 +16,7 @@ const DashboardLayout: React.FC<{ children?: React.ReactNode }> = ({ children })
         <Header />
 
         <main className={`flex-1 w-full ${isMobile ? 'pb-20' : ''}`}>
-          <div className={cn(
-            "w-full min-w-0 animate-fade-in",
-            isMobile ? "p-4 px-3" : "p-6"
-          )}>
+          <div className="w-full min-w-0 animate-fade-in p-6">
             {children}
           </div>
         </main>

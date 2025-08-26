@@ -10,9 +10,10 @@ type SyncType = 'products' | 'categories' | 'orders' | 'customers' | 'full';
 interface SyncLog {
   id: string;
   organization_id: string;
-  sync_type: string;
-  operation: string;
+  log_type: 'sync_started' | 'sync_completed' | 'sync_error' | string;
   status?: 'success' | 'error' | 'pending' | string;
+  sync_type?: SyncType | string;
+  operation?: string;
   message?: string;
   items_processed?: number;
   items_failed?: number;
@@ -63,7 +64,7 @@ export const useSyncStatus = () => {
       const latestLog = data[0] as SyncLog;
 
       // Consider sync_started stale after 15 minutes
-      if (latestLog.operation === 'sync_started') {
+      if (latestLog.log_type === 'sync_started') {
         const logTime = new Date(latestLog.created_at).getTime();
         const now = Date.now();
         const diffMinutes = (now - logTime) / (1000 * 60);
@@ -111,7 +112,7 @@ export const useSyncStats = () => {
         supabase
           .from('wc_categories')
           .select('id', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id),
+          .eq('organization_id', currentOrganization.id).throwOnError(),
       ]);
 
       // Latest success or error log to show status
@@ -119,14 +120,14 @@ export const useSyncStats = () => {
         .from('sync_logs')
         .select('*')
         .eq('organization_id', currentOrganization.id)
-        .in('operation', ['sync_completed', 'sync_error'])
+        .in('log_type', ['sync_completed', 'sync_error'])
         .order('created_at', { ascending: false })
         .limit(1);
 
       const lastSync =
         lastAnyLog && lastAnyLog[0]
           ? {
-              status: lastAnyLog[0].operation === 'sync_completed' ? 'success' : 'error',
+              status: lastAnyLog[0].log_type === 'sync_completed' ? 'success' : 'error',
               created_at: lastAnyLog[0].created_at as string,
             }
           : { status: 'never', created_at: null as any };
@@ -187,8 +188,10 @@ export const useManualSync = () => {
         organization_id: currentOrganization.id,
       };
 
+      // Importante: não enviar headers customizados aqui; o client adiciona Authorization e Content-Type automaticamente.
       console.log('[useManualSync] invocando wc-sync com corpo:', {
         ...requestBody,
+        // evitar logar segredos
         config: { ...requestBody.config, consumer_key: '***', consumer_secret: '***' }
       });
 

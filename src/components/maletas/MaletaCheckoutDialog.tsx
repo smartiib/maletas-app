@@ -126,60 +126,43 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
         payment_method: paymentMethods.map(p => p.name).join(', '),
         payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
         status: 'completed' as const,
-        line_items: soldItems.map((item, index) => ({
-          id: 0, // WooCommerce will assign the actual ID
+        line_items: soldItems.map(item => ({
           product_id: item.product_id,
           variation_id: item.variation_id || 0,
           quantity: item.quantity_sold,
           name: item.name,
-          price: parseFloat(item.price),
-          total: (parseFloat(item.price) * item.quantity_sold).toFixed(2),
-          subtotal: (parseFloat(item.price) * item.quantity_sold).toFixed(2),
-          subtotal_tax: '0.00',
-          total_tax: '0.00',
-          taxes: [],
-          meta_data: [],
-          sku: item.sku || '',
-          image: { src: '' },
-          parent_name: null,
-          tax_class: ''
+          total: (parseFloat(item.price) * item.quantity_sold).toFixed(2)
         })),
         billing: hasAssociatedCustomer ? {
           first_name: maleta?.customer_name?.split(' ')[0] || 'Cliente',
           last_name: maleta?.customer_name?.split(' ').slice(1).join(' ') || '',
-          company: '',
+          email: maleta?.customer_email || 'cliente@loja.com',
+          phone: '',
           address_1: 'Loja Física',
-          address_2: '',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
-          country: 'BR',
-          email: maleta?.customer_email || 'cliente@loja.com',
-          phone: ''
+          country: 'BR'
         } : isGuestSale ? {
           first_name: guestData.name.split(' ')[0] || 'Convidado',
           last_name: guestData.name.split(' ').slice(1).join(' ') || '',
-          company: '',
+          email: guestData.email || 'convidado@loja.com',
+          phone: guestData.phone || '',
           address_1: 'Loja Física',
-          address_2: '',
           city: 'Cidade',
           state: 'Estado',
           postcode: '00000-000',
-          country: 'BR',
-          email: guestData.email || 'convidado@loja.com',
-          phone: guestData.phone || ''
+          country: 'BR'
         } : {
           first_name: selectedCustomer.first_name,
           last_name: selectedCustomer.last_name,
-          company: selectedCustomer.billing?.company || '',
+          email: selectedCustomer.email,
+          phone: selectedCustomer.billing?.phone || '',
           address_1: selectedCustomer.billing?.address_1 || 'Loja Física',
-          address_2: selectedCustomer.billing?.address_2 || '',
           city: selectedCustomer.billing?.city || 'Cidade',
           state: selectedCustomer.billing?.state || 'Estado',
           postcode: selectedCustomer.billing?.postcode || '00000-000',
-          country: 'BR',
-          email: selectedCustomer.email,
-          phone: selectedCustomer.billing?.phone || ''
+          country: 'BR'
         },
         customer_note: notes,
         total: getTotalPrice().toFixed(2),

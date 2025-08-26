@@ -69,53 +69,17 @@ export const useWooCommerceOperations = () => {
         config: { ...requestBody.config, consumer_key: '***', consumer_secret: '***' }
       });
 
-      try {
-        // Usar invoke com tratamento de erro melhorado
-        const { data, error } = await supabase.functions.invoke('wc-sync', {
-          body: requestBody
-        });
+      // Não enviar headers customizados; o client injeta Authorization/Content-Type corretamente
+      const { data, error } = await supabase.functions.invoke('wc-sync', {
+        body: requestBody
+      });
 
-        if (error) {
-          console.error('Erro na sincronização (supabase error):', error);
-          
-          // Verificar se é erro de CORS ou timeout
-          if (error.message?.includes('Failed to send a request') || 
-              error.message?.includes('CORS') ||
-              error.message?.includes('Gateway Timeout')) {
-            throw new Error('Erro de conexão com o servidor. Verifique sua conexão e tente novamente.');
-          }
-          
-          throw new Error(error.message || 'Erro na sincronização');
-        }
-
-        if (!data) {
-          console.log('Sincronização completada sem dados de retorno');
-          return { success: true, message: 'Sincronização completada' };
-        }
-
-        return data;
-      } catch (fetchError: any) {
-        console.error('Erro de fetch na sincronização:', fetchError);
-        
-        // Tratamento específico para diferentes tipos de erro
-        if (fetchError.name === 'FunctionsHttpError') {
-          throw new Error('Erro HTTP na função de sincronização. Verifique os logs.');
-        }
-        
-        if (fetchError.name === 'FunctionsFetchError') {
-          throw new Error('Erro de conectividade. Verifique sua conexão com a internet.');
-        }
-        
-        if (fetchError.message?.includes('CORS')) {
-          throw new Error('Erro de CORS. Entre em contato com o suporte.');
-        }
-        
-        if (fetchError.message?.includes('timeout') || fetchError.message?.includes('Gateway Timeout')) {
-          throw new Error('Timeout na sincronização. A operação pode estar em andamento. Tente novamente em alguns minutos.');
-        }
-        
-        throw fetchError;
+      if (error) {
+        console.error('Erro na sincronização:', error);
+        throw new Error(error.message || 'Erro na sincronização');
       }
+
+      return data;
     },
     onMutate: ({ syncType }) => {
       startSync(syncType);
@@ -123,9 +87,9 @@ export const useWooCommerceOperations = () => {
     },
     onSuccess: (data, { syncType }) => {
       console.log('Sincronização concluída:', data);
-      completeSync(data?.success !== false, data?.message || 'Sincronização concluída com sucesso');
+      completeSync(data.success, data.message);
       
-      if (data?.success !== false) {
+      if (data.success) {
         // Invalidar queries relacionadas
         queryClient.invalidateQueries({ 
           queryKey: ['woocommerce-products', currentOrganization?.id] 
@@ -140,16 +104,15 @@ export const useWooCommerceOperations = () => {
           queryKey: ['woocommerce-customers', currentOrganization?.id] 
         });
         
-        toast.success(`Sincronização de ${syncType} concluída com sucesso!`);
+        toast.success(`${syncType} sincronizado com sucesso!`);
       } else {
-        toast.error(`Erro na sincronização: ${data?.message || 'Erro desconhecido'}`);
+        toast.error(`Erro na sincronização: ${data.message}`);
       }
     },
     onError: (error: any, { syncType }) => {
       console.error('Erro na sincronização:', error);
-      const errorMessage = error?.message || 'Erro desconhecido na sincronização';
-      completeSync(false, errorMessage);
-      toast.error(`Erro na sincronização de ${syncType}: ${errorMessage}`);
+      completeSync(false, error.message);
+      toast.error(`Erro na sincronização de ${syncType}: ${error.message}`);
     }
   });
 

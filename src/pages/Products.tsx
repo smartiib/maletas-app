@@ -1,187 +1,364 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Plus, Package, ShoppingCart, Users, TrendingUp } from 'lucide-react';
-import PaginationControls from '@/components/ui/pagination-controls';
-import { useProducts } from '@/hooks/useProducts';
-import { useDebounce } from '@/hooks/useDebounce';
-import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
-import { useToast } from '@/components/ui/use-toast';
-import { useSearchParams } from 'react-router-dom';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { useProductReviewStatus } from '@/hooks/useProductReviewStatus';
-import { cn } from '@/lib/utils';
+import { useState, useMemo } from "react";
+import { Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import ProductDialog from "@/components/products/ProductDialog";
+import ProductCard from "@/components/products/ProductCard";
+import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
+import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useViewMode } from "@/hooks/useViewMode";
+import ViewModeToggle from "@/components/ui/view-mode-toggle";
+import { StockRow } from "@/components/stock/StockRow";
+import ProductPriceInfo from "@/components/products/ProductPriceInfo";
+import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
+import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
+import { Product } from "@/services/woocommerce";
+import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
 
 const Products = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') || '');
-  const [stockFilter, setStockFilter] = useState(searchParams.get('stock') || '');
-  const [statusFilter, setStatusFilter] = useState<'active' | 'inactive' | ''>(
-    (searchParams.get('status') as 'active' | 'inactive') || ''
-  );
-  const [currentPage, setCurrentPage] = useState(1);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
-  const isMobile = useIsMobile();
-  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
+  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
+  const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+  const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+
+  const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
+  const { isConfigured } = useWooCommerceConfig();
+  const { viewMode, toggleViewMode } = useViewMode('products');
 
   const {
-    products,
-    isLoading,
-    totalPages,
-    totalProducts,
-    activeProducts,
-    inactiveProducts,
-    refetch,
-  } = useProducts({
-    search: debouncedSearchTerm,
-    category: selectedCategory,
-    stock: stockFilter,
-    status: statusFilter,
-    page: currentPage,
-  });
-
-  const {
-    statuses,
+    statuses: productStatuses,
     loading: statusesLoading,
     updateProductStatus,
-    bulkUpdateStatuses
+    bulkUpdateStatuses,
+    getProductStatus
   } = useProductReviewStatus();
 
-  useEffect(() => {
-    const newParams = new URLSearchParams();
-    if (searchTerm) newParams.set('search', searchTerm);
-    if (selectedCategory) newParams.set('category', selectedCategory);
-    if (stockFilter) newParams.set('stock', stockFilter);
-    if (statusFilter) newParams.set('status', statusFilter);
-    setCurrentPage(1);
-    setSearchParams(newParams);
-  }, [searchTerm, selectedCategory, stockFilter, statusFilter, setSearchParams]);
-
-  const handleEdit = (product) => {
-    setSelectedProduct(product);
-    setDialogOpen(true);
+  const getTotalStock = (product: any) => {
+    if (product.type === 'variable' && product.variations?.length > 0) {
+      return product.variations.reduce((total: number, variation: any) => {
+        const qty = typeof variation?.stock_quantity === 'number' ? variation.stock_quantity : Number(variation?.stock_quantity) || 0;
+        return total + Math.max(0, qty);
+      }, 0);
+    }
+    const qty = typeof product?.stock_quantity === 'number' ? product.stock_quantity : Number(product?.stock_quantity) || 0;
+    return Math.max(0, qty);
   };
 
-  const handleBulkStatusUpdate = useCallback((status: 'active' | 'inactive') => {
-    setTimeout(() => {
-      toast({
-        title: "Status atualizado",
-        description: `Status dos produtos selecionados atualizado para ${status}.`,
-      });
-      setSelectedProducts([]);
-      refetch();
-    }, 1000);
-  }, [toast, refetch]);
+  const handleProductStatusChange = (productId: number, status: ProductStatus) => {
+    updateProductStatus(productId, status);
+  };
 
-  const statsCards = [
-    { title: 'Total de Produtos', value: totalProducts, icon: Package },
-    { title: 'Produtos Ativos', value: activeProducts, icon: TrendingUp },
-    { title: 'Produtos Inativos', value: inactiveProducts, icon: ShoppingCart },
-  ];
+  const handleBulkAction = (action: BulkAction) => {
+    const productIds = filteredProducts.map(product => product.id);
+
+    switch (action) {
+      case 'mark-all-review':
+        bulkUpdateStatuses(productIds, 'em-revisao');
+        break;
+      case 'mark-all-no-change':
+        bulkUpdateStatuses(productIds, 'nao-alterar');
+        break;
+      case 'remove-all-review':
+        const reviewProductIds = productIds.filter(id => getProductStatus(id) === 'em-revisao');
+        if (reviewProductIds.length > 0) {
+          bulkUpdateStatuses(reviewProductIds, 'normal');
+        }
+        break;
+      case 'remove-all-no-change':
+        const noChangeProductIds = productIds.filter(id => getProductStatus(id) === 'nao-alterar');
+        if (noChangeProductIds.length > 0) {
+          bulkUpdateStatuses(noChangeProductIds, 'normal');
+        }
+        break;
+      case 'remove-all-marks':
+        const markedProductIds = productIds.filter(id => getProductStatus(id) !== 'normal');
+        if (markedProductIds.length > 0) {
+          bulkUpdateStatuses(markedProductIds, 'normal');
+        }
+        break;
+    }
+  };
+
+  const handleCreateProduct = () => {
+    console.log('Opening create product dialog');
+    setEditingProduct(undefined);
+    setDialogMode('create');
+    setIsDialogOpen(true);
+  };
+
+  const handleEditProduct = (product: Product) => {
+    console.log('Opening edit product dialog for:', product.id, product.name);
+    setEditingProduct(product);
+    setDialogMode('edit');
+    setIsDialogOpen(true);
+  };
+
+  const handleViewProduct = (product: Product) => {
+    console.log('View product:', product.id, product.name);
+    // TODO: Implement view functionality
+  };
+
+  const handleDeleteProduct = (id: number, name: string) => {
+    console.log('Delete product:', id, name);
+    // TODO: Implement delete functionality
+  };
+
+  const filteredProducts = useMemo(() => {
+    let filtered = products.filter((product) =>
+      product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (stockFilter !== 'all') {
+      filtered = filtered.filter((product) => {
+        const totalStock = getTotalStock(product);
+        const status = product.stock_status;
+
+        switch (stockFilter) {
+          case 'in-stock':
+            return status !== 'outofstock' && totalStock > 10;
+          case 'low-stock':
+            return totalStock > 0 && totalStock <= 10;
+          case 'out-of-stock':
+            return status === 'outofstock' || totalStock === 0;
+          default:
+            return true;
+        }
+      });
+    }
+
+    return filtered;
+  }, [products, searchTerm, stockFilter]);
+
+  const stockCounts = useMemo(() => {
+    const counts = {
+      all: products.length,
+      inStock: 0,
+      outOfStock: 0,
+      lowStock: 0,
+    };
+
+    products.forEach((product) => {
+      const totalStock = getTotalStock(product);
+      const status = product.stock_status;
+
+      if (status === 'outofstock' || totalStock === 0) {
+        counts.outOfStock++;
+      } else if (totalStock <= 10) {
+        counts.lowStock++;
+      } else {
+        counts.inStock++;
+      }
+    });
+
+    return counts;
+  }, [products]);
+
+  const toggleProductExpansion = (productId: number) => {
+    setExpandedProducts(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(productId)) {
+        newSet.delete(productId);
+      } else {
+        newSet.add(productId);
+      }
+      return newSet;
+    });
+  };
+
+  const getStockStatus = (stock: number, status: string) => {
+    if (status === 'outofstock' || stock === 0) {
+      return { label: 'Sem Estoque', color: 'destructive' };
+    }
+    if (stock < 10) {
+      return { label: 'Estoque Baixo', color: 'secondary' };
+    }
+    return { label: 'Em Estoque', color: 'default' };
+  };
+
+  if (orgLoading || (currentOrganization && statusesLoading)) {
+    return (
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentOrganization) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para ver os produtos."
+          showConfigButton={false}
+        />
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="WooCommerce Não Configurado"
+          description="Configure sua conexão com o WooCommerce para começar a gerenciar produtos."
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Gerencie seu catálogo de produtos
+            </p>
+          </div>
+          <Button disabled>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Produto
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-20" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Gerencie seu catálogo de produtos
+            </p>
+          </div>
+        </div>
+        <EmptyWooCommerceState
+          title="Nenhum Produto Encontrado"
+          description="Sincronize seus produtos do WooCommerce ou adicione produtos manualmente."
+          showConfigButton={false}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="container mx-auto px-4 py-6 space-y-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Produtos</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
-            Gerencie seus produtos e controle de estoque
+          <h1 className="text-2xl sm:text-3xl font-bold">Produtos</h1>
+          <p className="text-sm text-muted-foreground">
+            Gerencie seu catálogo de produtos ({products.length} produtos)
           </p>
         </div>
-        <div className="flex flex-col gap-2 md:flex-row md:gap-4">
-          <Button 
-            onClick={() => setDialogOpen(true)}
-            className="w-full md:w-auto"
-          >
-            <Plus className="w-4 h-4 mr-2" />
+        <div className="flex gap-2 w-full sm:w-auto">
+          <ProductBulkActions 
+            onBulkAction={handleBulkAction}
+            disabled={filteredProducts.length === 0}
+          />
+          <Button onClick={handleCreateProduct} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
             Novo Produto
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards - Responsive grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
-        {statsCards.map((card, index) => (
-          <Card key={index} className="p-3 md:p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-2 md:space-y-0">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-muted-foreground">{card.title}</p>
-                <p className="text-lg md:text-2xl font-bold">{card.value}</p>
-              </div>
-              <card.icon className="h-4 w-4 md:h-6 md:w-6 text-muted-foreground" />
-            </div>
-          </Card>
-        ))}
-      </div>
-
-      {/* Search and Filters */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <div className="flex-1">
+      {/* Filtros de estoque */}
+      <div className="space-y-3">
+        <ProductStockFilters
+          selectedFilter={stockFilter}
+          onFilterChange={setStockFilter}
+          counts={stockCounts}
+        />
+        
+        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
           <Input
-            placeholder="Buscar produtos..."
+            placeholder="Buscar por nome ou SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full"
+            className="w-full sm:max-w-sm"
+          />
+          <ViewModeToggle 
+            viewMode={viewMode} 
+            onToggle={toggleViewMode}
+            className="w-full sm:w-auto"
           />
         </div>
       </div>
 
-      {/* Products Grid/List - Responsive */}
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="p-4">
-                <div className="space-y-3">
-                  <Skeleton className="h-32 md:h-48 w-full" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : products.length === 0 ? (
-          <EmptyWooCommerceState
-            title="Nenhum produto encontrado"
-            description="Configure a integração com o WooCommerce ou ajuste os filtros para ver os produtos."
-          />
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-6">
-            {products.map((product) => (
-              <Card key={product.id} className="p-4">
-                <div className="space-y-3">
-                  <div className="aspect-square bg-muted rounded-lg flex items-center justify-center">
-                    <Package className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium truncate">{product.name}</h3>
-                    <p className="text-sm text-muted-foreground">R$ {product.price}</p>
-                    <p className="text-xs text-muted-foreground">Estoque: {product.stock_quantity}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(product)}
-                      className="flex-1"
-                    >
-                      Editar
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Products Display */}
+      {viewMode === 'grid' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {filteredProducts.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              viewMode={viewMode}
+              onView={handleViewProduct}
+              onEdit={handleEditProduct}
+              onDelete={handleDeleteProduct}
+              getTotalStock={getTotalStock}
+              productStatus={getProductStatus(product.id)}
+              onStatusChange={handleProductStatusChange}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredProducts.map((product) => (
+            <StockRow
+              key={product.id}
+              product={product}
+              isExpanded={expandedProducts.has(product.id)}
+              onToggleExpand={() => toggleProductExpansion(product.id)}
+              getTotalStock={getTotalStock}
+              getStockStatus={getStockStatus}
+              rightExtra={<ProductPriceInfo product={product} />}
+            />
+          ))}
+        </div>
+      )}
+
+      {filteredProducts.length === 0 && searchTerm && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            Nenhum produto encontrado para "{searchTerm}"
+          </p>
+        </div>
+      )}
+
+      <ProductDialog
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        product={editingProduct}
+        mode={dialogMode}
+      />
     </div>
   );
 };

@@ -1,293 +1,384 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { wooCommerceAPI } from '@/services/woocommerce';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { wooCommerceService, Customer, Product, Order } from '@/services/woocommerce';
 
-interface WooCommerceConfig {
-  apiUrl: string;
-  consumerKey: string;
-  consumerSecret: string;
-  isConfigured: boolean;
-}
-
-export const useWooCommerceConfig = () => {
+// Products
+export const useWooCommerceProducts = (page = 1, perPage = 10) => {
   const { currentOrganization } = useOrganization();
 
-  const { data: config, isLoading } = useQuery({
-    queryKey: ['woocommerce-config', currentOrganization?.id],
-    queryFn: async (): Promise<WooCommerceConfig> => {
-      if (!currentOrganization) {
-        return {
-          apiUrl: '',
-          consumerKey: '',
-          consumerSecret: '',
-          isConfigured: false
-        };
-      }
+  return useQuery({
+    queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getProducts(perPage),
+    enabled: !!currentOrganization,
+  });
+};
 
+// Filtered Products
+export const useWooCommerceFilteredProducts = (page = 1, perPage = 20) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-products', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getProducts(perPage),
+    enabled: !!currentOrganization,
+    staleTime: 5000, // 5 seconds
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Single Product
+export const useWooCommerceProduct = (id: string) => {
+  return useQuery({
+    queryKey: ['woocommerce-product', id],
+    queryFn: () => wooCommerceAPI.getProduct(parseInt(id)),
+    enabled: !!id,
+  });
+};
+
+// Categories
+export const useWooCommerceCategories = () => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-categories', currentOrganization?.id],
+    queryFn: () => wooCommerceAPI.getCategories(),
+    enabled: !!currentOrganization,
+  });
+};
+
+// Orders
+export const useWooCommerceOrders = (page = 1, perPage = 10) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getOrders(perPage),
+    enabled: !!currentOrganization,
+  });
+};
+
+// Filtered Orders
+export const useWooCommerceFilteredOrders = (page = 1, perPage = 20) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-orders', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getOrders(perPage),
+    enabled: !!currentOrganization,
+    staleTime: 5000, // 5 seconds
+    refetchOnWindowFocus: false,
+  });
+};
+
+// Customers
+export const useWooCommerceCustomers = (page = 1, perPage = 10) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getCustomers(perPage),
+    enabled: !!currentOrganization,
+  });
+};
+
+// Filtered Customers
+export const useWooCommerceFilteredCustomers = (page = 1, perPage = 20) => {
+  const { currentOrganization } = useOrganization();
+
+  return useQuery({
+    queryKey: ['woocommerce-customers', currentOrganization?.id, page, perPage],
+    // Ajuste: serviço espera number, não objeto
+    queryFn: () => wooCommerceAPI.getCustomers(perPage),
+    enabled: !!currentOrganization,
+    staleTime: 5000, // 5 seconds
+    refetchOnWindowFocus: false,
+  });
+};
+
+// WooCommerce Config with full functionality
+export const useWooCommerceConfig = () => {
+  const { currentOrganization } = useOrganization();
+  const queryClient = useQueryClient();
+
+  const configQuery = useQuery({
+    queryKey: ['woocommerce-config', currentOrganization?.id],
+    queryFn: async () => {
+      if (!currentOrganization) return null;
+
+      console.log('[WooConfig] Fetching organization settings from Supabase...');
       const { data, error } = await supabase
         .from('organizations')
-        .select('wc_base_url, wc_consumer_key, wc_consumer_secret')
+        .select('settings')
         .eq('id', currentOrganization.id)
         .single();
 
       if (error) {
-        console.error('Erro ao buscar configuração WooCommerce:', error);
+        console.error('[WooConfig] Error fetching settings:', error);
         return {
+          isConfigured: false,
           apiUrl: '',
+          url: '',
           consumerKey: '',
           consumerSecret: '',
-          isConfigured: false
         };
       }
 
-      const isConfigured = !!(data?.wc_base_url && data?.wc_consumer_key && data?.wc_consumer_secret);
+      const wooSettings = ((data?.settings ?? {}) as any) || {};
+      const url = wooSettings?.woocommerce_url || '';
+      const consumerKey = wooSettings?.woocommerce_consumer_key || '';
+      const consumerSecret = wooSettings?.woocommerce_consumer_secret || '';
+      const isConfigured = !!url && !!consumerKey && !!consumerSecret;
 
       return {
-        apiUrl: data?.wc_base_url || '',
-        consumerKey: data?.wc_consumer_key || '',
-        consumerSecret: data?.wc_consumer_secret || '',
-        isConfigured
+        isConfigured,
+        apiUrl: url,
+        url,
+        consumerKey,
+        consumerSecret,
       };
     },
     enabled: !!currentOrganization,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
+
+  const testConnection = useMutation({
+    mutationFn: async (config: { apiUrl: string; consumerKey: string; consumerSecret: string }) => {
+      // Test the connection by making a simple API call
+      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`, {
+        headers: {
+          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Falha na conexão com WooCommerce');
+      }
+      
+      toast.success('Conexão testada com sucesso!');
+      return { success: true };
+    },
+    meta: {
+      onError: (error: any) => {
+        console.error('[WooConfig] Test connection failed:', error);
+      }
+    }
+  });
+
+  const saveConfig = async (config: { apiUrl: string; consumerKey: string; consumerSecret: string }) => {
+    if (!currentOrganization) return;
+
+    // Carregar settings atuais do banco para mesclar e não sobrescrever outras configs
+    const { data: currentData, error: loadError } = await supabase
+      .from('organizations')
+      .select('settings')
+      .eq('id', currentOrganization.id)
+      .single();
+
+    if (loadError) {
+      console.error('[WooConfig] Erro ao carregar settings atuais:', loadError);
+      toast.error('Erro ao carregar configurações atuais');
+      return;
+    }
+
+    const baseSettings = ((currentData?.settings ?? {}) as any) || {};
+
+    const updatedSettings = {
+      ...baseSettings,
+      woocommerce_url: config.apiUrl,
+      woocommerce_consumer_key: config.consumerKey,
+      woocommerce_consumer_secret: config.consumerSecret,
+    };
+
+    const { error } = await supabase
+      .from('organizations')
+      .update({ settings: updatedSettings })
+      .eq('id', currentOrganization.id);
+
+    if (error) {
+      console.error('[WooConfig] Erro ao salvar configuração:', error);
+      toast.error('Erro ao salvar configuração');
+      return;
+    }
+
+    // Garantir que a UI reflita imediatamente
+    await queryClient.invalidateQueries({ queryKey: ['woocommerce-config', currentOrganization.id] });
+    toast.success('Configuração salva com sucesso!');
+  };
+
+  const webhooksQuery = useQuery({
+    queryKey: ['woocommerce-webhooks', currentOrganization?.id],
+    queryFn: async () => {
+      const cfg = configQuery.data;
+      if (!cfg?.isConfigured) return [];
+
+      try {
+        const response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+          headers: {
+            'Authorization': `Basic ${btoa(`${cfg.consumerKey}:${cfg.consumerSecret}`)}`
+          }
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch webhooks');
+        return await response.json();
+      } catch (error) {
+        console.error('Error fetching webhooks:', error);
+        return [];
+      }
+    },
+    enabled: !!configQuery.data?.isConfigured,
+  });
+
+  const setupWebhook = useMutation({
+    mutationFn: async () => {
+      const cfg = configQuery.data;
+      if (!cfg?.isConfigured) throw new Error('WooCommerce not configured');
+
+      const webhookData = {
+        name: 'Stock Sync Webhook',
+        topic: 'product.updated',
+        delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+        status: 'active'
+      };
+
+      const response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${btoa(`${cfg.consumerKey}:${cfg.consumerSecret}`)}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (!response.ok) throw new Error('Failed to create webhook');
+      return await response.json();
+    },
+    onSuccess: () => {
+      webhooksQuery.refetch();
+      toast.success('Webhook criado com sucesso!');
+    },
+    onError: (error) => {
+      console.error('Error creating webhook:', error);
+      toast.error('Erro ao criar webhook');
+    }
   });
 
   return {
-    config: config || {
-      apiUrl: '',
-      consumerKey: '',
-      consumerSecret: '',
-      isConfigured: false
-    },
-    isConfigured: config?.isConfigured || false,
-    isLoading
+    config: configQuery.data,
+    isConfigured: configQuery.data?.isConfigured || false,
+    testConnection,
+    saveConfig,
+    webhooks: webhooksQuery,
+    setupWebhook,
+    isLoading: configQuery.isLoading
   };
 };
 
-export const useSaveWooCommerceConfig = () => {
-  const queryClient = useQueryClient();
-  const { currentOrganization } = useOrganization();
-
-  return useMutation({
-    mutationFn: async (config: {
-      apiUrl: string;
-      consumerKey: string;
-      consumerSecret: string;
-    }) => {
-      if (!currentOrganization) {
-        throw new Error('Nenhuma organização selecionada');
-      }
-
-      const { error } = await supabase
-        .from('organizations')
-        .update({
-          wc_base_url: config.apiUrl,
-          wc_consumer_key: config.consumerKey,
-          wc_consumer_secret: config.consumerSecret,
-        })
-        .eq('id', currentOrganization.id);
-
-      if (error) {
-        console.error('Erro ao salvar configuração WooCommerce:', error);
-        throw new Error(error.message || 'Erro ao salvar configuração');
-      }
-
-      return true;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['woocommerce-config', currentOrganization?.id] 
-      });
-      toast.success('Configurações do WooCommerce salvas com sucesso!');
-    },
-    onError: (error: any) => {
-      console.error('Erro ao salvar configuração:', error);
-      toast.error(`Erro ao salvar configuração: ${error.message}`);
-    }
-  });
-};
-
-// Customers hooks
-export const useCustomers = (page: number = 1, perPage: number = 10) => {
-  const { config } = useWooCommerceConfig();
-  
-  return useQuery({
-    queryKey: ['woocommerce-customers', page, perPage],
-    queryFn: async () => {
-      if (!config.isConfigured) return { data: [], total: 0 };
-      return wooCommerceService.getCustomers(config, page, perPage);
-    },
-    enabled: config.isConfigured,
-  });
-};
-
+// Customer hooks
 export const useCreateCustomer = () => {
   const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
+  const { currentOrganization } = useOrganization();
+  
   return useMutation({
-    mutationFn: async (customerData: Partial<Customer>) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.createCustomer(config, customerData);
-    },
+    mutationFn: (customerData: any) => wooCommerceAPI.createCustomer(customerData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-customers'] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-customers', currentOrganization?.id] });
     },
   });
 };
 
 export const useUpdateCustomer = () => {
   const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<Customer> }) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.updateCustomer(config, id, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-customers'] });
-    },
-  });
-};
-
-// Products hooks
-export const useProducts = (page: number = 1, perPage: number = 10) => {
-  const { config } = useWooCommerceConfig();
+  const { currentOrganization } = useOrganization();
   
-  return useQuery({
-    queryKey: ['woocommerce-products', page, perPage],
-    queryFn: async () => {
-      if (!config.isConfigured) return { data: [], total: 0 };
-      return wooCommerceService.getProducts(config, page, perPage);
-    },
-    enabled: config.isConfigured,
-  });
-};
-
-export const useCreateProduct = () => {
-  const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
   return useMutation({
-    mutationFn: async (productData: Partial<Product>) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.createProduct(config, productData);
-    },
+    mutationFn: ({ id, data }: { id: number; data: any }) => wooCommerceAPI.updateCustomer(id, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-products'] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-customers', currentOrganization?.id] });
     },
   });
 };
 
-export const useUpdateProduct = () => {
-  const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
-  return useMutation({
-    mutationFn: async ({ id, data }: { id: number; data: Partial<Product> }) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.updateProduct(config, id, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-products'] });
-    },
-  });
-};
-
-// Orders hooks
-export const useOrders = (page: number = 1, perPage: number = 10) => {
-  const { config } = useWooCommerceConfig();
-  
-  return useQuery({
-    queryKey: ['woocommerce-orders', page, perPage],
-    queryFn: async () => {
-      if (!config.isConfigured) return { data: [], total: 0 };
-      return wooCommerceService.getOrders(config, page, perPage);
-    },
-    enabled: config.isConfigured,
-  });
-};
-
+// Order hooks
 export const useCreateOrder = () => {
   const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
+  const { currentOrganization } = useOrganization();
+  
   return useMutation({
-    mutationFn: async (orderData: Partial<Order>) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.createOrder(config, orderData);
-    },
+    mutationFn: (orderData: any) => wooCommerceAPI.createOrder(orderData),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-orders', currentOrganization?.id] });
     },
   });
 };
 
 export const useUpdateOrderStatus = () => {
   const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
+  const { currentOrganization } = useOrganization();
+  
   return useMutation({
-    mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      return wooCommerceService.updateOrderStatus(config, id, status);
-    },
+    mutationFn: ({ id, status }: { id: number; status: string }) => wooCommerceAPI.updateOrderStatus(id, status),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-orders', currentOrganization?.id] });
     },
   });
 };
 
-// Stock hooks
+// Product hooks
+export const useCreateProduct = () => {
+  const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
+  
+  return useMutation({
+    mutationFn: (productData: any) => wooCommerceAPI.createProduct(productData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', currentOrganization?.id] });
+    },
+  });
+};
+
+export const useUpdateProduct = () => {
+  const queryClient = useQueryClient();
+  const { currentOrganization } = useOrganization();
+  
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: any }) => wooCommerceAPI.updateProduct(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', currentOrganization?.id] });
+    },
+  });
+};
+
+// Stock hook
 export const useUpdateStock = () => {
   const queryClient = useQueryClient();
-  const { config } = useWooCommerceConfig();
-
+  const { currentOrganization } = useOrganization();
+  
   return useMutation({
-    mutationFn: async ({ 
-      productId, 
-      variationId, 
-      newStock 
-    }: { 
-      productId: number; 
-      variationId?: number; 
-      newStock: number; 
-    }) => {
-      if (!config.isConfigured) throw new Error('WooCommerce não configurado');
-      
-      if (variationId) {
-        return wooCommerceService.updateVariationStock(config, productId, variationId, newStock);
-      } else {
-        return wooCommerceService.updateProductStock(config, productId, newStock);
-      }
-    },
+    mutationFn: ({ productId, newStock, variationId }: { productId: number; newStock: number; variationId?: number }) => 
+      wooCommerceAPI.updateStock(productId, newStock, variationId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-products'] });
-      queryClient.invalidateQueries({ queryKey: ['product-variations'] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', currentOrganization?.id] });
     },
   });
 };
 
-// Representatives hooks
+// Representatives hook - Fixed parameter type
 export const useRepresentantes = () => {
-  const { config } = useWooCommerceConfig();
+  const { currentOrganization } = useOrganization();
   
   return useQuery({
-    queryKey: ['woocommerce-representantes'],
-    queryFn: async () => {
-      if (!config.isConfigured) return [];
-      // Buscar clientes que são representantes (têm meta_data is_representative = true)
-      const customers = await wooCommerceService.getCustomers(config, 1, 100);
-      return customers.data.filter((customer: Customer) => 
-        customer.meta_data?.some((meta: any) => 
-          meta.key === 'is_representative' && meta.value === true
-        )
-      );
-    },
-    enabled: config.isConfigured,
+    queryKey: ['woocommerce-representantes', currentOrganization?.id],
+    // Ajuste: remover objeto, serviço espera number; usar um limite razoável
+    queryFn: () => wooCommerceAPI.getCustomers(100),
+    enabled: !!currentOrganization,
   });
 };

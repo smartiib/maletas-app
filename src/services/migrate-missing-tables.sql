@@ -12,17 +12,3 @@ ALTER TABLE IF EXISTS public.maleta_returns
 
 CREATE INDEX IF NOT EXISTS maleta_returns_organization_id_idx
   ON public.maleta_returns (organization_id);
-
--- Update maleta_items to use organization_id from maletas table
-UPDATE public.maleta_items 
-SET organization_id = m.organization_id
-FROM public.maletas m
-WHERE maleta_items.maleta_id = m.id
-AND maleta_items.organization_id IS NULL;
-
--- Update maleta_returns to use organization_id from maletas table
-UPDATE public.maleta_returns 
-SET organization_id = m.organization_id
-FROM public.maletas m
-WHERE maleta_returns.maleta_id = m.id
-AND maleta_returns.organization_id IS NULL;

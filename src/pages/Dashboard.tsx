@@ -1,88 +1,148 @@
 
-import React from 'react';
-import {
-  TrendingUp,
-  ShoppingCart,
-  Package,
-  Users,
-} from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils';
-import { useDashboardData } from '@/hooks/useDashboardData';
-import SalesChart from '@/components/dashboard/SalesChart';
-import RecentActivity from '@/components/dashboard/RecentActivity';
-import QuickActions from '@/components/dashboard/QuickActions';
-import KPICard from '@/components/dashboard/KPICard';
+import KPICard from "@/components/dashboard/KPICard";
+import SalesChart from "@/components/dashboard/SalesChart";
+import RecentActivity from "@/components/dashboard/RecentActivity";
+import QuickActions from "@/components/dashboard/QuickActions";
+import { 
+  useWooCommerceFilteredProducts, 
+  useWooCommerceFilteredOrders, 
+  useWooCommerceFilteredCustomers 
+} from "@/hooks/useWooCommerceFiltered";
+import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
+import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { useOrganizationAuthContext } from "@/contexts/OrganizationAuthContext";
+import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShoppingBag, Users, Package, TrendingUp } from "lucide-react";
 
 const Dashboard = () => {
-  const {
-    salesToday,
-    salesTrend,
-    ordersCount,
-    productsCount,
-    customersCount,
-    salesData,
-    recentActivities,
-    isLoading,
-    error,
-  } = useDashboardData();
+  const { user } = useAuth();
+  const { currentOrganization, loading: orgLoading } = useOrganization();
+  const { organizationUser, isOrganizationAuthenticated } = useOrganizationAuthContext();
+
+  // Determinar se é super admin
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
+
+  // These hooks use the organization context internally, no need to pass organizationId
+  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
+  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders();
+  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers();
+
+  const { isConfigured } = useWooCommerceConfig();
+  
+  const isLoading = productsLoading || ordersLoading || customersLoading || orgLoading;
+
+  // Calculate metrics
+  const totalRevenue = orders.reduce((sum, order) => sum + (parseFloat(order.total?.toString() || '0') || 0), 0);
+  const lowStockProducts = products.filter(product => 
+    product.manage_stock && (product.stock_quantity || 0) < 10
+  ).length;
+
+  // Determinar nome da organização baseado no tipo de usuário
+  let organizationName = 'Sistema';
+  let welcomeMessage = 'Visão geral do seu negócio';
+
+  if (isOrganizationAuthenticated && organizationUser) {
+    organizationName = 'Loja';
+    welcomeMessage = 'Painel administrativo da loja';
+  } else if (isSuperAdmin && currentOrganization) {
+    organizationName = currentOrganization.name;
+    welcomeMessage = 'Visão geral do seu negócio';
+  }
+
+  if (orgLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 space-y-6">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <Skeleton className="h-64" />
+          <Skeleton className="h-64" />
+        </div>
+      </div>
+    );
+  }
+
+  // Para usuários organizacionais, não verificar currentOrganization
+  if (isSuperAdmin && !currentOrganization) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <EmptyWooCommerceState
+          title="Nenhuma Organização Selecionada"
+          description="Selecione uma organização para ver o dashboard."
+          showConfigButton={false}
+        />
+      </div>
+    );
+  }
+
+  if (!isConfigured) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Bem-vindo à {organizationName}
+          </p>
+        </div>
+        <EmptyWooCommerceState
+          title="Configure o WooCommerce"
+          description="Configure sua conexão com o WooCommerce para começar a ver os dados do seu negócio."
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Bem-vindo ao seu painel de controle
+    <div className="container mx-auto px-4 py-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <p className="text-muted-foreground">
+          Bem-vindo à {organizationName} - {welcomeMessage}
         </p>
       </div>
 
-      {/* KPI Cards - Responsive grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="Vendas Hoje"
-          value={formatCurrency(salesToday)}
+          title="Receita Total"
+          value={isLoading ? "..." : `R$ ${totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           icon={TrendingUp}
-          trend={`+${salesTrend.value}%`}
+          trend="+12.3%"
         />
         <KPICard
           title="Pedidos"
-          value={ordersCount.toString()}
-          icon={ShoppingCart}
-          trend="+5%"
+          value={isLoading ? "..." : orders.length.toString()}
+          icon={ShoppingBag}
+          trend="+5.2%"
         />
         <KPICard
           title="Produtos"
-          value={productsCount.toString()}
+          value={isLoading ? "..." : products.length.toString()}
           icon={Package}
-          trend="+2%"
+          trend={`${lowStockProducts} com estoque baixo`}
         />
         <KPICard
           title="Clientes"
-          value={customersCount.toString()}
+          value={isLoading ? "..." : customers.length.toString()}
           icon={Users}
-          trend="+12%"
+          trend="+8.1%"
         />
       </div>
 
-      {/* Charts and Activities - Mobile stacked */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-        <Card className="p-4 md:p-6">
-          <h3 className="text-base md:text-lg font-semibold mb-4">Vendas dos Últimos 7 Dias</h3>
-          <SalesChart orders={[]} />
-        </Card>
-
-        <Card className="p-4 md:p-6">
-          <h3 className="text-base md:text-lg font-semibold mb-4">Atividades Recentes</h3>
-          <RecentActivity orders={[]} customers={[]} products={[]} />
-        </Card>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SalesChart orders={orders} />
+        <RecentActivity orders={orders} customers={customers} products={products} />
       </div>
 
-      {/* Quick Actions - Mobile friendly */}
-      <Card className="p-4 md:p-6">
-        <h3 className="text-base md:text-lg font-semibold mb-4">Ações Rápidas</h3>
-        <QuickActions />
-      </Card>
+      <QuickActions />
     </div>
   );
 };
