@@ -126,12 +126,21 @@ const MaletaCheckoutDialog: React.FC<MaletaCheckoutDialogProps> = ({
         payment_method: paymentMethods.map(p => p.name).join(', '),
         payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
         status: 'completed' as const,
-        line_items: soldItems.map(item => ({
+        line_items: soldItems.map((item, index) => ({
+          id: 0, // WooCommerce will assign the actual ID
           product_id: item.product_id,
           variation_id: item.variation_id || 0,
           quantity: item.quantity_sold,
           name: item.name,
-          total: (parseFloat(item.price) * item.quantity_sold).toFixed(2)
+          price: parseFloat(item.price),
+          total: (parseFloat(item.price) * item.quantity_sold).toFixed(2),
+          subtotal: (parseFloat(item.price) * item.quantity_sold).toFixed(2),
+          subtotal_tax: '0.00',
+          total_tax: '0.00',
+          taxes: [],
+          meta_data: [],
+          sku: item.sku || '',
+          image: { src: '' }
         })),
         billing: hasAssociatedCustomer ? {
           first_name: maleta?.customer_name?.split(' ')[0] || 'Cliente',
