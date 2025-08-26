@@ -5,12 +5,46 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Database, Globe, Activity, CheckCircle, Building2 } from 'lucide-react';
+import { Database, Globe, Activity, CheckCircle, Building2, Trash2, RefreshCw } from 'lucide-react';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { WooCommerceConfig as WooCommerceConfigType } from '@/services/woocommerce';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
+
+// Configuração padrão dos webhooks necessários
+const REQUIRED_WEBHOOKS = [
+  {
+    name: 'Stock Sync - Product Updated',
+    topic: 'product.updated',
+    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    status: 'active'
+  },
+  {
+    name: 'Stock Sync - Order Created',
+    topic: 'order.created', 
+    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    status: 'active'
+  },
+  {
+    name: 'Stock Sync - Order Updated',
+    topic: 'order.updated',
+    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook', 
+    status: 'active'
+  },
+  {
+    name: 'Customer Sync - Customer Created',
+    topic: 'customer.created',
+    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    status: 'active'
+  },
+  {
+    name: 'Customer Sync - Customer Updated', 
+    topic: 'customer.updated',
+    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    status: 'active'
+  }
+];
 
 export const WooCommerceConfig = () => {
   const { currentOrganization } = useOrganization();
@@ -58,14 +92,15 @@ export const WooCommerceConfig = () => {
     saveConfig(wooSettings);
   };
 
-  // Exclusão de webhook com force=true para evitar erro 501
-  const handleDeleteWebhookForce = async (id?: number | string) => {
+  // Função para deletar webhook individual
+  const handleDeleteWebhook = async (id?: number | string) => {
     try {
       if (!id) return;
       if (!wooSettings.apiUrl || !wooSettings.consumerKey || !wooSettings.consumerSecret) {
         toast.error('Configure a URL e as chaves do WooCommerce antes.');
         return;
-        }
+      }
+      
       const auth = btoa(`${wooSettings.consumerKey}:${wooSettings.consumerSecret}`);
       const url = `${wooSettings.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks/${id}?force=true`;
 
@@ -79,16 +114,88 @@ export const WooCommerceConfig = () => {
 
       if (!res.ok) {
         const text = await res.text();
-        console.error('Erro ao deletar webhook (force=true):', text);
+        console.error('Erro ao deletar webhook:', text);
         toast.error('Falha ao remover webhook. Verifique logs.');
       } else {
         toast.success('Webhook removido com sucesso.');
-        // Atualiza a lista
         webhooks.refetch();
       }
     } catch (err: any) {
       console.error('Erro inesperado ao remover webhook:', err);
       toast.error('Erro inesperado ao remover webhook.');
+    }
+  };
+
+  // Função para limpar todos os webhooks
+  const handleCleanAllWebhooks = async () => {
+    if (!webhooks.data || webhooks.data.length === 0) {
+      toast.info('Nenhum webhook para limpar');
+      return;
+    }
+
+    if (!confirm(`Tem certeza que deseja remover todos os ${webhooks.data.length} webhooks?`)) {
+      return;
+    }
+
+    for (const webhook of webhooks.data) {
+      await handleDeleteWebhook(webhook.id);
+      // Pequena pausa entre deletions para evitar rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    toast.success('Todos os webhooks foram removidos');
+  };
+
+  // Função para criar webhooks corretos
+  const handleCreateCorrectWebhooks = async () => {
+    if (!wooSettings.apiUrl || !wooSettings.consumerKey || !wooSettings.consumerSecret) {
+      toast.error('Configure as credenciais do WooCommerce primeiro');
+      return;
+    }
+
+    try {
+      const auth = btoa(`${wooSettings.consumerKey}:${wooSettings.consumerSecret}`);
+      let created = 0;
+      let errors = 0;
+
+      for (const webhookConfig of REQUIRED_WEBHOOKS) {
+        try {
+          const response = await fetch(`${wooSettings.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(webhookConfig)
+          });
+
+          if (response.ok) {
+            created++;
+            console.log(`Webhook criado: ${webhookConfig.name}`);
+          } else {
+            errors++;
+            console.error(`Erro ao criar webhook ${webhookConfig.name}:`, await response.text());
+          }
+          
+          // Pausa entre criações
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          errors++;
+          console.error(`Erro ao criar webhook ${webhookConfig.name}:`, error);
+        }
+      }
+
+      if (created > 0) {
+        toast.success(`${created} webhooks criados com sucesso!`);
+        webhooks.refetch();
+      }
+      
+      if (errors > 0) {
+        toast.warning(`${errors} webhooks falharam. Verifique os logs.`);
+      }
+    } catch (error) {
+      console.error('Erro ao criar webhooks:', error);
+      toast.error('Erro ao criar webhooks');
     }
   };
 
@@ -185,10 +292,11 @@ export const WooCommerceConfig = () => {
               Webhooks
             </CardTitle>
             <CardDescription>
-              Webhooks são configurados automaticamente para sincronização
+              Webhooks para sincronização automática entre WooCommerce e o sistema
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Status dos Webhooks */}
             {webhooks.isLoading ? (
               <div className="text-center py-4">Carregando webhooks...</div>
             ) : webhooks.error ? (
@@ -198,30 +306,28 @@ export const WooCommerceConfig = () => {
             ) : (
               <div className="space-y-3">
                 {webhooks.data && webhooks.data.length > 0 ? (
-                  webhooks.data
-                    .filter(webhook => webhook.delivery_url.includes('woocommerce-stock-webhook'))
-                    .map((webhook) => (
-                      <div key={webhook.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="space-y-1">
-                          <div className="font-medium">{webhook.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {webhook.topic} - {webhook.status}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={webhook.status === 'active' ? 'default' : 'secondary'}>
-                            {webhook.status === 'active' ? 'Ativo' : 'Inativo'}
-                          </Badge>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteWebhookForce(webhook.id)}
-                          >
-                            Remover
-                          </Button>
+                  webhooks.data.map((webhook) => (
+                    <div key={webhook.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="space-y-1 flex-1">
+                        <div className="font-medium">{webhook.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {webhook.topic} - {webhook.delivery_url}
                         </div>
                       </div>
-                    ))
+                      <div className="flex items-center gap-2">
+                        <Badge variant={webhook.status === 'active' ? 'default' : 'secondary'}>
+                          {webhook.status === 'active' ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteWebhook(webhook.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))
                 ) : (
                   <div className="text-center py-4 text-muted-foreground">
                     Nenhum webhook configurado
@@ -230,36 +336,52 @@ export const WooCommerceConfig = () => {
               </div>
             )}
             
-            <div className="flex gap-2">
-              <Button
-                onClick={() => setupWebhook.mutate()}
-                disabled={setupWebhook.isPending}
-                className="flex-1"
-              >
-                {setupWebhook.isPending ? 'Criando...' : 'Criar/Recriar Webhook'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => webhooks.refetch()}
-                disabled={webhooks.isRefetching}
-                className="flex-1"
-              >
-                {webhooks.isRefetching ? 'Atualizando...' : 'Atualizar Status'}
-              </Button>
+            {/* Ações de Webhook */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleCreateCorrectWebhooks}
+                  className="flex-1"
+                  disabled={!isConfigured}
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Criar Webhooks Corretos
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => webhooks.refetch()}
+                  disabled={webhooks.isRefetching}
+                >
+                  {webhooks.isRefetching ? 'Atualizando...' : 'Atualizar'}
+                </Button>
+              </div>
+              
+              {webhooks.data && webhooks.data.length > 0 && (
+                <Button
+                  variant="destructive"
+                  onClick={handleCleanAllWebhooks}
+                  className="w-full"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Limpar Todos os Webhooks
+                </Button>
+              )}
             </div>
             
+            {/* Informações dos Webhooks */}
             <div className="text-xs text-muted-foreground border-t pt-3">
               <div><strong>URL do Webhook:</strong></div>
               <div className="font-mono bg-muted p-2 rounded mt-1 break-all">
                 https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook
               </div>
               <div className="mt-2">
-                <div><strong>Eventos Monitorados:</strong></div>
-                <div className="text-xs space-x-2 mt-1">
+                <div><strong>Webhooks Necessários:</strong></div>
+                <div className="text-xs space-x-2 mt-1 flex flex-wrap gap-1">
+                  <Badge variant="secondary" className="text-xs">product.updated</Badge>
                   <Badge variant="secondary" className="text-xs">order.created</Badge>
                   <Badge variant="secondary" className="text-xs">order.updated</Badge>
-                  <Badge variant="secondary" className="text-xs">order.refunded</Badge>
-                  <Badge variant="secondary" className="text-xs">product.updated</Badge>
+                  <Badge variant="secondary" className="text-xs">customer.created</Badge>
+                  <Badge variant="secondary" className="text-xs">customer.updated</Badge>
                 </div>
               </div>
             </div>
