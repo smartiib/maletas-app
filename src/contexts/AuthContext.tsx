@@ -184,24 +184,36 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
 
   const signOut = async () => {
     try {
+      console.log('[AuthProvider] signOut chamado');
+      
+      // Primeiro limpar o estado local imediatamente para melhor UX
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      
+      // Tentar fazer logout no Supabase, mas não falhar se der erro
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
+        console.warn('[AuthProvider] Erro no signOut do Supabase:', error);
+        // Mesmo com erro, consideramos que o logout local foi bem-sucedido
         toast({
-          title: 'Erro ao sair',
-          description: 'Erro ao realizar logout',
-          variant: 'destructive',
+          title: 'Logout realizado',
+          description: 'Sessão encerrada localmente',
         });
       } else {
+        console.log('[AuthProvider] SignOut bem-sucedido');
         toast({
           title: 'Logout realizado',
           description: 'Até logo!',
         });
       }
     } catch (error) {
+      console.error('[AuthProvider] Erro inesperado no signOut:', error);
+      // Mesmo com erro, manter o estado local limpo
       toast({
-        title: 'Erro ao sair',
-        description: 'Ocorreu um erro inesperado',
-        variant: 'destructive',
+        title: 'Logout realizado',
+        description: 'Sessão encerrada',
       });
     }
   };
