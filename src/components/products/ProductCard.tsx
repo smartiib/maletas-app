@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -82,6 +83,11 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return 'bg-green-500';
   };
 
+  // Função para obter o estoque total correto
+  const getTotalStockForDisplay = (product: any) => {
+    return getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
+  };
+
   const getProductBackgroundClass = () => {
     switch (productStatus) {
       case 'em-revisao': return 'bg-yellow-50';
@@ -101,6 +107,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const stockStatus = getStockStatus(product);
+  const totalStock = getTotalStockForDisplay(product);
 
   if (viewMode === 'grid') {
     return (
@@ -173,7 +180,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <div className="space-y-2">
               <div className="flex flex-wrap gap-1">
                 <Badge className={getStatusColor(product.status)}>
-                  {getStatusLabel(product.status)}
+                  {getStatusLabel(product.status)} • {totalStock} unidades
                 </Badge>
                 <Badge className={stockStatus.color}>
                   {stockStatus.text}
@@ -240,7 +247,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             
             <div className="flex items-center gap-4 ml-16">
               <Badge className={getStatusColor(product.status)}>
-                {getStatusLabel(product.status)}
+                {getStatusLabel(product.status)} • {totalStock} unidades
               </Badge>
               <Badge className={stockStatus.color}>
                 {stockStatus.text}
