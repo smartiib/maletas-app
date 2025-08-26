@@ -45,9 +45,28 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, []);
 
-  // Bridge login: se há usuário organizacional e ainda não há sessão Supabase, efetua login técnico
+  // Se houve logout manual, limpar sessão organizacional e desabilitar bridge login
   useEffect(() => {
+    const manualLogout = localStorage.getItem('manual_logout') === 'true';
+    if (manualLogout) {
+      console.log('[OrganizationAuthContext] Logout manual detectado: limpando sessão organizacional e desabilitando bridge login');
+      setOrganizationUserState(null);
+      localStorage.removeItem('organization_user');
+      localStorage.removeItem('organization_user_authenticated');
+      // Limpa a flag para que novos logins funcionem normalmente depois
+      localStorage.removeItem('manual_logout');
+    }
+  }, [isAuthenticated]);
+
+  // Bridge login: se há usuário organizacional e ainda não há sessão Supabase, efetua login técnico,
+  // exceto quando houver um logout manual sinalizado
+  useEffect(() => {
+    const manualLogout = localStorage.getItem('manual_logout') === 'true';
     if (!authLoading && organizationUser && !isAuthenticated) {
+      if (manualLogout) {
+        console.log('[OrganizationAuthContext] Bridge login bloqueado por logout manual');
+        return;
+      }
       console.log('[OrganizationAuthContext] Bridge login: garantindo sessão Supabase para usuário organizacional');
       // Não aguardamos bloqueando a UI; se falhar, o AuthContext já exibe toast
       login();
@@ -62,10 +81,13 @@ export const OrganizationAuthProvider: React.FC<{ children: React.ReactNode }> =
       localStorage.setItem('organization_user', JSON.stringify(user));
       localStorage.setItem('organization_user_authenticated', 'true');
 
-      // Bridge login imediato após autenticar organizacional
-      if (!isAuthenticated) {
+      const manualLogout = localStorage.getItem('manual_logout') === 'true';
+      // Bridge login imediato após autenticar organizacional, exceto se houve logout manual
+      if (!isAuthenticated && !manualLogout) {
         console.log('[OrganizationAuthContext] Bridge login após autenticação organizacional');
         login();
+      } else if (manualLogout) {
+        console.log('[OrganizationAuthContext] Bridge login após autenticação bloqueado por logout manual');
       }
     } else {
       localStorage.removeItem('organization_user');
@@ -104,4 +126,3 @@ export const useOrganizationAuthContext = () => {
   }
   return context;
 };
-

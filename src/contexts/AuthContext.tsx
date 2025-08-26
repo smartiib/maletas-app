@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { User, Session } from '@supabase/supabase-js';
@@ -185,18 +184,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
   const signOut = async () => {
     try {
       console.log('[AuthProvider] signOut chamado');
-      
-      // Primeiro limpar o estado local imediatamente para melhor UX
+
+      // Sinalizar logout manual para evitar bridge login
+      localStorage.setItem('manual_logout', 'true');
+
+      // Limpar estado local imediatamente para melhor UX
       setUser(null);
       setSession(null);
       setProfile(null);
-      
-      // Tentar fazer logout no Supabase, mas não falhar se der erro
+
+      // Tentar fazer logout no Supabase, mas não falhar se der erro (ex.: 403)
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.warn('[AuthProvider] Erro no signOut do Supabase:', error);
-        // Mesmo com erro, consideramos que o logout local foi bem-sucedido
         toast({
           title: 'Logout realizado',
           description: 'Sessão encerrada localmente',
@@ -210,7 +211,6 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) =>
       }
     } catch (error) {
       console.error('[AuthProvider] Erro inesperado no signOut:', error);
-      // Mesmo com erro, manter o estado local limpo
       toast({
         title: 'Logout realizado',
         description: 'Sessão encerrada',
