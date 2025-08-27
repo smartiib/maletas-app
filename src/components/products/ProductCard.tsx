@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import ProductVariationInfo from './ProductVariationInfo';
-import { useProductVariations } from '@/hooks/useProductVariations'; // ADDED
+import { useProductVariations } from '@/hooks/useProductVariations';
 
 interface ProductCardProps {
   product: Product;
@@ -56,10 +56,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  // Buscar variações do Supabase quando for produto variável (para corrigir total quando getTotalStock não estiver disponível)
+  // Buscar variações do Supabase para produtos variáveis
   const { data: dbVariations = [] } = useProductVariations(
     product?.type === 'variable' ? Number(product.id) : undefined
-  ); // ADDED
+  );
 
   const getStockStatus = (product: any) => {
     if (product.stock_status === 'outofstock') {
@@ -99,9 +99,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Classe para a tag de unidades com fundo colorido
   const getUnitsBadgeClass = (qty: number) => {
-    if (qty <= 0) return 'bg-destructive-100 text-destructive-800';
-    if (qty <= 5) return 'bg-warning-100 text-warning-800';
-    return 'bg-success-100 text-success-800';
+    if (qty <= 0) return 'bg-destructive text-destructive-foreground';
+    if (qty <= 5) return 'bg-warning text-warning-foreground';
+    return 'bg-success text-success-foreground';
   };
 
   const getProductBackgroundClass = () => {
@@ -124,26 +124,31 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const stockStatus = getStockStatus(product);
 
-  // Corrigir total: usar getTotalStock se vier do pai, senão somar variações do Supabase quando for produto variável
+  // Calcular o estoque total correto
   const totalStock = React.useMemo(() => {
-    // Se o pai fornece um total, priorizar
-    if (typeof getTotalStock === 'function') {
-      const val = Number(getTotalStock(product));
-      if (Number.isFinite(val) && val >= 0) return val;
-    }
+    // Para produtos variáveis, usar as variações do Supabase se disponíveis
     if (product?.type === 'variable') {
       if (dbVariations && dbVariations.length > 0) {
-        return dbVariations.reduce((sum, v: any) => {
-          const n = Number(v?.stock_quantity ?? 0);
-          return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+        const supabaseTotal = dbVariations.reduce((sum, variation: any) => {
+          const stock = Number(variation?.stock_quantity ?? 0);
+          return sum + Math.max(0, stock);
         }, 0);
+        return supabaseTotal;
       }
-      // fallback (caso ainda não tenha variações no banco)
+      // Se não tiver variações no Supabase, usar getTotalStock se fornecido
+      if (getTotalStock) {
+        return getTotalStock(product);
+      }
+      // Fallback para o estoque do produto principal
       return Math.max(0, Number(product?.stock_quantity ?? 0));
     }
-    // simples
+    
+    // Para produtos simples, usar getTotalStock se fornecido, senão usar stock_quantity
+    if (getTotalStock) {
+      return getTotalStock(product);
+    }
     return Math.max(0, Number(product?.stock_quantity ?? 0));
-  }, [getTotalStock, product, dbVariations]); // ADDED
+  }, [product, dbVariations, getTotalStock]);
 
   if (viewMode === 'grid') {
     return (
