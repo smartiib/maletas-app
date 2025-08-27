@@ -150,6 +150,40 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return Math.max(0, Number(product?.stock_quantity ?? 0));
   }, [product, dbVariations, getTotalStock]);
 
+  // Calcular preço para produtos variáveis
+  const getProductPrice = () => {
+    const productPrice = parseFloat(product.price || '0');
+    
+    // Se o produto tem preço definido, usar esse preço
+    if (productPrice > 0) {
+      return `R$ ${productPrice.toFixed(2)}`;
+    }
+    
+    // Se é produto variável e não tem preço, calcular baseado nas variações
+    if (product?.type === 'variable' && dbVariations && dbVariations.length > 0) {
+      const prices = dbVariations
+        .map(variation => {
+          const price = Number(variation?.price ?? variation?.regular_price ?? 0);
+          return price > 0 ? price : 0;
+        })
+        .filter(price => price > 0);
+      
+      if (prices.length > 0) {
+        const minPrice = Math.min(...prices);
+        const maxPrice = Math.max(...prices);
+        
+        if (minPrice === maxPrice) {
+          return `R$ ${minPrice.toFixed(2)}`;
+        } else {
+          return `R$ ${minPrice.toFixed(2)} - R$ ${maxPrice.toFixed(2)}`;
+        }
+      }
+    }
+    
+    // Fallback para o preço original
+    return `R$ ${productPrice.toFixed(2)}`;
+  };
+
   if (viewMode === 'grid') {
     return (
       <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()}`}>
@@ -235,7 +269,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
               
               <div className="text-sm font-semibold">
-                R$ {parseFloat(product.price || '0').toFixed(2)}
+                {getProductPrice()}
               </div>
 
               {/* Variation Info */}
@@ -306,7 +340,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 </Badge>
               )}
               <span className="font-semibold">
-                R$ {parseFloat(product.price || '0').toFixed(2)}
+                {getProductPrice()}
               </span>
             </div>
           </div>
