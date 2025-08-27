@@ -44,7 +44,7 @@ export const useWooCommerceOperations = () => {
     resetProgress
   } = useSyncProgress();
 
-  // IMPROVED: Sync completo que faz múltiplas passadas até cobrir todos os itens da rodada
+  // IMPROVED: Sync completo mais resiliente que não para prematuramente
   const performCompleteSync = async (
     params: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
@@ -72,16 +72,18 @@ export const useWooCommerceOperations = () => {
     while (passNumber <= maxPasses) {
       let currentPage = 1;
       let iteration = 1;
-      let hasMore = true;
+      let shouldContinue = true;
 
       // Acumuladores desta passada (somente para esta rodada completa entre página 1 e última)
       let processedThisPass = 0;
       let errorsThisPass = 0;
       let foundThisPass = 0;
+      let consecutiveEmptyResponses = 0;
+      let lastProcessedCount = 0;
 
       console.log(`[Complete Sync] Passada ${passNumber} iniciada`);
 
-      while (hasMore && iteration <= 50) {
+      while (shouldContinue && iteration <= 50) {
         const requestBody: SyncRequest = {
           sync_type: params.syncType,
           config: params.config,
@@ -149,62 +151,80 @@ export const useWooCommerceOperations = () => {
         updateProgress({
           itemsProcessed: totalProcessedAcrossPasses + processedThisPass,
           currentStep: `Passada ${passNumber} • Lote ${iteration} - ${response.processed} itens processados (${foundThisPass} encontrados nesta passada)`,
-          progress: response.nextPage ? Math.min(10 + (iteration * 12), 90) : 95
+          progress: Math.min(10 + (iteration * 12), 90)
         });
 
-        if (response.nextPage) {
-          currentPage = Number(response.nextPage);
+        // NOVA LÓGICA: Não confiar apenas em hasMore/nextPage do backend
+        // Continuar enquanto há progresso real sendo feito
+        const currentProcessed = response.processed || 0;
+        
+        if (currentProcessed === 0) {
+          consecutiveEmptyResponses++;
+          console.log(`[Complete Sync] Resposta vazia ${consecutiveEmptyResponses}/3 na iteração ${iteration}`);
+          
+          // Se tivemos 3 respostas consecutivas sem processar nada, parar esta passada
+          if (consecutiveEmptyResponses >= 3) {
+            console.log(`[Complete Sync] Passada ${passNumber} finalizada: muitas respostas vazias consecutivas`);
+            shouldContinue = false;
+            break;
+          }
+        } else {
+          consecutiveEmptyResponses = 0; // Reset contador
+        }
+
+        // Se o backend deu nextPage, usar ele
+        // Se não deu nextPage mas ainda há progresso, continuar página seguinte
+        if (response.nextPage && response.nextPage > currentPage) {
+          currentPage = response.nextPage;
           iteration++;
           await new Promise(resolve => setTimeout(resolve, 800));
+        } else if (currentProcessed > 0) {
+          // Ainda processou algo, tentar próxima página
+          currentPage++;
+          iteration++;
+          await new Promise(resolve => setTimeout(resolve, 800));
+        } else if (response.hasMore === false && response.nextPage === null) {
+          // Backend disse claramente que acabou E não processou nada
+          console.log(`[Complete Sync] Passada ${passNumber} finalizada pelo backend`);
+          shouldContinue = false;
+          break;
         } else {
-          // Chegou ao fim das páginas desta passada
-          console.log(`[Complete Sync] Passada ${passNumber} finalizada. Processados nesta passada: ${processedThisPass}, Encontrados nesta passada: ${foundThisPass}`);
-
-          // Atualiza melhor estimativa do total
-          bestEstimatedTotalFound = Math.max(bestEstimatedTotalFound, foundThisPass);
-
-          // Se nesta passada processamos tudo o que foi encontrado (ou nada restou a fazer), encerramos
-          // Observação: foundThisPass representa o total de itens encontrados nas páginas percorridas nesta passada
-          if (processedThisPass >= foundThisPass || foundThisPass === 0) {
-            hasMore = false;
-            break;
-          }
-
-          // Caso contrário, inicia outra passada para tentar cobrir pendências
-          passNumber++;
-          if (passNumber > maxPasses) {
-            console.warn(`[Complete Sync] Limite de passadas atingido (${maxPasses}). Encerrando para evitar loop infinito.`);
-            hasMore = false;
-            break;
-          }
-
-          updateProgress({
-            currentStep: `Iniciando passada ${passNumber} para cobrir itens restantes...`,
-            progress: 60
-          });
-
-          // Consolida os contadores globais e reinicia os desta passada
-          totalProcessedAcrossPasses += processedThisPass;
-          totalErrorsAcrossPasses += errorsThisPass;
-
-          processedThisPass = 0;
-          errorsThisPass = 0;
-          foundThisPass = 0;
-
-          // Recomeça da página 1
-          currentPage = 1;
-          iteration = 1;
-
-          // Pequena pausa para não sobrecarregar
-          await new Promise(resolve => setTimeout(resolve, 1200));
+          // Caso de segurança: tentar mais uma página
+          currentPage++;
+          iteration++;
+          await new Promise(resolve => setTimeout(resolve, 800));
         }
+
+        lastProcessedCount = currentProcessed;
       }
 
-      // Se saímos do while interno sem iniciar nova passada, consolidar e encerrar
-      if (hasMore === false) {
-        totalProcessedAcrossPasses += processedThisPass;
-        totalErrorsAcrossPasses += errorsThisPass;
+      // Consolidar contadores desta passada
+      totalProcessedAcrossPasses += processedThisPass;
+      totalErrorsAcrossPasses += errorsThisPass;
+      bestEstimatedTotalFound = Math.max(bestEstimatedTotalFound, foundThisPass);
+
+      console.log(`[Complete Sync] Passada ${passNumber} finalizada. Processados nesta passada: ${processedThisPass}, Total geral: ${totalProcessedAcrossPasses}`);
+
+      // Se nesta passada não processamos nada, não vale a pena tentar outra passada
+      if (processedThisPass === 0) {
+        console.log(`[Complete Sync] Nenhum item processado na passada ${passNumber}. Encerrando.`);
         break;
+      }
+
+      // Se processamos menos de 50 itens nesta passada, provavelmente acabou
+      if (processedThisPass < 50) {
+        console.log(`[Complete Sync] Poucos itens processados na passada ${passNumber} (${processedThisPass}). Considerando completo.`);
+        break;
+      }
+
+      // Preparar próxima passada se necessário
+      if (passNumber < maxPasses) {
+        passNumber++;
+        updateProgress({
+          currentStep: `Iniciando passada ${passNumber} para garantir cobertura completa...`,
+          progress: 60 + (passNumber * 10)
+        });
+        await new Promise(resolve => setTimeout(resolve, 1200));
       }
     }
 
