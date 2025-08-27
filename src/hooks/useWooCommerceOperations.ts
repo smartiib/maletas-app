@@ -1,5 +1,4 @@
 
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -46,123 +45,136 @@ export const useWooCommerceOperations = () => {
     resetProgress
   } = useSyncProgress();
 
-  // IMPROVED: Progressive sync with better error handling and more aggressive pagination
-  const performProgressiveSync = async (
+  // IMPROVED: Sync completo que não para até pegar TODOS os produtos
+  const performCompleteSync = async (
     params: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
       config: { url: string; consumer_key: string; consumer_secret: string; };
       batchSize?: number;
       productIds?: number[];
-    },
-    page: number = 1,
-    totalProcessed: number = 0,
-    totalErrors: number = 0,
-    totalFound: number = 0,
-    iteration: number = 1
+    }
   ): Promise<{ processed: number; errors: number; totalFound: number }> => {
     
-    const requestBody: SyncRequest = {
-      sync_type: params.syncType,
-      config: params.config,
-      batch_size: params.batchSize || 50, // Mantido em 50 para equilibrar velocidade e confiabilidade
-      max_pages: 3, // Reduzido para evitar timeouts, mas ainda processar mais produtos
-      page,
-      organization_id: currentOrganization!.id,
-      product_ids: params.productIds
-    };
+    let totalProcessed = 0;
+    let totalErrors = 0;
+    let totalFound = 0;
+    let currentPage = 1;
+    let iteration = 1;
+    let hasMore = true;
 
-    console.log(`[Progressive Sync] Iteração ${iteration}, Página ${page}, processados: ${totalProcessed}, encontrados: ${totalFound}`);
-
-    // Update progress before each call
-    const progressPercentage = Math.min(10 + (iteration * 8), 85);
+    console.log(`[Complete Sync] Iniciando sincronização completa de ${params.syncType}`);
+    
+    // Atualizar progresso inicial
     updateProgress({
-      progress: progressPercentage,
-      currentStep: `Processando lote ${iteration} (página ${page}) - ${totalProcessed} produtos sincronizados...`,
-      itemsProcessed: totalProcessed,
+      progress: 5,
+      currentStep: 'Iniciando sincronização completa...',
+      itemsProcessed: 0,
     });
 
-    try {
-      const { data, error } = await supabase.functions.invoke('wc-sync', {
-        body: requestBody
-      });
+    while (hasMore && iteration <= 50) { // Limite máximo de 50 iterações como segurança
+      const requestBody: SyncRequest = {
+        sync_type: params.syncType,
+        config: params.config,
+        batch_size: 100, // Batch size grande para eficiência
+        max_pages: 1000, // Permitir muitas páginas por chamada
+        page: currentPage,
+        organization_id: currentOrganization!.id,
+        product_ids: params.productIds
+      };
 
-      if (error) {
-        throw new Error(error.message || 'Erro na sincronização');
-      }
+      console.log(`[Complete Sync] Iteração ${iteration}, Página inicial ${currentPage}, processados até agora: ${totalProcessed}`);
 
-      const response = data as SyncResponse;
-      
-      if (!response.success) {
-        throw new Error(response.message || 'Erro na sincronização');
-      }
-
-      const newTotalProcessed = totalProcessed + response.processed;
-      const newTotalErrors = totalErrors + response.errors;
-      const newTotalFound = totalFound + (response.totalFound || response.processed);
-
-      console.log(`[Progressive Sync] Lote ${iteration} concluído:`, {
-        processed: response.processed,
-        errors: response.errors,
-        totalProcessed: newTotalProcessed,
-        totalFound: newTotalFound,
-        hasMore: response.hasMore,
-        nextPage: response.nextPage,
-        timeElapsed: response.timeElapsed
-      });
-
-      // Update progress after processing
+      // Calcular progresso baseado na iteração
+      const progressPercentage = Math.min(10 + (iteration * 15), 85);
       updateProgress({
-        itemsProcessed: newTotalProcessed,
-        currentStep: `Lote ${iteration} concluído - ${response.processed} produtos processados (${newTotalFound} encontrados no total)`,
-        progress: response.hasMore ? Math.min(15 + (iteration * 10), 80) : 90
+        progress: progressPercentage,
+        currentStep: `Lote ${iteration} - Sincronizando produtos a partir da página ${currentPage}...`,
+        itemsProcessed: totalProcessed,
       });
 
-      // If there's more data, continue with next page
-      if (response.nextPage && response.hasMore && iteration < 20) { // Limite de 20 iterações para evitar loops infinitos
-        // Small delay between requests to prevent overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Aumentado para 2 segundos
-        
-        return await performProgressiveSync(
-          params,
-          response.nextPage,
-          newTotalProcessed,
-          newTotalErrors,
-          newTotalFound,
-          iteration + 1
-        );
-      }
+      try {
+        const { data, error } = await supabase.functions.invoke('wc-sync', {
+          body: requestBody
+        });
 
-      return { processed: newTotalProcessed, errors: newTotalErrors, totalFound: newTotalFound };
+        if (error) {
+          throw new Error(error.message || 'Erro na sincronização');
+        }
 
-    } catch (error: any) {
-      console.error(`[Progressive Sync] Erro na iteração ${iteration}:`, error);
-      
-      // Se for um erro de timeout e já processamos alguns produtos, continuar
-      if (error.message?.includes('timeout') && totalProcessed > 0) {
-        console.log(`[Progressive Sync] Timeout na iteração ${iteration}, mas continuando...`);
+        const response = data as SyncResponse;
         
-        // Tentar continuar na próxima página com um delay maior
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        
-        return await performProgressiveSync(
-          params,
-          page + 1,
+        if (!response.success) {
+          throw new Error(response.message || 'Erro na sincronização');
+        }
+
+        totalProcessed += response.processed;
+        totalErrors += response.errors;
+        totalFound += (response.totalFound || response.processed);
+
+        console.log(`[Complete Sync] Lote ${iteration} concluído:`, {
+          processed: response.processed,
+          errors: response.errors,
           totalProcessed,
-          totalErrors + 1,
           totalFound,
-          iteration + 1
-        );
+          hasMore: response.hasMore,
+          nextPage: response.nextPage,
+          timeElapsed: response.timeElapsed
+        });
+
+        // Atualizar progresso após cada lote
+        updateProgress({
+          itemsProcessed: totalProcessed,
+          currentStep: `Lote ${iteration} concluído - ${response.processed} produtos processados (${totalFound} encontrados no total)`,
+          progress: response.hasMore ? Math.min(15 + (iteration * 15), 80) : 95
+        });
+
+        // Verificar se há mais dados
+        if (!response.hasMore || !response.nextPage) {
+          console.log(`[Complete Sync] Sincronização completa! Processados: ${totalProcessed}, Encontrados: ${totalFound}`);
+          hasMore = false;
+          break;
+        }
+
+        // Preparar para próxima iteração
+        currentPage = response.nextPage;
+        iteration++;
+
+        // Pequeno delay entre requisições
+        if (hasMore) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+      } catch (error: any) {
+        console.error(`[Complete Sync] Erro na iteração ${iteration}:`, error);
+        
+        // Para erro crítico, parar
+        if (error.message?.includes('Organization ID') || error.message?.includes('credentials')) {
+          throw error;
+        }
+
+        // Para outros erros, tentar continuar
+        totalErrors++;
+        currentPage++;
+        iteration++;
+        
+        // Se muitos erros consecutivos, parar
+        if (totalErrors > 10) {
+          throw new Error(`Muitos erros na sincronização: ${error.message}`);
+        }
+
+        // Delay maior em caso de erro
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
-      
-      throw error;
     }
+
+    return { processed: totalProcessed, errors: totalErrors, totalFound };
   };
 
   const syncData = useMutation({
     mutationFn: async ({ 
       syncType, 
       config, 
-      batchSize = 50, // Mantido em 50
+      batchSize = 100,
       productIds
     }: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
@@ -174,15 +186,15 @@ export const useWooCommerceOperations = () => {
         throw new Error('Nenhuma organização selecionada');
       }
 
-      console.log('Iniciando sincronização progressiva:', { syncType, organizationId: currentOrganization.id, productIds });
+      console.log('Iniciando sincronização completa:', { syncType, organizationId: currentOrganization.id, productIds });
 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Usuário não autenticado');
       }
 
-      // Execute progressive sync with improved parameters
-      const result = await performProgressiveSync({
+      // Execute complete sync
+      const result = await performCompleteSync({
         syncType,
         config,
         batchSize,
@@ -215,7 +227,7 @@ export const useWooCommerceOperations = () => {
       
       const message = productIds 
         ? `${data.processed} produtos específicos sincronizados!`
-        : `${syncType} sincronizado! ${data.processed} de ${data.totalFound || data.processed} produtos processados`;
+        : `${syncType} sincronizado! ${data.processed} de ${data.totalFound || data.processed} produtos processados com sucesso`;
       
       toast.success(message);
     },

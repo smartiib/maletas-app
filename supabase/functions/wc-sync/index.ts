@@ -1,3 +1,4 @@
+
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -57,8 +58,8 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, serviceKey);
 
-// Time budget constants (aumentado para 25 segundos para dar mais tempo)
-const TIME_BUDGET_MS = 25000;
+// Time budget constants (aumentado para 28 segundos)
+const TIME_BUDGET_MS = 28000;
 
 /**
  * Gets WooCommerce credentials from the Supabase database.
@@ -137,7 +138,7 @@ async function fetchProducts(
   consumerKey: string,
   consumerSecret: string,
   page: number = 1,
-  perPage: number = 100, // Aumentado para pegar mais produtos por vez
+  perPage: number = 100,
 ): Promise<any[]> {
   const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products`);
   url.searchParams.set("per_page", String(perPage));
@@ -186,7 +187,7 @@ async function fetchProductVariations(opts: {
 }): Promise<any[]> {
   const { wcBaseUrl, consumerKey, consumerSecret, productId } = opts;
 
-  const perPage = 100; // Aumentado para pegar mais variações por vez
+  const perPage = 100;
   let page = 1;
   const all: any[] = [];
 
@@ -490,7 +491,7 @@ async function syncProducts(
   } = {}
 ) {
   const startTime = Date.now();
-  const { creds, page = 1, perPage = 50, maxPages = 10 } = options; // Aumentado maxPages para processar mais
+  const { creds, page = 1, perPage = 100, maxPages = 1000 } = options; // Aumentado maxPages drasticamente
   
   logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}`);
 
@@ -535,7 +536,7 @@ async function syncProducts(
     logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage} (Total found so far: ${totalProductsFound})`);
 
     // Process products in smaller batches to avoid memory issues
-    const batchSize = 10;
+    const batchSize = 5; // Reduzido ainda mais para evitar problemas
     for (let i = 0; i < productsFromWoo.length; i += batchSize) {
       if (isTimeBudgetExceeded(startTime)) {
         logger.log("[wc-sync] Time budget exceeded during product processing");
@@ -543,7 +544,14 @@ async function syncProducts(
       }
 
       const batch = productsFromWoo.slice(i, i + batchSize);
-      const batchPromises = batch.map(async (product) => {
+      
+      // Process sequentially instead of parallel to avoid overwhelming
+      for (const product of batch) {
+        if (isTimeBudgetExceeded(startTime)) {
+          logger.log("[wc-sync] Time budget exceeded during sequential processing");
+          break;
+        }
+
         try {
           // upsert do produto em wc_products com normalização de números
           const payload = [{
@@ -576,7 +584,8 @@ async function syncProducts(
 
           if (error) {
             logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
-            return { success: false, productId: product.id, error };
+            totalErrors++;
+            continue;
           }
 
           // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS (com time budget)
@@ -591,34 +600,17 @@ async function syncProducts(
             });
             
             if (!success) {
-              return { success: false, productId: product.id, error: "Time budget exceeded on variations" };
+              totalErrors++;
+              continue;
             }
           }
 
-          return { success: true, productId: product.id };
+          totalProcessed++;
         } catch (err) {
           logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
-          return { success: false, productId: product.id, error: err };
-        }
-      });
-
-      // Wait for batch to complete
-      const batchResults = await Promise.allSettled(batchPromises);
-      
-      // Count results
-      batchResults.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          if (result.value.success) {
-            totalProcessed++;
-          } else {
-            totalErrors++;
-            logger.warn(`[wc-sync] Failed to process product ${result.value.productId}:`, result.value.error);
-          }
-        } else {
           totalErrors++;
-          logger.error(`[wc-sync] Batch promise rejected:`, result.reason);
         }
-      });
+      }
     }
 
     currentPage++;
@@ -670,8 +662,8 @@ serve(async (req) => {
 
     const organizationId: string | null = body?.organization_id || body?.organizationId || null;
     const syncType = body?.sync_type || 'products';
-    const batchSize = body?.batch_size || 25; // REDUCED from 50
-    const maxPages = body?.max_pages || 1; // REDUCED from 5
+    const batchSize = body?.batch_size || 100; // Aumentado para 100
+    const maxPages = body?.max_pages || 1000; // Aumentado drasticamente
     const startPage = body?.page || 1;
     const productIds = body?.product_ids; // Novo: IDs específicos
 
@@ -737,7 +729,8 @@ serve(async (req) => {
           nextPage: result.nextPage,
           hasMore: result.hasMore,
           sync_type: syncType,
-          timeElapsed: result.timeElapsed
+          timeElapsed: result.timeElapsed,
+          totalFound: result.totalFound
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
