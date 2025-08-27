@@ -57,8 +57,8 @@ const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const supabase = createClient(supabaseUrl, serviceKey);
 
-// Time budget constants (18 seconds to leave 2 seconds buffer for response)
-const TIME_BUDGET_MS = 18000;
+// Time budget constants (aumentado para 25 segundos para dar mais tempo)
+const TIME_BUDGET_MS = 25000;
 
 /**
  * Gets WooCommerce credentials from the Supabase database.
@@ -130,22 +130,25 @@ function isTimeBudgetExceeded(startTime: number): boolean {
 }
 
 /**
- * Fetches products from WooCommerce API with pagination.
+ * Fetches products from WooCommerce API with pagination and better error handling.
  */
 async function fetchProducts(
   wcBaseUrl: string,
   consumerKey: string,
   consumerSecret: string,
   page: number = 1,
-  perPage: number = 50,
+  perPage: number = 100, // Aumentado para pegar mais produtos por vez
 ): Promise<any[]> {
   const url = new URL(`${wcBaseUrl}/wp-json/wc/v3/products`);
   url.searchParams.set("per_page", String(perPage));
   url.searchParams.set("page", String(page));
+  url.searchParams.set("status", "any"); // Buscar produtos com qualquer status
   url.searchParams.set("consumer_key", consumerKey);
   url.searchParams.set("consumer_secret", consumerSecret);
 
   try {
+    logger.log(`[wc-sync] Buscando produtos - Página ${page}, ${perPage} por página`);
+    
     const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
@@ -154,13 +157,17 @@ async function fetchProducts(
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
       logger.error(
         `WooCommerce API responded with an error: ${response.status} ${response.statusText}`,
+        errorText
       );
       return [];
     }
 
     const products = await response.json();
+    logger.log(`[wc-sync] Encontrados ${products.length} produtos na página ${page}`);
+    
     return products;
   } catch (error) {
     logger.error("Error fetching products from WooCommerce:", error);
@@ -179,7 +186,7 @@ async function fetchProductVariations(opts: {
 }): Promise<any[]> {
   const { wcBaseUrl, consumerKey, consumerSecret, productId } = opts;
 
-  const perPage = 50; // Reduced from 100
+  const perPage = 100; // Aumentado para pegar mais variações por vez
   let page = 1;
   const all: any[] = [];
 
@@ -471,7 +478,7 @@ async function syncSpecificProducts(
 }
 
 /**
- * Synchronizes products from WooCommerce to Supabase with TIME BUDGET and reduced batch size
+ * Synchronizes products from WooCommerce to Supabase with improved pagination and error handling
  */
 async function syncProducts(
   organizationId: string | null,
@@ -483,7 +490,7 @@ async function syncProducts(
   } = {}
 ) {
   const startTime = Date.now();
-  const { creds, page = 1, perPage = 25, maxPages = 1 } = options; // REDUCED: perPage 50->25, maxPages 5->1
+  const { creds, page = 1, perPage = 50, maxPages = 10 } = options; // Aumentado maxPages para processar mais
   
   logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}`);
 
@@ -502,6 +509,7 @@ async function syncProducts(
   let totalProcessed = 0;
   let totalErrors = 0;
   let pagesProcessed = 0;
+  let totalProductsFound = 0;
 
   while (pagesProcessed < maxPages) {
     // Check time budget before processing each page
@@ -523,70 +531,94 @@ async function syncProducts(
       break;
     }
 
-    logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage}`);
+    totalProductsFound += productsFromWoo.length;
+    logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage} (Total found so far: ${totalProductsFound})`);
 
-    for (const product of productsFromWoo) {
-      // Check time budget before processing each product
+    // Process products in smaller batches to avoid memory issues
+    const batchSize = 10;
+    for (let i = 0; i < productsFromWoo.length; i += batchSize) {
       if (isTimeBudgetExceeded(startTime)) {
         logger.log("[wc-sync] Time budget exceeded during product processing");
         break;
       }
 
-      try {
-        // upsert do produto em wc_products com normalização de números
-        const payload = [{
-          id: product.id,
-          name: product.name,
-          sku: textOrNull(product.sku),
-          type: product.type,
-          status: product.status,
-          description: product.description,
-          short_description: product.short_description,
-          permalink: product.permalink,
-          price: numOrNull(product.price),
-          regular_price: numOrNull(product.regular_price),
-          sale_price: numOrNull(product.sale_price),
-          on_sale: !!product.on_sale,
-          featured: !!product.featured,
-          catalog_visibility: product.catalog_visibility,
-          date_created: product.date_created,
-          date_modified: product.date_modified,
-          images: Array.isArray(product.images) ? product.images : [],
-          variations: Array.isArray(product.variations) ? product.variations : [],
-          organization_id: organizationId,
-          stock_quantity: intOrNull(product.stock_quantity),
-          stock_status: product.stock_status,
-        }];
+      const batch = productsFromWoo.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (product) => {
+        try {
+          // upsert do produto em wc_products com normalização de números
+          const payload = [{
+            id: product.id,
+            name: product.name,
+            sku: textOrNull(product.sku),
+            type: product.type,
+            status: product.status,
+            description: product.description,
+            short_description: product.short_description,
+            permalink: product.permalink,
+            price: numOrNull(product.price),
+            regular_price: numOrNull(product.regular_price),
+            sale_price: numOrNull(product.sale_price),
+            on_sale: !!product.on_sale,
+            featured: !!product.featured,
+            catalog_visibility: product.catalog_visibility,
+            date_created: product.date_created,
+            date_modified: product.date_modified,
+            images: Array.isArray(product.images) ? product.images : [],
+            variations: Array.isArray(product.variations) ? product.variations : [],
+            organization_id: organizationId,
+            stock_quantity: intOrNull(product.stock_quantity),
+            stock_status: product.stock_status,
+          }];
 
-        const { error } = await supabase
-          .from("wc_products")
-          .upsert(payload, { onConflict: "id" });
+          const { error } = await supabase
+            .from("wc_products")
+            .upsert(payload, { onConflict: "id" });
 
-        if (error) {
-          logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
+          if (error) {
+            logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
+            return { success: false, productId: product.id, error };
+          }
+
+          // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS (com time budget)
+          if (product.type === "variable") {
+            const success = await syncVariationsForProduct({
+              wcBaseUrl,
+              consumerKey,
+              consumerSecret,
+              productId: Number(product.id),
+              organizationId: organizationId,
+              startTime,
+            });
+            
+            if (!success) {
+              return { success: false, productId: product.id, error: "Time budget exceeded on variations" };
+            }
+          }
+
+          return { success: true, productId: product.id };
+        } catch (err) {
+          logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
+          return { success: false, productId: product.id, error: err };
+        }
+      });
+
+      // Wait for batch to complete
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Count results
+      batchResults.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          if (result.value.success) {
+            totalProcessed++;
+          } else {
+            totalErrors++;
+            logger.warn(`[wc-sync] Failed to process product ${result.value.productId}:`, result.value.error);
+          }
+        } else {
           totalErrors++;
-          continue;
+          logger.error(`[wc-sync] Batch promise rejected:`, result.reason);
         }
-
-        // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS (com time budget)
-        if (product.type === "variable") {
-          const success = await syncVariationsForProduct({
-            wcBaseUrl,
-            consumerKey,
-            consumerSecret,
-            productId: Number(product.id),
-            organizationId: organizationId,
-            startTime,
-          });
-          
-          if (!success) break; // Time budget exceeded
-        }
-
-        totalProcessed++;
-      } catch (err) {
-        logger.error(`[wc-sync] Erro ao processar produto ${product.id}:`, err);
-        totalErrors++;
-      }
+      });
     }
 
     currentPage++;
@@ -609,7 +641,7 @@ async function syncProducts(
   const hasMore = pagesProcessed >= maxPages && !isTimeBudgetExceeded(startTime);
   const nextPage = hasMore ? currentPage : null;
 
-  logger.log(`[wc-sync] Batch completed in ${timeElapsed}ms. Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
+  logger.log(`[wc-sync] Batch completed in ${timeElapsed}ms. Total products found: ${totalProductsFound}, Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
 
   return {
     processed: totalProcessed,
@@ -617,7 +649,8 @@ async function syncProducts(
     currentPage: currentPage - 1,
     nextPage,
     hasMore,
-    timeElapsed
+    timeElapsed,
+    totalFound: totalProductsFound
   };
 }
 
