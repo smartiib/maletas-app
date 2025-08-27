@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Badge } from '@/components/ui/badge';
 import { Package } from 'lucide-react';
 
 export type StockFilter = 'all' | 'in-stock' | 'out-of-stock' | 'low-stock';
@@ -57,22 +56,25 @@ export const ProductStockFilters: React.FC<ProductStockFiltersProps> = ({
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {filters.map((filter) => (
-        <div
-          key={filter.key}
-          className={`
-            inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer hover:opacity-80
-            ${selectedFilter === filter.key ? filter.selectedClass : `bg-white ${filter.colorClass}`}
-          `}
-          onClick={() => onFilterChange(filter.key)}
-        >
-          <div className={`w-4 h-4 rounded flex items-center justify-center mr-2 ${filter.iconBgClass}`}>
-            <Package className="w-2.5 h-2.5" />
+    <div>
+      <p className="text-xs text-muted-foreground mb-2">Filtrar por estoque:</p>
+      <div className="flex flex-wrap gap-1">
+        {filters.map((filter) => (
+          <div
+            key={filter.key}
+            className={`
+              inline-flex items-center rounded-full border px-2 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-1 cursor-pointer hover:opacity-80
+              ${selectedFilter === filter.key ? filter.selectedClass : `bg-white ${filter.colorClass}`}
+            `}
+            onClick={() => onFilterChange(filter.key)}
+          >
+            <div className={`w-3 h-3 rounded flex items-center justify-center mr-1.5 ${filter.iconBgClass}`}>
+              <Package className="w-1.5 h-1.5" />
+            </div>
+            {filter.label} ({filter.count})
           </div>
-          {filter.label} ({filter.count})
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };

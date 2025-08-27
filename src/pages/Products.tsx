@@ -341,34 +341,33 @@ const Products = () => {
         </div>
       </div>
 
-      {/* Filtros de estoque */}
-      <div className="space-y-3">
+      {/* Filtros inline */}
+      <div className="flex flex-col lg:flex-row gap-4">
         <ProductStockFilters
           selectedFilter={stockFilter}
           onFilterChange={setStockFilter}
           counts={stockCounts}
         />
         
-        {/* Filtros de revisão */}
         <ProductReviewFilters
           selectedFilter={reviewFilter}
           onFilterChange={setReviewFilter}
           counts={reviewCounts}
         />
-        
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
-          <Input
-            placeholder="Buscar por nome ou SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full sm:max-w-sm"
-          />
-          <ViewModeToggle 
-            viewMode={viewMode} 
-            onToggle={toggleViewMode}
-            className="w-full sm:w-auto"
-          />
-        </div>
+      </div>
+      
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+        <Input
+          placeholder="Buscar por nome ou SKU..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full sm:max-w-sm"
+        />
+        <ViewModeToggle 
+          viewMode={viewMode} 
+          onToggle={toggleViewMode}
+          className="w-full sm:w-auto"
+        />
       </div>
 
       {/* Products Display */}
