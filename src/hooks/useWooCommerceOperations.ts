@@ -44,7 +44,7 @@ export const useWooCommerceOperations = () => {
     resetProgress
   } = useSyncProgress();
 
-  // IMPROVED: Sync completo que não para até pegar TODOS os produtos
+  // IMPROVED: Sync completo que faz múltiplas passadas até cobrir todos os itens da rodada
   const performCompleteSync = async (
     params: {
       syncType: 'products' | 'categories' | 'orders' | 'customers' | 'full';
@@ -53,107 +53,168 @@ export const useWooCommerceOperations = () => {
       productIds?: number[];
     }
   ): Promise<{ processed: number; errors: number; totalFound: number }> => {
-    
-    let totalProcessed = 0;
-    let totalErrors = 0;
-    let totalFound = 0;
-    let currentPage = 1;
-    let iteration = 1;
-    let hasMore = true;
+    let totalProcessedAcrossPasses = 0;
+    let totalErrorsAcrossPasses = 0;
+    let bestEstimatedTotalFound = 0;
+
+    // Controle de passadas
+    let passNumber = 1;
+    const maxPasses = 5; // limite de segurança para evitar loops infinitos
 
     console.log(`[Complete Sync] Iniciando sincronização completa de ${params.syncType}`);
-    
     updateProgress({
       progress: 5,
       currentStep: 'Iniciando sincronização completa...',
       itemsProcessed: 0,
     });
 
-    while (hasMore && iteration <= 50) {
-      const requestBody: SyncRequest = {
-        sync_type: params.syncType,
-        config: params.config,
-        batch_size: 100,
-        max_pages: 1000,
-        page: currentPage,
-        organization_id: currentOrganization!.id,
-        product_ids: params.productIds
-      };
+    // Executa múltiplas passadas se necessário
+    while (passNumber <= maxPasses) {
+      let currentPage = 1;
+      let iteration = 1;
+      let hasMore = true;
 
-      console.log(`[Complete Sync] Iteração ${iteration}, Página inicial ${currentPage}, processados até agora: ${totalProcessed}`);
+      // Acumuladores desta passada (somente para esta rodada completa entre página 1 e última)
+      let processedThisPass = 0;
+      let errorsThisPass = 0;
+      let foundThisPass = 0;
 
-      const progressPercentage = Math.min(10 + (iteration * 15), 85);
-      updateProgress({
-        progress: progressPercentage,
-        currentStep: `Lote ${iteration} - Sincronizando produtos a partir da página ${currentPage}...`,
-        itemsProcessed: totalProcessed,
-      });
+      console.log(`[Complete Sync] Passada ${passNumber} iniciada`);
 
-      try {
+      while (hasMore && iteration <= 50) {
+        const requestBody: SyncRequest = {
+          sync_type: params.syncType,
+          config: params.config,
+          batch_size: 100,
+          max_pages: 1000,
+          page: currentPage,
+          organization_id: currentOrganization!.id,
+          product_ids: params.productIds
+        };
+
+        console.log(`[Complete Sync] Passada ${passNumber} - Iteração ${iteration}, Página inicial ${currentPage}, processados até agora nesta passada: ${processedThisPass}`);
+
+        const progressPercentage = Math.min(5 + (iteration * 12), 85);
+        updateProgress({
+          progress: progressPercentage,
+          currentStep: `Passada ${passNumber} • Lote ${iteration} - Sincronizando a partir da página ${currentPage}...`,
+          itemsProcessed: totalProcessedAcrossPasses + processedThisPass,
+        });
+
         const { data, error } = await supabase.functions.invoke('wc-sync', {
           body: requestBody
         });
 
         if (error) {
-          throw new Error(error.message || 'Erro na sincronização');
+          console.error(`[Complete Sync] Erro ao invocar função na passada ${passNumber}, iteração ${iteration}:`, error);
+          // Erros bloqueantes (ex.: credenciais/organization)
+          if (error.message?.includes('Organization ID') || error.message?.includes('credentials')) {
+            throw new Error(error.message);
+          }
+          errorsThisPass++;
+          totalErrorsAcrossPasses++;
+          // Avança para próxima página para não travar na mesma
+          currentPage++;
+          iteration++;
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          continue;
         }
 
         const response = data as SyncResponse;
-        
-        if (!response.success) {
-          throw new Error(response.message || 'Erro na sincronização');
+        if (!response?.success) {
+          console.error(`[Complete Sync] Resposta sem sucesso na passada ${passNumber}, iteração ${iteration}:`, response);
+          errorsThisPass++;
+          totalErrorsAcrossPasses++;
+          currentPage++;
+          iteration++;
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          continue;
         }
 
-        totalProcessed += response.processed;
-        totalErrors += response.errors;
-        totalFound += (response.totalFound || response.processed);
+        // Acumula APENAS desta passada
+        processedThisPass += response.processed || 0;
+        errorsThisPass += response.errors || 0;
+        foundThisPass += response.totalFound || 0;
 
-        console.log(`[Complete Sync] Lote ${iteration} concluído:`, {
+        console.log(`[Complete Sync] Passada ${passNumber} - Lote ${iteration} concluído:`, {
           processed: response.processed,
           errors: response.errors,
-          totalProcessed,
-          totalFound,
+          processedThisPass,
+          foundThisPass,
           hasMore: response.hasMore,
           nextPage: response.nextPage,
           timeElapsed: response.timeElapsed
         });
 
         updateProgress({
-          itemsProcessed: totalProcessed,
-          currentStep: `Lote ${iteration} concluído - ${response.processed} produtos processados (${totalFound} encontrados no total)`,
-          progress: response.nextPage ? Math.min(15 + (iteration * 15), 80) : 95
+          itemsProcessed: totalProcessedAcrossPasses + processedThisPass,
+          currentStep: `Passada ${passNumber} • Lote ${iteration} - ${response.processed} itens processados (${foundThisPass} encontrados nesta passada)`,
+          progress: response.nextPage ? Math.min(10 + (iteration * 12), 90) : 95
         });
 
         if (response.nextPage) {
           currentPage = Number(response.nextPage);
           iteration++;
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 800));
         } else {
-          console.log(`[Complete Sync] Sincronização completa! Processados: ${totalProcessed}, Encontrados: ${totalFound}`);
-          hasMore = false;
-          break;
-        }
+          // Chegou ao fim das páginas desta passada
+          console.log(`[Complete Sync] Passada ${passNumber} finalizada. Processados nesta passada: ${processedThisPass}, Encontrados nesta passada: ${foundThisPass}`);
 
-      } catch (error: any) {
-        console.error(`[Complete Sync] Erro na iteração ${iteration}:`, error);
-        
-        if (error.message?.includes('Organization ID') || error.message?.includes('credentials')) {
-          throw error;
-        }
+          // Atualiza melhor estimativa do total
+          bestEstimatedTotalFound = Math.max(bestEstimatedTotalFound, foundThisPass);
 
-        totalErrors++;
-        currentPage++;
-        iteration++;
-        
-        if (totalErrors > 10) {
-          throw new Error(`Muitos erros na sincronização: ${error.message}`);
-        }
+          // Se nesta passada processamos tudo o que foi encontrado (ou nada restou a fazer), encerramos
+          // Observação: foundThisPass representa o total de itens encontrados nas páginas percorridas nesta passada
+          if (processedThisPass >= foundThisPass || foundThisPass === 0) {
+            hasMore = false;
+            break;
+          }
 
-        await new Promise(resolve => setTimeout(resolve, 3000));
+          // Caso contrário, inicia outra passada para tentar cobrir pendências
+          passNumber++;
+          if (passNumber > maxPasses) {
+            console.warn(`[Complete Sync] Limite de passadas atingido (${maxPasses}). Encerrando para evitar loop infinito.`);
+            hasMore = false;
+            break;
+          }
+
+          updateProgress({
+            currentStep: `Iniciando passada ${passNumber} para cobrir itens restantes...`,
+            progress: 60
+          });
+
+          // Consolida os contadores globais e reinicia os desta passada
+          totalProcessedAcrossPasses += processedThisPass;
+          totalErrorsAcrossPasses += errorsThisPass;
+
+          processedThisPass = 0;
+          errorsThisPass = 0;
+          foundThisPass = 0;
+
+          // Recomeça da página 1
+          currentPage = 1;
+          iteration = 1;
+
+          // Pequena pausa para não sobrecarregar
+          await new Promise(resolve => setTimeout(resolve, 1200));
+        }
+      }
+
+      // Se saímos do while interno sem iniciar nova passada, consolidar e encerrar
+      if (hasMore === false) {
+        totalProcessedAcrossPasses += processedThisPass;
+        totalErrorsAcrossPasses += errorsThisPass;
+        break;
       }
     }
 
-    return { processed: totalProcessed, errors: totalErrors, totalFound };
+    console.log(`[Complete Sync] Sincronização finalizada. Total processado: ${totalProcessedAcrossPasses}, Melhor estimativa encontrados: ${bestEstimatedTotalFound}, Erros: ${totalErrorsAcrossPasses}`);
+
+    return {
+      processed: totalProcessedAcrossPasses,
+      errors: totalErrorsAcrossPasses,
+      totalFound: bestEstimatedTotalFound
+    };
   };
 
   const syncData = useMutation({
