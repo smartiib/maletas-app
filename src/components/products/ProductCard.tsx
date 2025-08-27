@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -61,32 +60,27 @@ const ProductCard: React.FC<ProductCardProps> = ({
     product?.type === 'variable' ? Number(product.id) : undefined
   );
 
-  const getStockStatus = (product: any) => {
-    if (product.stock_status === 'outofstock') {
+  const getStockStatus = (product: any, totalStock: number) => {
+    // Produto só está sem estoque se o total calculado for 0
+    if (totalStock === 0) {
       return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
     }
     
-    // Usar a função getTotalStock se disponível, senão usar stock_quantity simples
-    const stock = getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0);
+    // Se tem estoque mas é baixo (<=5)
+    if (totalStock <= 5) {
+      return { color: 'bg-warning-100 text-warning-800', text: `${totalStock} unidades` };
+    }
     
-    if (stock <= 0) {
-      return { color: 'bg-destructive-100 text-destructive-800', text: 'Sem estoque' };
-    }
-    if (stock <= 5) {
-      return { color: 'bg-warning-100 text-warning-800', text: `${stock} unidades` };
-    }
-    return { color: 'bg-success-100 text-success-800', text: `${stock} unidades` };
+    // Estoque normal
+    return { color: 'bg-success-100 text-success-800', text: `${totalStock} unidades` };
   };
 
-  // Ícone usa a mesma lógica de severidade do estoque (usaremos o total computado se for fornecido)
-  const getStockIcon = (product: any, computedTotal?: number) => {
-    const stock = typeof computedTotal === 'number'
-      ? computedTotal
-      : (getTotalStock ? getTotalStock(product) : Math.max(0, product.stock_quantity || 0));
-    if (product.stock_status === 'outofstock' || stock === 0) {
+  // Ícone usa a mesma lógica de severidade do estoque
+  const getStockIcon = (totalStock: number) => {
+    if (totalStock === 0) {
       return 'bg-destructive'; // usar token semântico
     }
-    if (stock <= 5) {
+    if (totalStock <= 5) {
       return 'bg-warning';
     }
     return 'bg-success';
@@ -99,7 +93,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   // Classe para a tag de unidades com fundo colorido
   const getUnitsBadgeClass = (qty: number) => {
-    if (qty <= 0) return 'bg-destructive text-destructive-foreground';
+    if (qty === 0) return 'bg-destructive text-destructive-foreground';
     if (qty <= 5) return 'bg-warning text-warning-foreground';
     return 'bg-success text-success-foreground';
   };
@@ -121,8 +115,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
     console.log('Status change for product:', product.id, 'new status:', status);
     onStatusChange?.(product.id, status);
   };
-
-  const stockStatus = getStockStatus(product);
 
   // Calcular o estoque total correto
   const totalStock = React.useMemo(() => {
@@ -184,6 +176,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
     return `R$ ${productPrice.toFixed(2)}`;
   };
 
+  // Calcular o status do estoque usando o total correto
+  const stockStatus = getStockStatus(product, totalStock);
+
   if (viewMode === 'grid') {
     return (
       <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()}`}>
@@ -203,7 +198,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
             
             {/* Stock status icon */}
-            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(product, totalStock)} rounded-full flex items-center justify-center`}>
+            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
               <Package className="w-2.5 h-2.5 text-white" />
             </div>
 
@@ -260,12 +255,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Badge className={getUnitsBadgeClass(totalStock)}>
                   {totalStock} unidades
                 </Badge>
-                {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
-                {!(product.type === 'variable' && getTotalStock) && (
-                  <Badge className={stockStatus.color}>
-                    {stockStatus.text}
-                  </Badge>
-                )}
               </div>
               
               <div className="text-sm font-semibold">
@@ -304,7 +293,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     <Package className="w-6 h-6 text-muted-foreground" />
                   )}
                   {/* Stock status icon */}
-                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(product, totalStock)} rounded-full flex items-center justify-center`}>
+                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
                     <Package className="w-2.5 h-2.5 text-white" />
                   </div>
                   
@@ -333,12 +322,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge className={getUnitsBadgeClass(totalStock)}>
                 {totalStock} unidades
               </Badge>
-              {/* Não mostrar o badge de status de estoque se o produto for variável e tiver getTotalStock */}
-              {!(product.type === 'variable' && getTotalStock) && (
-                <Badge className={stockStatus.color}>
-                  {stockStatus.text}
-                </Badge>
-              )}
               <span className="font-semibold">
                 {getProductPrice()}
               </span>
