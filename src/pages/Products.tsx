@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import { StockRow } from "@/components/stock/StockRow";
 import ProductPriceInfo from "@/components/products/ProductPriceInfo";
 import { ProductStockFilters, StockFilter } from "@/components/products/ProductStockFilters";
+import { ProductReviewFilters, ReviewFilter } from "@/components/products/ProductReviewFilters";
 import ProductBulkActions, { BulkAction } from "@/components/products/ProductBulkActions";
 import { Product } from "@/services/woocommerce";
 import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
@@ -27,6 +27,7 @@ const Products = () => {
   const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create');
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
   const [stockFilter, setStockFilter] = useState<StockFilter>('all');
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('all');
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
@@ -131,6 +132,7 @@ const Products = () => {
       product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    // Aplicar filtro de estoque
     if (stockFilter !== 'all') {
       filtered = filtered.filter((product) => {
         const totalStock = getTotalStock(product);
@@ -149,8 +151,16 @@ const Products = () => {
       });
     }
 
+    // Aplicar filtro de revisão
+    if (reviewFilter !== 'all') {
+      filtered = filtered.filter((product) => {
+        const productStatus = getProductStatus(product.id);
+        return productStatus === reviewFilter;
+      });
+    }
+
     return filtered;
-  }, [products, searchTerm, stockFilter]);
+  }, [products, searchTerm, stockFilter, reviewFilter, getProductStatus]);
 
   const stockCounts = useMemo(() => {
     const counts = {
@@ -176,6 +186,32 @@ const Products = () => {
     return counts;
   }, [products]);
 
+  const reviewCounts = useMemo(() => {
+    const counts = {
+      all: products.length,
+      normal: 0,
+      emRevisao: 0,
+      naoAlterar: 0,
+    };
+
+    products.forEach((product) => {
+      const status = getProductStatus(product.id);
+      switch (status) {
+        case 'em-revisao':
+          counts.emRevisao++;
+          break;
+        case 'nao-alterar':
+          counts.naoAlterar++;
+          break;
+        default:
+          counts.normal++;
+          break;
+      }
+    });
+
+    return counts;
+  }, [products, getProductStatus, productStatuses]);
+
   const toggleProductExpansion = (productId: number) => {
     setExpandedProducts(prev => {
       const newSet = new Set(prev);
@@ -200,7 +236,7 @@ const Products = () => {
 
   if (orgLoading || (currentOrganization && statusesLoading)) {
     return (
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      <div className="container mx-auto px-4 py-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <Skeleton className="h-8 w-32 mb-2" />
@@ -313,6 +349,13 @@ const Products = () => {
           counts={stockCounts}
         />
         
+        {/* Filtros de revisão */}
+        <ProductReviewFilters
+          selectedFilter={reviewFilter}
+          onFilterChange={setReviewFilter}
+          counts={reviewCounts}
+        />
+        
         <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
           <Input
             placeholder="Buscar por nome ou SKU..."
@@ -380,4 +423,3 @@ const Products = () => {
 };
 
 export default Products;
-
