@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -64,19 +63,18 @@ export const useWooCommerceOperations = () => {
 
     console.log(`[Complete Sync] Iniciando sincronização completa de ${params.syncType}`);
     
-    // Atualizar progresso inicial
     updateProgress({
       progress: 5,
       currentStep: 'Iniciando sincronização completa...',
       itemsProcessed: 0,
     });
 
-    while (hasMore && iteration <= 50) { // Limite máximo de 50 iterações como segurança
+    while (hasMore && iteration <= 50) {
       const requestBody: SyncRequest = {
         sync_type: params.syncType,
         config: params.config,
-        batch_size: 100, // Batch size grande para eficiência
-        max_pages: 1000, // Permitir muitas páginas por chamada
+        batch_size: 100,
+        max_pages: 1000,
         page: currentPage,
         organization_id: currentOrganization!.id,
         product_ids: params.productIds
@@ -84,7 +82,6 @@ export const useWooCommerceOperations = () => {
 
       console.log(`[Complete Sync] Iteração ${iteration}, Página inicial ${currentPage}, processados até agora: ${totalProcessed}`);
 
-      // Calcular progresso baseado na iteração
       const progressPercentage = Math.min(10 + (iteration * 15), 85);
       updateProgress({
         progress: progressPercentage,
@@ -121,48 +118,37 @@ export const useWooCommerceOperations = () => {
           timeElapsed: response.timeElapsed
         });
 
-        // Atualizar progresso após cada lote
         updateProgress({
           itemsProcessed: totalProcessed,
           currentStep: `Lote ${iteration} concluído - ${response.processed} produtos processados (${totalFound} encontrados no total)`,
-          progress: response.hasMore ? Math.min(15 + (iteration * 15), 80) : 95
+          progress: response.nextPage ? Math.min(15 + (iteration * 15), 80) : 95
         });
 
-        // Verificar se há mais dados
-        if (!response.hasMore || !response.nextPage) {
+        if (response.nextPage) {
+          currentPage = Number(response.nextPage);
+          iteration++;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
           console.log(`[Complete Sync] Sincronização completa! Processados: ${totalProcessed}, Encontrados: ${totalFound}`);
           hasMore = false;
           break;
         }
 
-        // Preparar para próxima iteração
-        currentPage = response.nextPage;
-        iteration++;
-
-        // Pequeno delay entre requisições
-        if (hasMore) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
       } catch (error: any) {
         console.error(`[Complete Sync] Erro na iteração ${iteration}:`, error);
         
-        // Para erro crítico, parar
         if (error.message?.includes('Organization ID') || error.message?.includes('credentials')) {
           throw error;
         }
 
-        // Para outros erros, tentar continuar
         totalErrors++;
         currentPage++;
         iteration++;
         
-        // Se muitos erros consecutivos, parar
         if (totalErrors > 10) {
           throw new Error(`Muitos erros na sincronização: ${error.message}`);
         }
 
-        // Delay maior em caso de erro
         await new Promise(resolve => setTimeout(resolve, 3000));
       }
     }
@@ -193,7 +179,6 @@ export const useWooCommerceOperations = () => {
         throw new Error('Usuário não autenticado');
       }
 
-      // Execute complete sync
       const result = await performCompleteSync({
         syncType,
         config,
@@ -212,7 +197,6 @@ export const useWooCommerceOperations = () => {
       console.log('Sincronização concluída:', data);
       completeSync(data.errors === 0, data.errors > 0 ? `${data.errors} erros encontrados` : undefined);
       
-      // Invalidar queries relacionadas
       queryClient.invalidateQueries({ 
         queryKey: ['woocommerce-products', currentOrganization?.id] 
       });

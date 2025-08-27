@@ -1,4 +1,3 @@
-
 /* eslint-disable */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -512,8 +511,10 @@ async function syncProducts(
   let pagesProcessed = 0;
   let totalProductsFound = 0;
 
+  // Novo: flag para sabermos se chegamos realmente ao fim das páginas
+  let reachedEnd = false;
+
   while (pagesProcessed < maxPages) {
-    // Check time budget before processing each page
     if (isTimeBudgetExceeded(startTime)) {
       logger.log("[wc-sync] Time budget exceeded, stopping sync");
       break;
@@ -529,14 +530,14 @@ async function syncProducts(
 
     if (!productsFromWoo || productsFromWoo.length === 0) {
       logger.log("[wc-sync] No more products to fetch from WooCommerce.");
+      reachedEnd = true;
       break;
     }
 
     totalProductsFound += productsFromWoo.length;
     logger.log(`[wc-sync] Processing ${productsFromWoo.length} products from page ${currentPage} (Total found so far: ${totalProductsFound})`);
 
-    // Process products in smaller batches to avoid memory issues
-    const batchSize = 5; // Reduzido ainda mais para evitar problemas
+    const batchSize = 5;
     for (let i = 0; i < productsFromWoo.length; i += batchSize) {
       if (isTimeBudgetExceeded(startTime)) {
         logger.log("[wc-sync] Time budget exceeded during product processing");
@@ -544,8 +545,6 @@ async function syncProducts(
       }
 
       const batch = productsFromWoo.slice(i, i + batchSize);
-      
-      // Process sequentially instead of parallel to avoid overwhelming
       for (const product of batch) {
         if (isTimeBudgetExceeded(startTime)) {
           logger.log("[wc-sync] Time budget exceeded during sequential processing");
@@ -553,7 +552,6 @@ async function syncProducts(
         }
 
         try {
-          // upsert do produto em wc_products com normalização de números
           const payload = [{
             id: product.id,
             name: product.name,
@@ -588,7 +586,6 @@ async function syncProducts(
             continue;
           }
 
-          // SEMPRE SINCRONIZAR VARIAÇÕES PARA PRODUTOS VARIÁVEIS (com time budget)
           if (product.type === "variable") {
             const success = await syncVariationsForProduct({
               wcBaseUrl,
@@ -598,7 +595,6 @@ async function syncProducts(
               organizationId: organizationId,
               startTime,
             });
-            
             if (!success) {
               totalErrors++;
               continue;
@@ -613,27 +609,37 @@ async function syncProducts(
       }
     }
 
+    // Avançar o contador de páginas
     currentPage++;
     pagesProcessed++;
 
-    // Se pegou menos produtos que o perPage, acabaram os produtos
+    // Se vier menos que perPage, é a última página
     if (productsFromWoo.length < perPage) {
       logger.log("[wc-sync] Reached end of products");
+      reachedEnd = true;
       break;
     }
 
-    // Additional time budget check at end of page
+    // Checagem de time budget depois da página
     if (isTimeBudgetExceeded(startTime)) {
       logger.log("[wc-sync] Time budget exceeded after page completion");
+      // NÃO marcamos reachedEnd aqui, pois ainda há mais páginas
       break;
     }
   }
 
   const timeElapsed = Date.now() - startTime;
-  const hasMore = pagesProcessed >= maxPages && !isTimeBudgetExceeded(startTime);
+
+  // Ajuste crítico: hasMore e nextPage corretos
+  // - reachedEnd = true quando acabaram as páginas (última página < perPage ou zero itens)
+  // - Se parou por time budget ou maxPages, mas não reachedEnd, manter hasMore=true e nextPage apontando para "currentPage" (já é a próxima página)
+  const hasMore = !reachedEnd && pagesProcessed < maxPages;
   const nextPage = hasMore ? currentPage : null;
 
-  logger.log(`[wc-sync] Batch completed in ${timeElapsed}ms. Total products found: ${totalProductsFound}, Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`);
+  logger.log(
+    `[wc-sync] Batch completed in ${timeElapsed}ms. Total products found: ${totalProductsFound}, ` +
+    `Processed: ${totalProcessed}, Errors: ${totalErrors}, NextPage: ${nextPage}`
+  );
 
   return {
     processed: totalProcessed,
