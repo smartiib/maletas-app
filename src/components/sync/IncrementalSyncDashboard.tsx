@@ -13,13 +13,13 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useIncrementalSync } from '@/hooks/useIncrementalSync';
-import { useWooCommerce } from '@/hooks/useWooCommerce';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { SyncProgressDialog } from './SyncProgressDialog';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export const IncrementalSyncDashboard = () => {
-  const { config, isConfigured } = useWooCommerce();
+  const { config, isConfigured } = useWooCommerceConfig();
   const {
     syncStatus,
     isLoadingSyncStatus,
@@ -225,7 +225,13 @@ export const IncrementalSyncDashboard = () => {
       <SyncProgressDialog
         isOpen={progressState.isOpen}
         onClose={closeProgress}
-        progressState={progressState}
+        syncType={progressState.syncType}
+        status={progressState.status}
+        progress={progressState.progress}
+        currentStep={progressState.currentStep}
+        itemsProcessed={progressState.itemsProcessed}
+        totalItems={progressState.totalItems}
+        errorMessage={progressState.errorMessage}
       />
     </>
   );

@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { DashboardLayout } from '@/components/layout/DashboardLayout';
+import DashboardLayout from '@/components/layout/DashboardLayout';
 import { IncrementalSyncDashboard } from '@/components/sync/IncrementalSyncDashboard';
-import { SyncHeader } from '@/components/sync/SyncHeader';
+import SyncHeader from '@/components/sync/SyncHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Info } from 'lucide-react';
