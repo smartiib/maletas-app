@@ -98,7 +98,7 @@ export const useIncrementalSync = () => {
     }
   });
 
-  // Mutation para sincronizar produtos específicos
+  // Mutation para sincronizar produtos específicos SEM variações
   const syncSpecificMutation = useMutation({
     mutationFn: async ({ 
       config, 
@@ -122,7 +122,7 @@ export const useIncrementalSync = () => {
         status: 'syncing'
       });
 
-      // Sincronizar em lotes de 50 produtos
+      // Sincronizar em lotes de 50 produtos SEM variações
       const batchSize = 50;
       let totalProcessed = 0;
       let totalErrors = 0;
@@ -133,19 +133,20 @@ export const useIncrementalSync = () => {
         
         updateProgress({
           progress,
-          currentStep: `Sincronizando lote ${Math.floor(i / batchSize) + 1} (${batch.length} produtos)...`,
+          currentStep: `Sincronizando lote ${Math.floor(i / batchSize) + 1} (${batch.length} produtos - apenas produtos pai)...`,
           itemsProcessed: totalProcessed
         });
 
         try {
-          // Chamar wc-sync com IDs específicos
+          // Chamar wc-sync com IDs específicos SEM variações
           const { data, error } = await supabase.functions.invoke('wc-sync', {
             body: {
               sync_type: 'products',
               config,
               organization_id: currentOrganization.id,
               product_ids: batch,
-              batch_size: batchSize
+              batch_size: batchSize,
+              include_variations: false // CHAVE: não sincronizar variações
             }
           });
 
@@ -184,7 +185,8 @@ export const useIncrementalSync = () => {
           completedAt: new Date().toISOString(),
           processedIds: productIds,
           totalProcessed,
-          totalErrors
+          totalErrors,
+          note: 'Products synced without variations'
         }
       });
 
@@ -193,7 +195,7 @@ export const useIncrementalSync = () => {
     onSuccess: (result) => {
       updateProgress({
         progress: 100,
-        currentStep: `Sincronização concluída! ${result.processed} produtos processados`,
+        currentStep: `Sincronização de produtos concluída! ${result.processed} produtos processados (variações não incluídas)`,
         itemsProcessed: result.processed
       });
 
@@ -204,22 +206,22 @@ export const useIncrementalSync = () => {
       
       const message = result.errors > 0 
         ? `Sincronização concluída com ${result.errors} erros`
-        : 'Sincronização concluída com sucesso!';
+        : 'Produtos sincronizados com sucesso! Use o botão "Buscar variações" nos produtos variáveis para sincronizar suas variações.';
       
       completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros encontrados` : undefined);
       toast.success(message);
     }
   });
 
-  // Mutation principal que combina descoberta + sincronização
+  // Mutation principal que combina descoberta + sincronização SEM variações
   const fullSyncMutation = useMutation({
     mutationFn: async (config: SyncConfig) => {
-      startSync('Sincronização Incremental');
+      startSync('Sincronização Incremental de Produtos');
       
       // 1. Descobrir produtos
       const discovery = await discoverMutation.mutateAsync(config);
       
-      // 2. Sincronizar apenas produtos necessários
+      // 2. Sincronizar apenas produtos necessários SEM variações
       const allIds = [...discovery.missingIds, ...discovery.changedIds];
       
       if (allIds.length === 0) {

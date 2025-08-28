@@ -373,15 +373,70 @@ async function syncVariationsForProduct(opts: {
 }
 
 /**
+ * Sincroniza apenas variações de produtos específicos
+ */
+async function syncVariationsOnly(
+  organizationId: string | null,
+  productIds: number[],
+  creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
+) {
+  const startTime = Date.now();
+  logger.log(`[wc-sync] Sincronizando apenas variações para produtos:`, productIds);
+
+  if (!organizationId) {
+    throw new Error("Organization ID is required for variations sync");
+  }
+
+  const wooCommerceCredentials = creds ?? (await getWooCommerceCredentials(organizationId));
+  if (!wooCommerceCredentials) {
+    throw new Error(`Could not retrieve WooCommerce credentials for organization ${organizationId}`);
+  }
+
+  const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
+  let processed = 0;
+  let errors = 0;
+
+  for (const productId of productIds) {
+    if (isTimeBudgetExceeded(startTime)) {
+      logger.log(`[wc-sync] Time budget exceeded during variations sync`);
+      break;
+    }
+
+    try {
+      const success = await syncVariationsForProduct({
+        wcBaseUrl,
+        consumerKey,
+        consumerSecret,
+        productId: Number(productId),
+        organizationId: organizationId,
+        startTime,
+      });
+      
+      if (success) {
+        processed++;
+      } else {
+        errors++;
+      }
+    } catch (error) {
+      logger.error(`[wc-sync] Erro ao processar variações do produto ${productId}:`, error);
+      errors++;
+    }
+  }
+
+  return { processed, errors };
+}
+
+/**
  * Sincroniza produtos específicos por IDs com time budget
  */
 async function syncSpecificProducts(
   organizationId: string | null,
   productIds: number[],
   creds?: { wcBaseUrl: string; consumerKey: string; consumerSecret: string },
+  includeVariations: boolean = true,
 ) {
   const startTime = Date.now();
-  logger.log(`[wc-sync] Sincronizando produtos específicos:`, productIds);
+  logger.log(`[wc-sync] Sincronizando produtos específicos:`, productIds, `includeVariations: ${includeVariations}`);
 
   if (!organizationId) {
     throw new Error("Organization ID is required for specific product sync");
@@ -452,8 +507,8 @@ async function syncSpecificProducts(
         continue;
       }
 
-      // SEMPRE sincronizar variações para produtos variáveis
-      if (product.type === "variable") {
+      // Sincronizar variações apenas se includeVariations for true
+      if (includeVariations && product.type === "variable") {
         const success = await syncVariationsForProduct({
           wcBaseUrl,
           consumerKey,
@@ -487,12 +542,13 @@ async function syncProducts(
     page?: number;
     perPage?: number;
     maxPages?: number;
+    includeVariations?: boolean;
   } = {}
 ) {
   const startTime = Date.now();
-  const { creds, page = 1, perPage = 100, maxPages = 1000 } = options; // Aumentado maxPages drasticamente
+  const { creds, page = 1, perPage = 100, maxPages = 1000, includeVariations = true } = options;
   
-  logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}`);
+  logger.log(`[wc-sync] Starting product sync for organization: ${organizationId}, page: ${page}, perPage: ${perPage}, maxPages: ${maxPages}, includeVariations: ${includeVariations}`);
 
   if (!organizationId) {
     throw new Error("Organization ID is required for product sync");
@@ -586,7 +642,8 @@ async function syncProducts(
             continue;
           }
 
-          if (product.type === "variable") {
+          // Sincronizar variações apenas se includeVariations for true
+          if (includeVariations && product.type === "variable") {
             const success = await syncVariationsForProduct({
               wcBaseUrl,
               consumerKey,
@@ -668,10 +725,11 @@ serve(async (req) => {
 
     const organizationId: string | null = body?.organization_id || body?.organizationId || null;
     const syncType = body?.sync_type || 'products';
-    const batchSize = body?.batch_size || 100; // Aumentado para 100
-    const maxPages = body?.max_pages || 1000; // Aumentado drasticamente
+    const batchSize = body?.batch_size || 100;
+    const maxPages = body?.max_pages || 1000;
     const startPage = body?.page || 1;
-    const productIds = body?.product_ids; // Novo: IDs específicos
+    const productIds = body?.product_ids;
+    const includeVariations = body?.include_variations !== false;
 
     if (!organizationId) {
       logger.error("Organization ID is missing in the request body.");
@@ -699,10 +757,37 @@ serve(async (req) => {
       logger.log("[wc-sync] No config provided, will load credentials from database.");
     }
 
-    // Novo: Sync de produtos específicos
+    // Novo: Sync apenas de variações
+    if (syncType === 'variations') {
+      if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+        return new Response(
+          JSON.stringify({ success: false, message: "Product IDs are required for variations sync" }),
+          {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+
+      logger.log(`[wc-sync] Syncing variations only for products: ${productIds.join(', ')}`);
+      const result = await syncVariationsOnly(organizationId, productIds, creds);
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Synced variations for ${result.processed} products, ${result.errors} errors`,
+          processed: result.processed,
+          errors: result.errors,
+          sync_type: 'variations'
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Sync de produtos específicos
     if (productIds && Array.isArray(productIds) && productIds.length > 0) {
-      logger.log(`[wc-sync] Syncing specific products: ${productIds.join(', ')}`);
-      const result = await syncSpecificProducts(organizationId, productIds, creds);
+      logger.log(`[wc-sync] Syncing specific products: ${productIds.join(', ')}, includeVariations: ${includeVariations}`);
+      const result = await syncSpecificProducts(organizationId, productIds, creds, includeVariations);
       
       return new Response(
         JSON.stringify({
@@ -722,7 +807,8 @@ serve(async (req) => {
         creds,
         page: startPage,
         perPage: batchSize,
-        maxPages
+        maxPages,
+        includeVariations
       });
 
       return new Response(
