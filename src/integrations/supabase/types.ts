@@ -1385,6 +1385,48 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_status: {
+        Row: {
+          created_at: string | null
+          id: string
+          last_discover_at: string | null
+          last_sync_at: string | null
+          metadata: Json | null
+          organization_id: string
+          processed_items: number | null
+          status: string
+          sync_type: string
+          total_items: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          last_discover_at?: string | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          organization_id: string
+          processed_items?: number | null
+          status?: string
+          sync_type?: string
+          total_items?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          last_discover_at?: string | null
+          last_sync_at?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          processed_items?: number | null
+          status?: string
+          sync_type?: string
+          total_items?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_configurations: {
         Row: {
           config_data: Json
