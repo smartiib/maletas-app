@@ -123,9 +123,9 @@ export const useIncrementalSync = () => {
       });
 
       // Multi-pass strategy with smaller batches
-      const BATCH_SIZE = 25; // Reduced from 50 to 25
-      const MAX_PASSES = 15; // Allow more passes
-      const MAX_ATTEMPTS_PER_BATCH = 3; // Reduced attempts per batch
+      const BATCH_SIZE = 25;
+      const MAX_PASSES = 15;
+      const MAX_ATTEMPTS_PER_BATCH = 3;
       
       let allPendingIds = [...productIds];
       let totalProcessed = 0;
@@ -141,7 +141,8 @@ export const useIncrementalSync = () => {
         updateProgress({
           progress: Math.min(20 + ((totalProcessed / productIds.length) * 70), 95),
           currentStep: `Pass ${currentPass}: Processando ${allPendingIds.length} produtos restantes (lotes de ${BATCH_SIZE})...`,
-          itemsProcessed: totalProcessed
+          itemsProcessed: totalProcessed,
+          totalItems: productIds.length
         });
 
         let passProcessed = 0;
@@ -163,7 +164,8 @@ export const useIncrementalSync = () => {
             updateProgress({
               progress: Math.min(20 + ((totalProcessed / productIds.length) * 70), 95),
               currentStep: `Pass ${currentPass}: Lote ${batchNumber}/${totalBatches} (${batchPendingIds.length} produtos, tentativa ${batchAttempts})`,
-              itemsProcessed: totalProcessed
+              itemsProcessed: totalProcessed,
+              totalItems: productIds.length
             });
 
             try {
@@ -185,11 +187,10 @@ export const useIncrementalSync = () => {
                   passFailedIds.push(...batchPendingIds);
                   break;
                 }
-                await delay(1000 * batchAttempts); // Exponential backoff
+                await delay(1000 * batchAttempts);
                 continue;
               }
 
-              // Handle empty or unexpected responses
               if (!data || typeof data !== 'object') {
                 console.warn(`[IncrementalSync] Resposta vazia/inesperada (Pass ${currentPass}, tentativa ${batchAttempts})`);
                 if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
@@ -204,9 +205,28 @@ export const useIncrementalSync = () => {
               const response = data as any;
               const processed = Number(response.processed ?? 0);
               const errors = Number(response.errors ?? 0);
-              const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : [];
+              
+              // Use processedIds if available, otherwise fall back to remainingIds logic
+              let actuallyProcessedIds: number[] = [];
+              let remainingIds: number[] = [];
+              
+              if (Array.isArray(response.processedIds)) {
+                actuallyProcessedIds = response.processedIds;
+                remainingIds = batchPendingIds.filter(id => !actuallyProcessedIds.includes(id));
+              } else if (Array.isArray(response.remainingIds)) {
+                remainingIds = response.remainingIds;
+                actuallyProcessedIds = batchPendingIds.filter(id => !remainingIds.includes(id));
+              } else {
+                // Fallback: assume processed count is accurate
+                if (processed > 0) {
+                  actuallyProcessedIds = batchPendingIds.slice(0, processed);
+                  remainingIds = batchPendingIds.slice(processed);
+                } else {
+                  remainingIds = [...batchPendingIds];
+                }
+              }
 
-              passProcessed += processed;
+              passProcessed += actuallyProcessedIds.length;
               passErrors += errors;
 
               // Update progress in database
@@ -214,16 +234,14 @@ export const useIncrementalSync = () => {
                 processed_items: totalProcessed + passProcessed
               });
 
-              console.log(`[IncrementalSync] Pass ${currentPass}, Lote ${batchNumber}: processados=${processed}, erros=${errors}, restantes=${remainingIds.length}`);
+              console.log(`[IncrementalSync] Pass ${currentPass}, Lote ${batchNumber}: processados=${actuallyProcessedIds.length}, erros=${errors}, restantes=${remainingIds.length}`);
 
-              // Update pending IDs for next attempt
-              if (remainingIds.length > 0 && remainingIds.length < batchPendingIds.length) {
-                batchPendingIds = remainingIds;
-                await delay(500); // Short delay before retry
-              } else if (remainingIds.length === 0) {
+              if (remainingIds.length === 0) {
                 batchPendingIds = [];
-              } else if (processed === 0 && remainingIds.length === batchPendingIds.length) {
-                // No progress made, try again or fail
+              } else if (remainingIds.length < batchPendingIds.length) {
+                batchPendingIds = remainingIds;
+                await delay(500);
+              } else if (actuallyProcessedIds.length === 0) {
                 if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
                   passErrors += batchPendingIds.length;
                   passFailedIds.push(...batchPendingIds);
@@ -246,29 +264,25 @@ export const useIncrementalSync = () => {
             }
           }
 
-          // Add any remaining batch items to failed IDs
           if (batchPendingIds.length > 0 && batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
             passFailedIds.push(...batchPendingIds);
             passErrors += batchPendingIds.length;
           }
 
-          // Short delay between batches
           if (i + BATCH_SIZE < allPendingIds.length) {
             await delay(300);
           }
         }
 
-        // Update totals
         totalProcessed += passProcessed;
         totalErrors += passErrors;
         failedIds.push(...passFailedIds);
 
-        // Remove processed items from pending list
-        allPendingIds = allPendingIds.filter(id => passFailedIds.includes(id));
+        // Update pending list to only include items that actually failed
+        allPendingIds = passFailedIds;
 
         console.log(`[IncrementalSync] Pass ${currentPass} concluído: processados=${passProcessed}, erros=${passErrors}, restantes=${allPendingIds.length}`);
 
-        // If we made no progress in this pass, break
         if (passProcessed === 0 && allPendingIds.length > 0) {
           console.warn(`[IncrementalSync] Nenhum progresso no Pass ${currentPass}, interrompendo...`);
           break;
@@ -276,22 +290,22 @@ export const useIncrementalSync = () => {
 
         currentPass++;
         
-        // Delay before next pass
         if (allPendingIds.length > 0 && currentPass <= MAX_PASSES) {
           await delay(1000);
         }
       }
 
-      // Final check for any unprocessed items
       if (allPendingIds.length > 0) {
         console.warn(`[IncrementalSync] ${allPendingIds.length} produtos não processados após ${currentPass - 1} passes`);
         totalErrors += allPendingIds.length;
         failedIds.push(...allPendingIds);
       }
 
-      // Final status update
+      // Determine final status - only mark as completed if ALL items were processed
+      const isFullyCompleted = totalProcessed === productIds.length && totalErrors === 0;
+      
       await syncService.updateSyncStatus({
-        status: totalErrors === 0 ? 'completed' : 'ready',
+        status: isFullyCompleted ? 'completed' : 'ready',
         last_sync_at: new Date().toISOString(),
         processed_items: totalProcessed,
         metadata: {
@@ -301,7 +315,8 @@ export const useIncrementalSync = () => {
           totalProcessed,
           totalErrors,
           failedIds: Array.from(new Set(failedIds)),
-          note: 'Multi-pass sync with reduced batch size (25 products per batch)'
+          isFullyCompleted,
+          note: 'Multi-pass sync with accurate completion tracking'
         }
       });
 
@@ -309,32 +324,34 @@ export const useIncrementalSync = () => {
         processed: totalProcessed, 
         errors: totalErrors, 
         failedIds: Array.from(new Set(failedIds)),
-        passes: currentPass - 1
+        passes: currentPass - 1,
+        isFullyCompleted
       };
     },
     onSuccess: (result) => {
-      const successRate = result.processed / (result.processed + result.errors) * 100;
+      const totalRequested = result.processed + result.errors;
+      const successRate = totalRequested > 0 ? (result.processed / totalRequested) * 100 : 0;
       
       updateProgress({
-        progress: result.errors === 0 ? 100 : Math.min(95, Math.round(successRate)),
-        currentStep: result.errors === 0
+        progress: result.isFullyCompleted ? 100 : Math.min(95, Math.round(successRate)),
+        currentStep: result.isFullyCompleted
           ? `Sincronização concluída! ${result.processed} produtos processados em ${result.passes} passes`
-          : `Sincronização parcial: ${result.processed} processados, ${result.errors} erros (${result.passes} passes)`,
-        itemsProcessed: result.processed
+          : `Sincronização parcial: ${result.processed} processados, ${result.errors} pendentes (${result.passes} passes)`,
+        itemsProcessed: result.processed,
+        totalItems: result.processed + result.errors
       });
 
-      // Invalidar queries relacionadas
       const orgId = currentOrganization?.id;
       queryClient.invalidateQueries({ queryKey: ['sync-status', orgId] });
       queryClient.invalidateQueries({ queryKey: ['woocommerce-products', orgId] });
       queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', orgId] });
       
-      const message = result.errors > 0 
-        ? `Sincronização parcial: ${result.processed} produtos sincronizados, ${result.errors} com erro. ${result.passes} passes realizados.`
-        : `Sincronização concluída com sucesso! ${result.processed} produtos processados em ${result.passes} passes.`;
+      const message = result.isFullyCompleted
+        ? `Sincronização concluída com sucesso! ${result.processed} produtos processados em ${result.passes} passes.`
+        : `Sincronização parcial: ${result.processed} produtos sincronizados, ${result.errors} ainda pendentes. ${result.passes} passes realizados.`;
       
-      completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros em ${result.passes} passes` : undefined);
-      toast[result.errors > 0 ? 'warning' : 'success'](message);
+      completeSync(result.isFullyCompleted, result.isFullyCompleted ? undefined : `${result.errors} produtos pendentes em ${result.passes} passes`);
+      toast[result.isFullyCompleted ? 'success' : 'info'](message);
     }
   });
 
@@ -354,7 +371,7 @@ export const useIncrementalSync = () => {
           progress: 100,
           currentStep: 'Todos os produtos já estão sincronizados!'
         });
-        return { processed: 0, errors: 0, upToDate: true, passes: 0 };
+        return { processed: 0, errors: 0, upToDate: true, passes: 0, isFullyCompleted: true };
       }
 
       const result = await syncSpecificMutation.mutateAsync({

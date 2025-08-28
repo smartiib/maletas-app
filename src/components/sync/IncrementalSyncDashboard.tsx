@@ -12,7 +12,8 @@ import {
   Clock,
   AlertCircle,
   Layers,
-  Zap
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { useIncrementalSync } from '@/hooks/useIncrementalSync';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
@@ -70,9 +71,13 @@ export const IncrementalSyncDashboard = () => {
   };
 
   const getStatusBadge = (status?: string) => {
+    const isFullyCompleted = syncStatus?.metadata?.isFullyCompleted === true;
+    
     switch (status) {
       case 'completed':
-        return <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3 mr-1" />Concluída</Badge>;
+        return isFullyCompleted 
+          ? <Badge variant="default" className="bg-green-100 text-green-800"><CheckCircle2 className="h-3 w-3 mr-1" />Concluída</Badge>
+          : <Badge variant="outline" className="bg-yellow-100 text-yellow-800"><AlertTriangle className="h-3 w-3 mr-1" />Parcial</Badge>;
       case 'syncing':
         return <Badge variant="secondary"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />Sincronizando</Badge>;
       case 'discovering':
@@ -87,24 +92,34 @@ export const IncrementalSyncDashboard = () => {
   const getProductsToSync = () => {
     if (!syncStatus?.metadata) return 0;
     const { missingIds = [], changedIds = [] } = syncStatus.metadata;
-    return missingIds.length + changedIds.length;
+    const totalDiscovered = missingIds.length + changedIds.length;
+    const processed = syncStatus.processed_items || 0;
+    
+    // Return remaining items to sync
+    return Math.max(0, totalDiscovered - processed);
   };
 
   const getSyncProgress = () => {
-    if (!syncStatus || !syncStatus.total_items) return 0;
-    return Math.round((syncStatus.processed_items / syncStatus.total_items) * 100);
+    if (!syncStatus?.metadata) return 0;
+    const { missingIds = [], changedIds = [] } = syncStatus.metadata;
+    const totalToSync = missingIds.length + changedIds.length;
+    const processed = syncStatus.processed_items || 0;
+    
+    if (totalToSync === 0) return 100;
+    return Math.round((processed / totalToSync) * 100);
   };
 
   const getPassInfo = () => {
     if (!syncStatus?.metadata?.totalPasses) return null;
     return {
       passes: syncStatus.metadata.totalPasses,
-      avgPerPass: Math.round(syncStatus.processed_items / syncStatus.metadata.totalPasses),
+      avgPerPass: Math.round((syncStatus.processed_items || 0) / syncStatus.metadata.totalPasses),
       batchSize: 25
     };
   };
 
   const passInfo = getPassInfo();
+  const remainingItems = getProductsToSync();
 
   return (
     <>
@@ -122,11 +137,11 @@ export const IncrementalSyncDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {syncStatus?.total_items && (
+              {syncStatus?.metadata && (
                 <div>
                   <div className="flex justify-between text-sm">
                     <span>Progresso geral</span>
-                    <span>{syncStatus.processed_items}/{syncStatus.total_items}</span>
+                    <span>{syncStatus.processed_items || 0}/{(syncStatus.metadata.missingIds?.length || 0) + (syncStatus.metadata.changedIds?.length || 0)}</span>
                   </div>
                   <Progress value={getSyncProgress()} className="mt-1" />
                 </div>
@@ -171,21 +186,34 @@ export const IncrementalSyncDashboard = () => {
           <CardContent>
             <div className="space-y-3">
               <div className="text-3xl font-bold text-primary">
-                {getProductsToSync()}
+                {remainingItems}
               </div>
               
               {syncStatus?.metadata && (
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <div>Novos: {syncStatus.metadata.missingIds?.length || 0}</div>
-                  <div>Modificados: {syncStatus.metadata.changedIds?.length || 0}</div>
+                  <div>Processados: {syncStatus.processed_items || 0}</div>
+                  <div>Total descobertos: {(syncStatus.metadata.missingIds?.length || 0) + (syncStatus.metadata.changedIds?.length || 0)}</div>
                   <div>Total WC: {syncStatus.total_items || 0}</div>
+                  
+                  {syncStatus.metadata.failedIds?.length > 0 && (
+                    <div className="text-red-600">
+                      Falharam: {syncStatus.metadata.failedIds.length}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {getProductsToSync() > 0 && (
+              {remainingItems > 0 && (
                 <div className="text-xs text-green-600 bg-green-50 p-2 rounded border">
                   <Zap className="h-3 w-3 inline mr-1" />
-                  Estimativa: ~{Math.ceil(getProductsToSync() / 25)} lotes • ~{Math.ceil(getProductsToSync() / 25 * 0.5)}min
+                  Estimativa: ~{Math.ceil(remainingItems / 25)} lotes • ~{Math.ceil(remainingItems / 25 * 0.5)}min
+                </div>
+              )}
+
+              {remainingItems === 0 && syncStatus?.metadata && (
+                <div className="text-xs text-green-600 bg-green-50 p-2 rounded border">
+                  <CheckCircle2 className="h-3 w-3 inline mr-1" />
+                  Todos os produtos estão sincronizados!
                 </div>
               )}
             </div>
@@ -242,9 +270,9 @@ export const IncrementalSyncDashboard = () => {
                 )}
               </Button>
 
-              {getProductsToSync() > 0 && (
+              {remainingItems > 0 && (
                 <div className="text-xs text-muted-foreground text-center">
-                  {getProductsToSync()} produtos em ~{Math.ceil(getProductsToSync() / 25)} lotes
+                  {remainingItems} produtos em ~{Math.ceil(remainingItems / 25)} lotes
                 </div>
               )}
             </div>
