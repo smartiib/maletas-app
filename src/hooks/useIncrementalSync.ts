@@ -111,7 +111,7 @@ export const useIncrementalSync = () => {
       }
 
       if (productIds.length === 0) {
-        return { processed: 0, errors: 0 };
+        return { processed: 0, errors: 0, failedIds: [] as number[] };
       }
 
       const syncService = new IncrementalSyncService(config, currentOrganization.id);
@@ -125,12 +125,16 @@ export const useIncrementalSync = () => {
       const batchSize = 50;
       let totalProcessed = 0;
       let totalErrors = 0;
+      const failedIds: number[] = [];
 
       for (let i = 0; i < productIds.length; i += batchSize) {
         const originalBatch = productIds.slice(i, i + batchSize);
         let pendingIds = [...originalBatch];
         let attempts = 0;
         const maxAttempts = 10; // evita loops infinitos em caso de erros persistentes
+
+        // Para detectar respostas "vazias" e não encerrar indevidamente
+        const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
         while (pendingIds.length > 0 && attempts < maxAttempts) {
           const progress = Math.min(20 + (i / productIds.length) * 70, 90);
@@ -154,14 +158,36 @@ export const useIncrementalSync = () => {
 
             if (error) {
               console.error('[IncrementalSync] Erro no lote:', error);
+              // não perder os pendingIds: contam como falha do lote atual
               totalErrors += pendingIds.length;
+              failedIds.push(...pendingIds);
               break; // sai do while, vai para próximo lote
             }
 
-            const response = (data as any) || {};
-            const processed = Number(response.processed || 0);
-            const errors = Number(response.errors || 0);
-            const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : [];
+            // Tratar respostas vazias ou sem forma esperada como tentativa falha (retry)
+            if (!data || (typeof data !== 'object')) {
+              console.warn('[IncrementalSync] Resposta vazia/inesperada do edge. Repetindo tentativa...');
+              attempts += 1;
+              await delay(500);
+              continue;
+            }
+
+            const response = (data as any);
+            const processed = Number(response.processed ?? 0);
+            const errors = Number(response.errors ?? 0);
+            const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : (
+              // fallback: se não vier remainingIds mas hasMore = true, não considerar o lote como concluído
+              response.hasMore ? pendingIds : []
+            );
+
+            // Caso a resposta não traga nenhum indicativo (processed/remainingIds), considerar como tentativa falha
+            const noUsefulInfo = !processed && (!Array.isArray(response.remainingIds) && !response.hasMore);
+            if (noUsefulInfo) {
+              console.warn('[IncrementalSync] Resposta sem dados úteis. Repetindo tentativa...');
+              attempts += 1;
+              await delay(500);
+              continue;
+            }
 
             totalProcessed += processed;
             totalErrors += errors;
@@ -172,18 +198,32 @@ export const useIncrementalSync = () => {
             });
 
             // Se ainda restam IDs, repetir apenas os restantes
+            const before = pendingIds.length;
             pendingIds = remainingIds;
 
-            // Pequeno delay entre chamadas, se ainda faltam IDs
-            if (pendingIds.length > 0) {
+            // Se nada foi processado e o número de pendentes não mudou, evitar loop infinito
+            const noProgressThisAttempt = processed === 0 && pendingIds.length === before;
+            if (noProgressThisAttempt) {
               attempts += 1;
-              await new Promise(resolve => setTimeout(resolve, 300));
+              console.warn(`[IncrementalSync] Sem progresso na tentativa ${attempts}. Mantendo retry... pendentes: ${pendingIds.length}`);
+              await delay(500);
+            } else if (pendingIds.length > 0) {
+              attempts += 1;
+              await delay(300);
             }
           } catch (err) {
-            console.error('[IncrementalSync] Erro no lote:', err);
+            console.error('[IncrementalSync] Erro no lote (exceção):', err);
             totalErrors += pendingIds.length;
+            failedIds.push(...pendingIds);
             break;
           }
+        }
+
+        // Se ainda tiverem IDs pendentes após estourar as tentativas, contabilizar como erro
+        if (pendingIds.length > 0) {
+          console.warn('[IncrementalSync] IDs não processados após tentativas máximas:', pendingIds);
+          totalErrors += pendingIds.length;
+          failedIds.push(...pendingIds);
         }
 
         // Delay antes do próximo lote para aliviar a função edge
@@ -192,40 +232,51 @@ export const useIncrementalSync = () => {
         }
       }
 
-      // Marcar sincronização como concluída
+      // Sanidade: se ainda houver diferença entre solicitados e processados, contar como erro
+      const unprocessed = Math.max(productIds.length - totalProcessed, 0);
+      if (unprocessed > 0) {
+        console.warn('[IncrementalSync] Diferença não processada detectada:', { requested: productIds.length, processed: totalProcessed, unprocessed });
+        totalErrors += unprocessed;
+      }
+
+      // Marcar sincronização como concluída (sucesso somente se não houve erros)
       await syncService.updateSyncStatus({
-        status: 'completed',
+        status: totalErrors === 0 ? 'completed' : 'ready', // se houve erros, manter "ready" para nova tentativa
         last_sync_at: new Date().toISOString(),
         processed_items: totalProcessed,
         metadata: {
           completedAt: new Date().toISOString(),
-          processedIds: productIds,
+          processedIds: productIds.length,
           totalProcessed,
           totalErrors,
+          failedIds: Array.from(new Set(failedIds)),
           note: 'Products synced without variations'
         }
       });
 
-      return { processed: totalProcessed, errors: totalErrors };
+      return { processed: totalProcessed, errors: totalErrors, failedIds: Array.from(new Set(failedIds)) };
     },
     onSuccess: (result) => {
       updateProgress({
-        progress: 100,
-        currentStep: `Sincronização de produtos concluída! ${result.processed} produtos processados (variações não incluídas)`,
+        progress: result.errors === 0 ? 100 : Math.min(progressState.progress, 99), // só 100% se sem erros
+        currentStep: result.errors === 0
+          ? `Sincronização de produtos concluída! ${result.processed} produtos processados (variações não incluídas)`
+          : `Sincronização parcial: ${result.processed} processados, ${result.errors} erros`,
         itemsProcessed: result.processed
       });
 
       // Invalidar queries relacionadas
-      queryClient.invalidateQueries({ queryKey: ['sync-status', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', currentOrganization?.id] });
-      queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', currentOrganization?.id] });
+      const orgId = currentOrganization?.id;
+      queryClient.invalidateQueries({ queryKey: ['sync-status', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['woocommerce-products', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', orgId] });
       
       const message = result.errors > 0 
-        ? `Sincronização concluída com ${result.errors} erros`
+        ? `Sincronização parcial com ${result.errors} erros. Você pode tentar novamente para completar.`
         : 'Produtos sincronizados com sucesso! Use o botão "Buscar variações" nos produtos variáveis para sincronizar suas variações.';
       
-      completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros encontrados` : undefined);
-      toast.success(message);
+      completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros / pendências` : undefined);
+      toast[result.errors > 0 ? 'warning' : 'success'](message);
     }
   });
 
@@ -268,13 +319,13 @@ export const useIncrementalSync = () => {
     isLoadingSyncStatus: syncStatusQuery.isLoading,
 
     // Mutations
-    discoverProducts: discoverMutation.mutate,
-    syncSpecificProducts: syncSpecificMutation.mutate,
-    fullSync: fullSyncMutation.mutate,
+    discoverProducts: (discoverMutation as any).mutate,
+    syncSpecificProducts: (syncSpecificMutation as any).mutate,
+    fullSync: (fullSyncMutation as any).mutate,
 
     // Estados
-    isDiscovering: discoverMutation.isPending,
-    isSyncing: syncSpecificMutation.isPending || fullSyncMutation.isPending,
+    isDiscovering: (discoverMutation as any).isPending,
+    isSyncing: (syncSpecificMutation as any).isPending || (fullSyncMutation as any).isPending,
     
     // Progress
     progressState,
