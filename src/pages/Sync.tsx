@@ -11,7 +11,7 @@ const Sync = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <SyncHeader />
+        <SyncHeader syncType="all" title="Sincronização de Dados" />
         
         <Alert>
           <Info className="h-4 w-4" />
