@@ -10,7 +10,9 @@ import {
   Download,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Layers,
+  Zap
 } from 'lucide-react';
 import { useIncrementalSync } from '@/hooks/useIncrementalSync';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
@@ -93,6 +95,17 @@ export const IncrementalSyncDashboard = () => {
     return Math.round((syncStatus.processed_items / syncStatus.total_items) * 100);
   };
 
+  const getPassInfo = () => {
+    if (!syncStatus?.metadata?.totalPasses) return null;
+    return {
+      passes: syncStatus.metadata.totalPasses,
+      avgPerPass: Math.round(syncStatus.processed_items / syncStatus.metadata.totalPasses),
+      batchSize: 25
+    };
+  };
+
+  const passInfo = getPassInfo();
+
   return (
     <>
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -104,7 +117,7 @@ export const IncrementalSyncDashboard = () => {
               {getStatusBadge(syncStatus?.status)}
             </CardTitle>
             <CardDescription>
-              Estado atual da sincronização de produtos
+              Sistema multi-pass com lotes otimizados
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -116,6 +129,13 @@ export const IncrementalSyncDashboard = () => {
                     <span>{syncStatus.processed_items}/{syncStatus.total_items}</span>
                   </div>
                   <Progress value={getSyncProgress()} className="mt-1" />
+                </div>
+              )}
+              
+              {passInfo && (
+                <div className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
+                  <Layers className="h-3 w-3 inline mr-1" />
+                  {passInfo.passes} passes • Média: {passInfo.avgPerPass} por pass • Lote: {passInfo.batchSize}
                 </div>
               )}
               
@@ -145,7 +165,7 @@ export const IncrementalSyncDashboard = () => {
           <CardHeader>
             <CardTitle>Produtos Pendentes</CardTitle>
             <CardDescription>
-              Produtos que precisam ser sincronizados
+              Processamento otimizado em lotes de 25
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -161,6 +181,13 @@ export const IncrementalSyncDashboard = () => {
                   <div>Total WC: {syncStatus.total_items || 0}</div>
                 </div>
               )}
+
+              {getProductsToSync() > 0 && (
+                <div className="text-xs text-green-600 bg-green-50 p-2 rounded border">
+                  <Zap className="h-3 w-3 inline mr-1" />
+                  Estimativa: ~{Math.ceil(getProductsToSync() / 25)} lotes • ~{Math.ceil(getProductsToSync() / 25 * 0.5)}min
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -170,7 +197,7 @@ export const IncrementalSyncDashboard = () => {
           <CardHeader>
             <CardTitle>Ações</CardTitle>
             <CardDescription>
-              Gerenciar sincronização de produtos
+              Sincronização inteligente com multi-pass
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -207,14 +234,17 @@ export const IncrementalSyncDashboard = () => {
                 ) : (
                   <>
                     <Download className="h-4 w-4 mr-2" />
-                    Sincronização Completa
+                    <div className="flex flex-col items-center">
+                      <span>Sincronização Multi-Pass</span>
+                      <span className="text-xs opacity-75">Lotes de 25 produtos</span>
+                    </div>
                   </>
                 )}
               </Button>
 
               {getProductsToSync() > 0 && (
                 <div className="text-xs text-muted-foreground text-center">
-                  {getProductsToSync()} produtos serão processados
+                  {getProductsToSync()} produtos em ~{Math.ceil(getProductsToSync() / 25)} lotes
                 </div>
               )}
             </div>

@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -97,7 +98,7 @@ export const useIncrementalSync = () => {
     }
   });
 
-  // Mutation para sincronizar produtos específicos SEM variações
+  // Mutation para sincronizar produtos específicos com multi-pass strategy
   const syncSpecificMutation = useMutation({
     mutationFn: async ({ 
       config, 
@@ -111,7 +112,7 @@ export const useIncrementalSync = () => {
       }
 
       if (productIds.length === 0) {
-        return { processed: 0, errors: 0, failedIds: [] as number[] };
+        return { processed: 0, errors: 0, failedIds: [] as number[], passes: 0 };
       }
 
       const syncService = new IncrementalSyncService(config, currentOrganization.id);
@@ -121,147 +122,204 @@ export const useIncrementalSync = () => {
         status: 'syncing'
       });
 
-      // Sincronizar em lotes de 50 produtos SEM variações
-      const batchSize = 50;
+      // Multi-pass strategy with smaller batches
+      const BATCH_SIZE = 25; // Reduced from 50 to 25
+      const MAX_PASSES = 15; // Allow more passes
+      const MAX_ATTEMPTS_PER_BATCH = 3; // Reduced attempts per batch
+      
+      let allPendingIds = [...productIds];
       let totalProcessed = 0;
       let totalErrors = 0;
       const failedIds: number[] = [];
+      let currentPass = 1;
 
-      for (let i = 0; i < productIds.length; i += batchSize) {
-        const originalBatch = productIds.slice(i, i + batchSize);
-        let pendingIds = [...originalBatch];
-        let attempts = 0;
-        const maxAttempts = 10; // evita loops infinitos em caso de erros persistentes
+      const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
-        // Para detectar respostas "vazias" e não encerrar indevidamente
-        const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
+      while (allPendingIds.length > 0 && currentPass <= MAX_PASSES) {
+        console.log(`[IncrementalSync] Pass ${currentPass}: ${allPendingIds.length} produtos pendentes`);
+        
+        updateProgress({
+          progress: Math.min(20 + ((totalProcessed / productIds.length) * 70), 95),
+          currentStep: `Pass ${currentPass}: Processando ${allPendingIds.length} produtos restantes (lotes de ${BATCH_SIZE})...`,
+          itemsProcessed: totalProcessed
+        });
 
-        while (pendingIds.length > 0 && attempts < maxAttempts) {
-          const progress = Math.min(20 + (i / productIds.length) * 70, 90);
-          updateProgress({
-            progress,
-            currentStep: `Sincronizando lote ${Math.floor(i / batchSize) + 1} (${pendingIds.length} produtos restantes - apenas produtos pai)...`,
-            itemsProcessed: totalProcessed
-          });
+        let passProcessed = 0;
+        let passErrors = 0;
+        const passFailedIds: number[] = [];
 
-          try {
-            const { data, error } = await supabase.functions.invoke('wc-sync', {
-              body: {
-                sync_type: 'specific_products',
-                config,
-                organization_id: currentOrganization.id,
-                product_ids: pendingIds,
-                batch_size: pendingIds.length,
-                include_variations: false // manter sem variações
+        // Process remaining IDs in batches for this pass
+        for (let i = 0; i < allPendingIds.length; i += BATCH_SIZE) {
+          const batch = allPendingIds.slice(i, i + BATCH_SIZE);
+          let batchAttempts = 0;
+          let batchPendingIds = [...batch];
+
+          while (batchPendingIds.length > 0 && batchAttempts < MAX_ATTEMPTS_PER_BATCH) {
+            batchAttempts++;
+            
+            const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+            const totalBatches = Math.ceil(allPendingIds.length / BATCH_SIZE);
+            
+            updateProgress({
+              progress: Math.min(20 + ((totalProcessed / productIds.length) * 70), 95),
+              currentStep: `Pass ${currentPass}: Lote ${batchNumber}/${totalBatches} (${batchPendingIds.length} produtos, tentativa ${batchAttempts})`,
+              itemsProcessed: totalProcessed
+            });
+
+            try {
+              const { data, error } = await supabase.functions.invoke('wc-sync', {
+                body: {
+                  sync_type: 'specific_products',
+                  config,
+                  organization_id: currentOrganization.id,
+                  product_ids: batchPendingIds,
+                  batch_size: batchPendingIds.length,
+                  include_variations: false
+                }
+              });
+
+              if (error) {
+                console.error(`[IncrementalSync] Erro no lote (Pass ${currentPass}, tentativa ${batchAttempts}):`, error);
+                if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
+                  passErrors += batchPendingIds.length;
+                  passFailedIds.push(...batchPendingIds);
+                  break;
+                }
+                await delay(1000 * batchAttempts); // Exponential backoff
+                continue;
               }
-            });
 
-            if (error) {
-              console.error('[IncrementalSync] Erro no lote:', error);
-              // não perder os pendingIds: contam como falha do lote atual
-              totalErrors += pendingIds.length;
-              failedIds.push(...pendingIds);
-              break; // sai do while, vai para próximo lote
+              // Handle empty or unexpected responses
+              if (!data || typeof data !== 'object') {
+                console.warn(`[IncrementalSync] Resposta vazia/inesperada (Pass ${currentPass}, tentativa ${batchAttempts})`);
+                if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
+                  passErrors += batchPendingIds.length;
+                  passFailedIds.push(...batchPendingIds);
+                  break;
+                }
+                await delay(1000 * batchAttempts);
+                continue;
+              }
+
+              const response = data as any;
+              const processed = Number(response.processed ?? 0);
+              const errors = Number(response.errors ?? 0);
+              const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : [];
+
+              passProcessed += processed;
+              passErrors += errors;
+
+              // Update progress in database
+              await syncService.updateSyncStatus({
+                processed_items: totalProcessed + passProcessed
+              });
+
+              console.log(`[IncrementalSync] Pass ${currentPass}, Lote ${batchNumber}: processados=${processed}, erros=${errors}, restantes=${remainingIds.length}`);
+
+              // Update pending IDs for next attempt
+              if (remainingIds.length > 0 && remainingIds.length < batchPendingIds.length) {
+                batchPendingIds = remainingIds;
+                await delay(500); // Short delay before retry
+              } else if (remainingIds.length === 0) {
+                batchPendingIds = [];
+              } else if (processed === 0 && remainingIds.length === batchPendingIds.length) {
+                // No progress made, try again or fail
+                if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
+                  passErrors += batchPendingIds.length;
+                  passFailedIds.push(...batchPendingIds);
+                  break;
+                }
+                await delay(1000 * batchAttempts);
+              } else {
+                batchPendingIds = remainingIds;
+                await delay(500);
+              }
+
+            } catch (err) {
+              console.error(`[IncrementalSync] Exceção no lote (Pass ${currentPass}, tentativa ${batchAttempts}):`, err);
+              if (batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
+                passErrors += batchPendingIds.length;
+                passFailedIds.push(...batchPendingIds);
+                break;
+              }
+              await delay(1000 * batchAttempts);
             }
+          }
 
-            // Tratar respostas vazias ou sem forma esperada como tentativa falha (retry)
-            if (!data || (typeof data !== 'object')) {
-              console.warn('[IncrementalSync] Resposta vazia/inesperada do edge. Repetindo tentativa...');
-              attempts += 1;
-              await delay(500);
-              continue;
-            }
+          // Add any remaining batch items to failed IDs
+          if (batchPendingIds.length > 0 && batchAttempts >= MAX_ATTEMPTS_PER_BATCH) {
+            passFailedIds.push(...batchPendingIds);
+            passErrors += batchPendingIds.length;
+          }
 
-            const response = (data as any);
-            const processed = Number(response.processed ?? 0);
-            const errors = Number(response.errors ?? 0);
-            const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : (
-              // fallback: se não vier remainingIds mas hasMore = true, não considerar o lote como concluído
-              response.hasMore ? pendingIds : []
-            );
-
-            // Caso a resposta não traga nenhum indicativo (processed/remainingIds), considerar como tentativa falha
-            const noUsefulInfo = !processed && (!Array.isArray(response.remainingIds) && !response.hasMore);
-            if (noUsefulInfo) {
-              console.warn('[IncrementalSync] Resposta sem dados úteis. Repetindo tentativa...');
-              attempts += 1;
-              await delay(500);
-              continue;
-            }
-
-            totalProcessed += processed;
-            totalErrors += errors;
-
-            // Atualizar progresso no banco
-            await syncService.updateSyncStatus({
-              processed_items: totalProcessed
-            });
-
-            // Se ainda restam IDs, repetir apenas os restantes
-            const before = pendingIds.length;
-            pendingIds = remainingIds;
-
-            // Se nada foi processado e o número de pendentes não mudou, evitar loop infinito
-            const noProgressThisAttempt = processed === 0 && pendingIds.length === before;
-            if (noProgressThisAttempt) {
-              attempts += 1;
-              console.warn(`[IncrementalSync] Sem progresso na tentativa ${attempts}. Mantendo retry... pendentes: ${pendingIds.length}`);
-              await delay(500);
-            } else if (pendingIds.length > 0) {
-              attempts += 1;
-              await delay(300);
-            }
-          } catch (err) {
-            console.error('[IncrementalSync] Erro no lote (exceção):', err);
-            totalErrors += pendingIds.length;
-            failedIds.push(...pendingIds);
-            break;
+          // Short delay between batches
+          if (i + BATCH_SIZE < allPendingIds.length) {
+            await delay(300);
           }
         }
 
-        // Se ainda tiverem IDs pendentes após estourar as tentativas, contabilizar como erro
-        if (pendingIds.length > 0) {
-          console.warn('[IncrementalSync] IDs não processados após tentativas máximas:', pendingIds);
-          totalErrors += pendingIds.length;
-          failedIds.push(...pendingIds);
+        // Update totals
+        totalProcessed += passProcessed;
+        totalErrors += passErrors;
+        failedIds.push(...passFailedIds);
+
+        // Remove processed items from pending list
+        allPendingIds = allPendingIds.filter(id => passFailedIds.includes(id));
+
+        console.log(`[IncrementalSync] Pass ${currentPass} concluído: processados=${passProcessed}, erros=${passErrors}, restantes=${allPendingIds.length}`);
+
+        // If we made no progress in this pass, break
+        if (passProcessed === 0 && allPendingIds.length > 0) {
+          console.warn(`[IncrementalSync] Nenhum progresso no Pass ${currentPass}, interrompendo...`);
+          break;
         }
 
-        // Delay antes do próximo lote para aliviar a função edge
-        if (i + batchSize < productIds.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+        currentPass++;
+        
+        // Delay before next pass
+        if (allPendingIds.length > 0 && currentPass <= MAX_PASSES) {
+          await delay(1000);
         }
       }
 
-      // Sanidade: se ainda houver diferença entre solicitados e processados, contar como erro
-      const unprocessed = Math.max(productIds.length - totalProcessed, 0);
-      if (unprocessed > 0) {
-        console.warn('[IncrementalSync] Diferença não processada detectada:', { requested: productIds.length, processed: totalProcessed, unprocessed });
-        totalErrors += unprocessed;
+      // Final check for any unprocessed items
+      if (allPendingIds.length > 0) {
+        console.warn(`[IncrementalSync] ${allPendingIds.length} produtos não processados após ${currentPass - 1} passes`);
+        totalErrors += allPendingIds.length;
+        failedIds.push(...allPendingIds);
       }
 
-      // Marcar sincronização como concluída (sucesso somente se não houve erros)
+      // Final status update
       await syncService.updateSyncStatus({
-        status: totalErrors === 0 ? 'completed' : 'ready', // se houve erros, manter "ready" para nova tentativa
+        status: totalErrors === 0 ? 'completed' : 'ready',
         last_sync_at: new Date().toISOString(),
         processed_items: totalProcessed,
         metadata: {
           completedAt: new Date().toISOString(),
-          processedIds: productIds.length,
+          totalPasses: currentPass - 1,
+          requestedIds: productIds.length,
           totalProcessed,
           totalErrors,
           failedIds: Array.from(new Set(failedIds)),
-          note: 'Products synced without variations'
+          note: 'Multi-pass sync with reduced batch size (25 products per batch)'
         }
       });
 
-      return { processed: totalProcessed, errors: totalErrors, failedIds: Array.from(new Set(failedIds)) };
+      return { 
+        processed: totalProcessed, 
+        errors: totalErrors, 
+        failedIds: Array.from(new Set(failedIds)),
+        passes: currentPass - 1
+      };
     },
     onSuccess: (result) => {
+      const successRate = result.processed / (result.processed + result.errors) * 100;
+      
       updateProgress({
-        progress: result.errors === 0 ? 100 : Math.min(progressState.progress, 99), // só 100% se sem erros
+        progress: result.errors === 0 ? 100 : Math.min(95, Math.round(successRate)),
         currentStep: result.errors === 0
-          ? `Sincronização de produtos concluída! ${result.processed} produtos processados (variações não incluídas)`
-          : `Sincronização parcial: ${result.processed} processados, ${result.errors} erros`,
+          ? `Sincronização concluída! ${result.processed} produtos processados em ${result.passes} passes`
+          : `Sincronização parcial: ${result.processed} processados, ${result.errors} erros (${result.passes} passes)`,
         itemsProcessed: result.processed
       });
 
@@ -272,23 +330,23 @@ export const useIncrementalSync = () => {
       queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', orgId] });
       
       const message = result.errors > 0 
-        ? `Sincronização parcial com ${result.errors} erros. Você pode tentar novamente para completar.`
-        : 'Produtos sincronizados com sucesso! Use o botão "Buscar variações" nos produtos variáveis para sincronizar suas variações.';
+        ? `Sincronização parcial: ${result.processed} produtos sincronizados, ${result.errors} com erro. ${result.passes} passes realizados.`
+        : `Sincronização concluída com sucesso! ${result.processed} produtos processados em ${result.passes} passes.`;
       
-      completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros / pendências` : undefined);
+      completeSync(result.errors === 0, result.errors > 0 ? `${result.errors} erros em ${result.passes} passes` : undefined);
       toast[result.errors > 0 ? 'warning' : 'success'](message);
     }
   });
 
-  // Mutation principal que combina descoberta + sincronização SEM variações
+  // Mutation principal que combina descoberta + sincronização
   const fullSyncMutation = useMutation({
     mutationFn: async (config: SyncConfig) => {
-      startSync('Sincronização Incremental de Produtos');
+      startSync('Sincronização Incremental (Multi-Pass)');
       
       // 1. Descobrir produtos
       const discovery = await discoverMutation.mutateAsync(config);
       
-      // 2. Sincronizar apenas produtos necessários SEM variações
+      // 2. Sincronizar apenas produtos necessários
       const allIds = [...discovery.missingIds, ...discovery.changedIds];
       
       if (allIds.length === 0) {
@@ -296,7 +354,7 @@ export const useIncrementalSync = () => {
           progress: 100,
           currentStep: 'Todos os produtos já estão sincronizados!'
         });
-        return { processed: 0, errors: 0, upToDate: true };
+        return { processed: 0, errors: 0, upToDate: true, passes: 0 };
       }
 
       const result = await syncSpecificMutation.mutateAsync({
