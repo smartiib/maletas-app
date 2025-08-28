@@ -450,8 +450,11 @@ async function syncSpecificProducts(
   const { wcBaseUrl, consumerKey, consumerSecret } = wooCommerceCredentials;
   let processed = 0;
   let errors = 0;
+  const processedIds: number[] = [];
 
-  for (const productId of productIds) {
+  for (let i = 0; i < productIds.length; i++) {
+    const productId = productIds[i];
+
     if (isTimeBudgetExceeded(startTime)) {
       logger.log(`[wc-sync] Time budget exceeded during specific product sync`);
       break;
@@ -518,10 +521,14 @@ async function syncSpecificProducts(
           startTime,
         });
         
-        if (!success) break; // Time budget exceeded
+        if (!success) {
+          // se estourou time budget dentro das variações, paramos aqui para devolver restantes
+          break;
+        }
       }
 
       processed++;
+      processedIds.push(Number(productId));
       logger.log(`[wc-sync] Produto ${productId} sincronizado com sucesso`);
     } catch (error) {
       logger.error(`[wc-sync] Erro ao processar produto ${productId}:`, error);
@@ -529,7 +536,11 @@ async function syncSpecificProducts(
     }
   }
 
-  return { processed, errors };
+  // IDs restantes (não processados) = todos - processados
+  const remainingIds = productIds.filter(id => !processedIds.includes(Number(id)));
+  const hasMore = remainingIds.length > 0;
+
+  return { processed, errors, processedIds, remainingIds, hasMore };
 }
 
 /**
@@ -795,6 +806,9 @@ serve(async (req) => {
           message: `Synced ${result.processed} specific products, ${result.errors} errors`,
           processed: result.processed,
           errors: result.errors,
+          processedIds: result.processedIds,
+          remainingIds: result.remainingIds,
+          hasMore: result.hasMore,
           sync_type: 'specific_products'
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },

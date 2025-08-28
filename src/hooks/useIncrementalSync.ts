@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -128,51 +127,68 @@ export const useIncrementalSync = () => {
       let totalErrors = 0;
 
       for (let i = 0; i < productIds.length; i += batchSize) {
-        const batch = productIds.slice(i, i + batchSize);
-        const progress = Math.min(20 + (i / productIds.length) * 70, 90);
-        
-        updateProgress({
-          progress,
-          currentStep: `Sincronizando lote ${Math.floor(i / batchSize) + 1} (${batch.length} produtos - apenas produtos pai)...`,
-          itemsProcessed: totalProcessed
-        });
+        const originalBatch = productIds.slice(i, i + batchSize);
+        let pendingIds = [...originalBatch];
+        let attempts = 0;
+        const maxAttempts = 10; // evita loops infinitos em caso de erros persistentes
 
-        try {
-          // Chamar wc-sync com IDs específicos SEM variações
-          const { data, error } = await supabase.functions.invoke('wc-sync', {
-            body: {
-              sync_type: 'products',
-              config,
-              organization_id: currentOrganization.id,
-              product_ids: batch,
-              batch_size: batchSize,
-              include_variations: false // CHAVE: não sincronizar variações
+        while (pendingIds.length > 0 && attempts < maxAttempts) {
+          const progress = Math.min(20 + (i / productIds.length) * 70, 90);
+          updateProgress({
+            progress,
+            currentStep: `Sincronizando lote ${Math.floor(i / batchSize) + 1} (${pendingIds.length} produtos restantes - apenas produtos pai)...`,
+            itemsProcessed: totalProcessed
+          });
+
+          try {
+            const { data, error } = await supabase.functions.invoke('wc-sync', {
+              body: {
+                sync_type: 'specific_products',
+                config,
+                organization_id: currentOrganization.id,
+                product_ids: pendingIds,
+                batch_size: pendingIds.length,
+                include_variations: false // manter sem variações
+              }
+            });
+
+            if (error) {
+              console.error('[IncrementalSync] Erro no lote:', error);
+              totalErrors += pendingIds.length;
+              break; // sai do while, vai para próximo lote
             }
-          });
 
-          if (error) {
-            console.error('[IncrementalSync] Erro no lote:', error);
-            totalErrors += batch.length;
-            continue;
+            const response = (data as any) || {};
+            const processed = Number(response.processed || 0);
+            const errors = Number(response.errors || 0);
+            const remainingIds: number[] = Array.isArray(response.remainingIds) ? response.remainingIds : [];
+
+            totalProcessed += processed;
+            totalErrors += errors;
+
+            // Atualizar progresso no banco
+            await syncService.updateSyncStatus({
+              processed_items: totalProcessed
+            });
+
+            // Se ainda restam IDs, repetir apenas os restantes
+            pendingIds = remainingIds;
+
+            // Pequeno delay entre chamadas, se ainda faltam IDs
+            if (pendingIds.length > 0) {
+              attempts += 1;
+              await new Promise(resolve => setTimeout(resolve, 300));
+            }
+          } catch (err) {
+            console.error('[IncrementalSync] Erro no lote:', err);
+            totalErrors += pendingIds.length;
+            break;
           }
+        }
 
-          const response = data as any;
-          totalProcessed += response.processed || 0;
-          totalErrors += response.errors || 0;
-
-          // Atualizar progresso no banco
-          await syncService.updateSyncStatus({
-            processed_items: totalProcessed
-          });
-
-          // Pequeno delay entre lotes
-          if (i + batchSize < productIds.length) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-          }
-
-        } catch (error) {
-          console.error('[IncrementalSync] Erro no lote:', error);
-          totalErrors += batch.length;
+        // Delay antes do próximo lote para aliviar a função edge
+        if (i + batchSize < productIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
