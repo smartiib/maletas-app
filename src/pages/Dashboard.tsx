@@ -1,21 +1,10 @@
 
 import React from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+// Removido: useAuth, useNavigate e useEffect - a proteção de rota é feita pelo ProtectedRoute
 import { PrintingQuickAccess } from '@/components/printing/PrintingQuickAccess';
 
 const Dashboard = () => {
-  const { user, isLoading } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user && !isLoading) {
-      navigate('/login');
-    }
-  }, [user, isLoading, navigate]);
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -25,13 +14,13 @@ const Dashboard = () => {
             Bem-vindo ao painel de controle
           </p>
         </div>
-        
-        {/* Adicionar componente de impressão */}
+
+        {/* Acesso rápido à impressão */}
         <PrintingQuickAccess />
-        
       </div>
     </DashboardLayout>
   );
 };
 
 export default Dashboard;
+
