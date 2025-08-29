@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ interface ProductSelection {
 }
 
 export const LabelDesigner: React.FC = () => {
+  const location = useLocation();
   const { print, loading } = usePrintService();
   
   // Estados para produtos e seleção
@@ -59,7 +60,14 @@ export const LabelDesigner: React.FC = () => {
 
   useEffect(() => {
     loadProducts();
-  }, []);
+    
+    // Verificar se há produto pré-selecionado via navigation state
+    if (location.state?.selectedProduct && location.state?.autoSelect) {
+      const product = location.state.selectedProduct;
+      setSelectedProducts([product.id]);
+      toast.success(`Produto "${product.name}" pré-selecionado`);
+    }
+  }, [location.state]);
 
   const loadProducts = async () => {
     // Simular carregamento de produtos - integrar com o sistema existente
