@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Package, Plus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
@@ -26,10 +27,59 @@ import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 import { EmptyWooCommerceState } from '@/components/woocommerce/EmptyWooCommerceState';
 
 const Maletas = () => {
+  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY EARLY RETURNS
   const { currentOrganization } = useOrganization();
   const { isConfigured } = useWooCommerceConfig();
   
-  // Move early returns BEFORE any hooks are called
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [representativeFilter, setRepresentativeFilter] = useState('');
+  
+  // Estados dos diálogos
+  const [selectedMaleta, setSelectedMaleta] = useState<any>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
+  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
+  const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
+  const [soldItems, setSoldItems] = useState<any[]>([]);
+  
+  // Estados para formulários
+  const [newReturnDate, setNewReturnDate] = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
+
+  const { data: maletasResponse, isLoading, error } = useMaletas();
+  const { viewMode, toggleViewMode } = useViewMode('maletas');
+  const extendDeadline = useExtendMaletaDeadline();
+  const processReturn = useProcessMaletaReturn();
+
+  const allMaletas = maletasResponse?.data || [];
+  
+  console.log('Maletas carregadas:', allMaletas.length);
+
+  // Filter and paginate data
+  const filteredMaletas = useMemo(() => {
+    return allMaletas.filter(maleta => {
+      const matchesSearch = maleta.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           maleta.representative_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           maleta.number?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || maleta.status === statusFilter;
+      const matchesRepresentative = !representativeFilter || maleta.representative_id?.toString() === representativeFilter;
+      
+      return matchesSearch && matchesStatus && matchesRepresentative;
+    });
+  }, [allMaletas, searchTerm, statusFilter, representativeFilter]);
+
+  const pagination = usePagination(filteredMaletas.length, 20);
+  
+  const paginatedMaletas = useMemo(() => {
+    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
+    const end = start + pagination.state.itemsPerPage;
+    return filteredMaletas.slice(start, end);
+  }, [filteredMaletas, pagination.state.currentPage, pagination.state.itemsPerPage]);
+
+  // NOW EARLY RETURNS CAN HAPPEN AFTER ALL HOOKS ARE CALLED
   if (!currentOrganization) {
     return (
       <div className="container mx-auto p-6">
@@ -58,55 +108,6 @@ const Maletas = () => {
       </div>
     );
   }
-
-  // Now all hooks can be called safely after early returns
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [representativeFilter, setRepresentativeFilter] = useState('');
-  
-  // Estados dos diálogos
-  const [selectedMaleta, setSelectedMaleta] = useState<any>(null);
-  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
-  const [extendDialogOpen, setExtendDialogOpen] = useState(false);
-  const [returnDialogOpen, setReturnDialogOpen] = useState(false);
-  const [checkoutDialogOpen, setCheckoutDialogOpen] = useState(false);
-  const [newMaletaDialogOpen, setNewMaletaDialogOpen] = useState(false);
-  const [soldItems, setSoldItems] = useState<any[]>([]);
-  
-  // Estados para formulários
-  const [newReturnDate, setNewReturnDate] = useState('');
-  const [returnNotes, setReturnNotes] = useState('');
-
-  const { data: maletasResponse, isLoading, error } = useMaletas();
-  const allMaletas = maletasResponse?.data || [];
-  
-  console.log('Maletas carregadas:', allMaletas.length);
-  
-  const { viewMode, toggleViewMode } = useViewMode('maletas');
-  const extendDeadline = useExtendMaletaDeadline();
-  const processReturn = useProcessMaletaReturn();
-
-  // Filter and paginate data
-  const filteredMaletas = useMemo(() => {
-    return allMaletas.filter(maleta => {
-      const matchesSearch = maleta.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           maleta.representative_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           maleta.number?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || maleta.status === statusFilter;
-      const matchesRepresentative = !representativeFilter || maleta.representative_id?.toString() === representativeFilter;
-      
-      return matchesSearch && matchesStatus && matchesRepresentative;
-    });
-  }, [allMaletas, searchTerm, statusFilter, representativeFilter]);
-
-  const pagination = usePagination(filteredMaletas.length, 20);
-  
-  const paginatedMaletas = useMemo(() => {
-    const start = (pagination.state.currentPage - 1) * pagination.state.itemsPerPage;
-    const end = start + pagination.state.itemsPerPage;
-    return filteredMaletas.slice(start, end);
-  }, [filteredMaletas, pagination.state.currentPage, pagination.state.itemsPerPage]);
 
   const getTotalStats = () => {
     const stats = {
