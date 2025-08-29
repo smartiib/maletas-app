@@ -802,7 +802,12 @@ export type Database = {
           id: string
           is_active: boolean | null
           is_default: boolean | null
+          margins: Json | null
           name: string
+          organization_id: string | null
+          orientation: string | null
+          paper_size: string | null
+          printer_type: string | null
           settings: Json | null
           type: string
           updated_at: string
@@ -815,7 +820,12 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          margins?: Json | null
           name: string
+          organization_id?: string | null
+          orientation?: string | null
+          paper_size?: string | null
+          printer_type?: string | null
           settings?: Json | null
           type: string
           updated_at?: string
@@ -828,9 +838,118 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           is_default?: boolean | null
+          margins?: Json | null
           name?: string
+          organization_id?: string | null
+          orientation?: string | null
+          paper_size?: string | null
+          printer_type?: string | null
           settings?: Json | null
           type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      print_queue: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          id: string
+          organization_id: string | null
+          printer_config: Json | null
+          priority: number | null
+          processing_completed_at: string | null
+          processing_started_at: string | null
+          quantity: number | null
+          status: string
+          template_data: Json
+          template_id: string | null
+          template_type: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          organization_id?: string | null
+          printer_config?: Json | null
+          priority?: number | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          quantity?: number | null
+          status?: string
+          template_data?: Json
+          template_id?: string | null
+          template_type: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          organization_id?: string | null
+          printer_config?: Json | null
+          priority?: number | null
+          processing_completed_at?: string | null
+          processing_started_at?: string | null
+          quantity?: number | null
+          status?: string
+          template_data?: Json
+          template_id?: string | null
+          template_type?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_queue_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "pdf_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      printer_configurations: {
+        Row: {
+          connection_config: Json
+          connection_type: string
+          created_at: string
+          default_settings: Json | null
+          id: string
+          is_active: boolean | null
+          is_default: boolean | null
+          name: string
+          organization_id: string | null
+          printer_type: string
+          updated_at: string
+        }
+        Insert: {
+          connection_config?: Json
+          connection_type?: string
+          created_at?: string
+          default_settings?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name: string
+          organization_id?: string | null
+          printer_type?: string
+          updated_at?: string
+        }
+        Update: {
+          connection_config?: Json
+          connection_type?: string
+          created_at?: string
+          default_settings?: Json | null
+          id?: string
+          is_active?: boolean | null
+          is_default?: boolean | null
+          name?: string
+          organization_id?: string | null
+          printer_type?: string
           updated_at?: string
         }
         Relationships: []
