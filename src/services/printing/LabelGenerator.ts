@@ -1,5 +1,6 @@
+
 import { PrintService } from './PrintService';
-import { TemplateType, LabelData, PrintServiceOptions, PaperSize } from '@/types/printing';
+import { TemplateType, LabelData, PrintServiceOptions } from '@/types/printing';
 
 export interface LabelGenerationOptions {
   products: any[];
@@ -25,20 +26,6 @@ export class LabelGenerator {
   }
 
   /**
-   * Mapear formato para PaperSize válido
-   */
-  private mapFormatToPaperSize(format: string): PaperSize {
-    switch (format) {
-      case 'A4': return 'A4';
-      case 'thermal_80mm': return '80mm';
-      case 'thermal_58mm': return '58mm';
-      case 'label_50x30': return '50x30mm';
-      case 'label_40x20': return '40x20mm';
-      default: return 'A4';
-    }
-  }
-
-  /**
    * Gerar etiquetas em lote para múltiplos produtos
    */
   async generateBatch(options: LabelGenerationOptions): Promise<string[]> {
@@ -57,7 +44,7 @@ export class LabelGenerator {
           quantity: options.quantity,
           printer_config: {
             printer_type: options.format === 'A4' ? 'pdf' : 'thermal',
-            paper_size: this.mapFormatToPaperSize(options.format),
+            paper_size: options.format,
             orientation: 'portrait',
             margins: { top: 5, right: 5, bottom: 5, left: 5 }
           }

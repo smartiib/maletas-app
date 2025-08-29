@@ -1,15 +1,28 @@
 
 import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { labelGenerator, LabelGenerationOptions } from '@/services/printing/LabelGenerator';
 import { usePrintService } from '@/hooks/usePrintService';
-import { ProductSelector } from './ProductSelector';
-import { LabelConfigPanel } from './LabelConfigPanel';
-import { LabelPreview } from './LabelPreview';
 import { 
   Printer, 
+  Tag, 
   Eye, 
-  Download
+  Download, 
+  Settings, 
+  Package, 
+  QrCode,
+  BarChart3,
+  Palette,
+  Layout
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -61,10 +74,6 @@ export const LabelDesigner: React.FC = () => {
     setProducts(mockProducts);
   };
 
-  const handleOptionsChange = (newOptions: Partial<LabelGenerationOptions>) => {
-    setLabelOptions(prev => ({ ...prev, ...newOptions }));
-  };
-
   const handleProductSelection = (productId: number, selected: boolean) => {
     setSelectedProducts(prev => 
       selected 
@@ -74,10 +83,7 @@ export const LabelDesigner: React.FC = () => {
   };
 
   const handleSelectAll = () => {
-    const filteredProducts = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredProducts = getFilteredProducts();
     const allSelected = filteredProducts.every(p => selectedProducts.includes(p.id));
     
     if (allSelected) {
@@ -85,6 +91,13 @@ export const LabelDesigner: React.FC = () => {
     } else {
       setSelectedProducts(filteredProducts.map(p => p.id));
     }
+  };
+
+  const getFilteredProducts = () => {
+    return products.filter(product =>
+      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   const generatePreview = async () => {
@@ -168,6 +181,8 @@ export const LabelDesigner: React.FC = () => {
     }
   };
 
+  const layoutInfo = labelGenerator.getLabelsPerPage(labelOptions.layout);
+  const filteredProducts = getFilteredProducts();
   const selectedCount = selectedProducts.length;
 
   return (
@@ -207,28 +222,256 @@ export const LabelDesigner: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ProductSelector
-          products={products}
-          selectedProducts={selectedProducts}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          onProductSelection={handleProductSelection}
-          onSelectAll={handleSelectAll}
-        />
+        {/* Seleção de Produtos */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Seleção de Produtos
+            </CardTitle>
+            <CardDescription>
+              Selecione os produtos para gerar etiquetas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Buscar produtos por nome ou SKU..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleSelectAll}
+                  variant="outline"
+                  size="sm"
+                >
+                  {filteredProducts.every(p => selectedProducts.includes(p.id)) ? 'Desmarcar' : 'Selecionar'} Todos
+                </Button>
+              </div>
 
-        <LabelConfigPanel
-          options={labelOptions}
-          onOptionsChange={handleOptionsChange}
-        />
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-2">
+                  {filteredProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className={`flex items-center space-x-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedProducts.includes(product.id)
+                          ? 'bg-primary/5 border-primary'
+                          : 'hover:bg-muted/50'
+                      }`}
+                      onClick={() => handleProductSelection(product.id, !selectedProducts.includes(product.id))}
+                    >
+                      <Checkbox
+                        checked={selectedProducts.includes(product.id)}
+                        onChange={(checked) => handleProductSelection(product.id, !!checked)}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-medium truncate">{product.name}</h4>
+                          <Badge variant="secondary" className="text-xs">
+                            {product.sku}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          R$ {product.price}
+                        </p>
+                      </div>
+                      <Tag className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              {selectedCount > 0 && (
+                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg">
+                  <span className="text-sm font-medium">
+                    {selectedCount} produto(s) selecionado(s)
+                  </span>
+                  <Badge variant="default">
+                    Total: {selectedCount * labelOptions.quantity} etiquetas
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Configurações da Etiqueta */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configurações
+            </CardTitle>
+            <CardDescription>
+              Configure o formato e layout das etiquetas
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="format" className="space-y-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="format">Formato</TabsTrigger>
+                <TabsTrigger value="layout">Layout</TabsTrigger>
+                <TabsTrigger value="content">Conteúdo</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="format" className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Etiqueta</Label>
+                  <Select
+                    value={labelOptions.labelType}
+                    onValueChange={(value: any) => 
+                      setLabelOptions(prev => ({ ...prev, labelType: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Padrão</SelectItem>
+                      <SelectItem value="promotional">Promocional</SelectItem>
+                      <SelectItem value="zebra">Zebra</SelectItem>
+                      <SelectItem value="maleta">Maleta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Formato do Papel</Label>
+                  <Select
+                    value={labelOptions.format}
+                    onValueChange={(value: any) => 
+                      setLabelOptions(prev => ({ ...prev, format: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="A4">A4</SelectItem>
+                      <SelectItem value="thermal_80mm">Térmica 80mm</SelectItem>
+                      <SelectItem value="thermal_58mm">Térmica 58mm</SelectItem>
+                      <SelectItem value="label_50x30">50x30mm</SelectItem>
+                      <SelectItem value="label_40x20">40x20mm</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Quantidade por Produto</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={labelOptions.quantity}
+                    onChange={(e) => 
+                      setLabelOptions(prev => ({ 
+                        ...prev, 
+                        quantity: parseInt(e.target.value) || 1 
+                      }))
+                    }
+                  />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="layout" className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Layout className="h-4 w-4" />
+                    Layout da Página
+                  </Label>
+                  <Select
+                    value={labelOptions.layout}
+                    onValueChange={(value: any) => 
+                      setLabelOptions(prev => ({ ...prev, layout: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1x1">1 x 1 (1 etiqueta)</SelectItem>
+                      <SelectItem value="2x1">2 x 1 (2 etiquetas)</SelectItem>
+                      <SelectItem value="3x1">3 x 1 (3 etiquetas)</SelectItem>
+                      <SelectItem value="2x2">2 x 2 (4 etiquetas)</SelectItem>
+                      <SelectItem value="3x3">3 x 3 (9 etiquetas)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {layoutInfo.total} etiquetas por página ({layoutInfo.rows}x{layoutInfo.cols})
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="content" className="space-y-4">
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="barcode"
+                      checked={labelOptions.includeBarcode}
+                      onCheckedChange={(checked) => 
+                        setLabelOptions(prev => ({ 
+                          ...prev, 
+                          includeBarcode: !!checked 
+                        }))
+                      }
+                    />
+                    <Label htmlFor="barcode" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Incluir Código de Barras
+                    </Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="qrcode"
+                      checked={labelOptions.includeQRCode}
+                      onCheckedChange={(checked) => 
+                        setLabelOptions(prev => ({ 
+                          ...prev, 
+                          includeQRCode: !!checked 
+                        }))
+                      }
+                    />
+                    <Label htmlFor="qrcode" className="flex items-center gap-2">
+                      <QrCode className="h-4 w-4" />
+                      Incluir QR Code
+                    </Label>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Preview Modal */}
       {showPreview && (
-        <LabelPreview
-          previewHtml={previewHtml}
-          onClose={() => setShowPreview(false)}
-          onPrint={generateLabels}
-        />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <CardHeader>
+              <CardTitle>Preview da Etiqueta</CardTitle>
+              <Button
+                onClick={() => setShowPreview(false)}
+                variant="outline"
+                size="sm"
+                className="absolute top-4 right-4"
+              >
+                Fechar
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[60vh]">
+                <div 
+                  className="border rounded p-4 bg-white"
+                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                />
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );
