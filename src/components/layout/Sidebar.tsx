@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   BarChart3, 
@@ -14,7 +15,7 @@ import {
   Tag
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { useOrganizationPages } from '@/hooks/useOrganizationPages';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,14 +23,18 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 
 interface SidebarProps {
-  isCollapsed: boolean;
-  onToggle: () => void;
+  isCollapsed?: boolean;
+  onToggle?: () => void;
 }
 
 const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
   const { organization } = useOrganization();
   const { enabledPages } = useOrganizationPages();
+
+  const [internalCollapsed, setInternalCollapsed] = React.useState(false);
+  const collapsed = isCollapsed ?? internalCollapsed;
+  const handleToggle = onToggle ?? (() => setInternalCollapsed((prev) => !prev));
 
   const menuItems = [
     { 
@@ -110,12 +115,12 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     <div
       className={cn(
         "flex flex-col h-full bg-background border-r shadow-sm",
-        isCollapsed ? "w-16" : "w-60"
+        collapsed ? "w-16" : "w-60"
       )}
     >
       <div className="flex items-center justify-center py-4">
-        <Button variant="ghost" onClick={onToggle} className="w-auto p-1.5">
-          {isCollapsed ? "Expandir" : "Minimizar"}
+        <Button variant="ghost" onClick={handleToggle} className="w-auto p-1.5">
+          {collapsed ? "Expandir" : "Minimizar"}
         </Button>
       </div>
       <div className="space-y-4 py-4 flex-grow">
@@ -126,11 +131,11 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
                 <AvatarImage src={organization?.logo_url} />
                 <AvatarFallback>{organization?.name?.substring(0, 2)}</AvatarFallback>
               </Avatar>
-              {!isCollapsed && (
+              {!collapsed && (
                 <span className="text-sm font-bold">{organization?.name}</span>
               )}
             </div>
-            {!isCollapsed && (
+            {!collapsed && (
               <p className="text-xs text-muted-foreground px-3">
                 {organization?.cnpj}
               </p>
@@ -139,7 +144,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
         </div>
         <div className="space-y-1">
           {menuItems.map((item) => {
-            if (item.pageKey && !enabledPages[item.pageKey]) {
+            if (item.pageKey && !enabledPages[item.pageKey as any]) {
               return null;
             }
 
@@ -155,14 +160,14 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
                 }
               >
                 <item.icon className="h-4 w-4" />
-                {!isCollapsed && <span>{item.name}</span>}
+                {!collapsed && <span>{item.name}</span>}
               </NavLink>
             );
           })}
         </div>
       </div>
       <div className="p-3">
-        {!isCollapsed && (
+        {!collapsed && (
           <div className="space-y-2">
             <h3 className="text-sm font-medium">Customização</h3>
             <div className="flex items-center justify-between rounded-md border p-2">
@@ -177,3 +182,4 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
 };
 
 export default Sidebar;
+
