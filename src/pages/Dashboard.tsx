@@ -1,19 +1,20 @@
+
 import React from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { PrintingQuickAccess } from '@/components/printing/PrintingQuickAccess';
 
 const Dashboard = () => {
   const { user, isLoading } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!user && !isLoading) {
-      router.push('/login');
+      navigate('/login');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, navigate]);
 
   return (
     <DashboardLayout>
