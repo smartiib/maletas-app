@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   BarChart3, 
@@ -128,16 +127,15 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
           <div className="space-y-1 font-medium">
             <div className="flex items-center gap-2 px-3 py-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={currentOrganization?.logo_url} />
-                <AvatarFallback>{currentOrganization?.name?.substring(0, 2)}</AvatarFallback>
+                <AvatarFallback>{currentOrganization?.name?.substring(0, 2) || 'ORG'}</AvatarFallback>
               </Avatar>
               {!collapsed && (
-                <span className="text-sm font-bold">{currentOrganization?.name}</span>
+                <span className="text-sm font-bold">{currentOrganization?.name || 'Organização'}</span>
               )}
             </div>
-            {!collapsed && (
+            {!collapsed && currentOrganization?.name && (
               <p className="text-xs text-muted-foreground px-3">
-                {currentOrganization?.cnpj}
+                {currentOrganization.name}
               </p>
             )}
           </div>
