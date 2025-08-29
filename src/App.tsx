@@ -7,21 +7,60 @@ import Orders from './pages/Orders';
 import Customers from './pages/Customers';
 import Settings from './pages/Settings';
 import { ReactQueryProvider } from './integrations/react-query/client';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { OrganizationAuthProvider } from '@/contexts/OrganizationAuthContext';
+import { OrganizationProvider } from '@/contexts/OrganizationContext';
 import Labels from './pages/Labels';
+import Auth from './pages/Auth';
+import Index from './pages/Index';
+import ProtectedRoute from './components/auth/ProtectedRoute';
+import GlobalDiagnostics from './components/diagnostics/GlobalDiagnostics';
 
 function App() {
   return (
     <BrowserRouter>
       <ReactQueryProvider>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/orders" element={<Orders />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/labels" element={<Labels />} />
-        </Routes>
+        <AuthProvider>
+          <OrganizationAuthProvider>
+            <OrganizationProvider>
+              <GlobalDiagnostics />
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/products" element={
+                  <ProtectedRoute>
+                    <Products />
+                  </ProtectedRoute>
+                } />
+                <Route path="/orders" element={
+                  <ProtectedRoute>
+                    <Orders />
+                  </ProtectedRoute>
+                } />
+                <Route path="/customers" element={
+                  <ProtectedRoute>
+                    <Customers />
+                  </ProtectedRoute>
+                } />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <Settings />
+                  </ProtectedRoute>
+                } />
+                <Route path="/labels" element={
+                  <ProtectedRoute>
+                    <Labels />
+                  </ProtectedRoute>
+                } />
+              </Routes>
+            </OrganizationProvider>
+          </OrganizationAuthProvider>
+        </AuthProvider>
       </ReactQueryProvider>
     </BrowserRouter>
   );
