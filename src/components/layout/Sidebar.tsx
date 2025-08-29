@@ -29,7 +29,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const location = useLocation();
-  const { organization } = useOrganization();
+  const { currentOrganization } = useOrganization();
   const { enabledPages } = useOrganizationPages();
 
   const [internalCollapsed, setInternalCollapsed] = React.useState(false);
@@ -128,16 +128,16 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
           <div className="space-y-1 font-medium">
             <div className="flex items-center gap-2 px-3 py-2">
               <Avatar className="h-8 w-8">
-                <AvatarImage src={organization?.logo_url} />
-                <AvatarFallback>{organization?.name?.substring(0, 2)}</AvatarFallback>
+                <AvatarImage src={currentOrganization?.logo_url} />
+                <AvatarFallback>{currentOrganization?.name?.substring(0, 2)}</AvatarFallback>
               </Avatar>
               {!collapsed && (
-                <span className="text-sm font-bold">{organization?.name}</span>
+                <span className="text-sm font-bold">{currentOrganization?.name}</span>
               )}
             </div>
             {!collapsed && (
               <p className="text-xs text-muted-foreground px-3">
-                {organization?.cnpj}
+                {currentOrganization?.cnpj}
               </p>
             )}
           </div>
@@ -182,4 +182,3 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
 };
 
 export default Sidebar;
-

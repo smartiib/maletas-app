@@ -1,10 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
-import { useWooCommerce } from '@/hooks/useWooCommerce';
 import { ProductLabelCard } from './ProductLabelCard';
 import { PrintQueueSidebar } from './PrintQueueSidebar';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+
+interface Product {
+  id: number;
+  name: string;
+  sku: string;
+  image?: string;
+}
 
 interface PrintQueueItem {
   id: number;
@@ -14,11 +20,20 @@ interface PrintQueueItem {
 }
 
 export const LabelGrid: React.FC = () => {
-  const { products, loading } = useWooCommerce();
   const [searchTerm, setSearchTerm] = useState('');
   const [printQueue, setPrintQueue] = useState<PrintQueueItem[]>([]);
+  
+  // Mock products data for now
+  const [products] = useState<Product[]>([
+    { id: 1, name: 'Produto A', sku: 'PROD-001' },
+    { id: 2, name: 'Produto B', sku: 'PROD-002' },
+    { id: 3, name: 'Produto C', sku: 'PROD-003' },
+    { id: 4, name: 'Produto D', sku: 'PROD-004' },
+    { id: 5, name: 'Produto E', sku: 'PROD-005' },
+    { id: 6, name: 'Produto F', sku: 'PROD-006' },
+  ]);
 
-  const addToQueue = (product: any) => {
+  const addToQueue = (product: Product) => {
     const existingItem = printQueue.find(item => item.id === product.id);
     
     if (existingItem) {
@@ -33,7 +48,7 @@ export const LabelGrid: React.FC = () => {
       setPrintQueue(prev => [...prev, {
         id: product.id,
         name: product.name,
-        sku: product.sku || `PROD-${product.id}`,
+        sku: product.sku,
         quantity: 1
       }]);
     }
@@ -64,16 +79,8 @@ export const LabelGrid: React.FC = () => {
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.sku && product.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex gap-6">
