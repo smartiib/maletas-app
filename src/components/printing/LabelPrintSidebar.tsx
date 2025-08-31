@@ -79,6 +79,21 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
         </div>
       </div>
 
+      {/* Print Button - Fixed at Top */}
+      {printQueue.length > 0 && (
+        <div className="p-4 border-b bg-muted/20">
+          <Button
+            onClick={onPrintLabels}
+            disabled={loading}
+            className="w-full"
+            size="lg"
+          >
+            <Printer className="h-4 w-4 mr-2" />
+            Imprimir {totalQuantity} Etiquetas
+          </Button>
+        </div>
+      )}
+
       {/* Queue Items */}
       <ScrollArea className="flex-1 p-4">
         {printQueue.length === 0 ? (
@@ -106,9 +121,6 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                       </h4>
                       <p className="text-xs text-muted-foreground">
                         {item.sku}
-                      </p>
-                      <p className="text-xs font-medium">
-                        R$ {parseFloat(item.price).toFixed(2)}
                       </p>
                     </div>
 
@@ -223,7 +235,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
 
           <Separator />
 
-          {/* Actions */}
+          {/* Secondary Actions */}
           <div className="p-4 space-y-2">
             <div className="flex gap-2">
               {onPreview && (
@@ -249,15 +261,6 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                 </Button>
               )}
             </div>
-
-            <Button
-              onClick={onPrintLabels}
-              disabled={loading}
-              className="w-full"
-            >
-              <Printer className="h-4 w-4 mr-2" />
-              Imprimir {totalQuantity} Etiquetas
-            </Button>
 
             <Button
               variant="outline"

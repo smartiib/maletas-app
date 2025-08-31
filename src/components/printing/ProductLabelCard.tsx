@@ -29,7 +29,6 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
   lastPrintDate,
   onAddToQueue
 }) => {
-  const displayPrice = product.price || product.sale_price || product.regular_price || '0';
   const displaySku = product.sku || `PROD-${product.id}`;
   const imageUrl = product.images?.[0]?.src || '/placeholder.svg';
 
@@ -85,10 +84,7 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-sm">
-              R$ {parseFloat(displayPrice).toFixed(2)}
-            </span>
+          <div className="flex items-center justify-end">
             <Tag className="h-4 w-4 text-muted-foreground" />
           </div>
 
