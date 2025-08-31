@@ -161,9 +161,9 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
         </div>
       )}
 
-      {/* Print Button - Fixed at Top */}
+      {/* Action Buttons - Fixed at Top */}
       {printQueue.length > 0 && (
-        <div className="p-4 border-b bg-muted/20">
+        <div className="p-4 border-b bg-muted/20 space-y-3">
           <Button
             onClick={onPrintLabels}
             disabled={loading}
@@ -172,6 +172,41 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
           >
             <Printer className="h-4 w-4 mr-2" />
             Imprimir {totalQuantity} Etiquetas
+          </Button>
+
+          <div className="flex gap-2">
+            {onPreview && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onPreview}
+                className="flex-1"
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                Preview
+              </Button>
+            )}
+            {onGenerateZPL && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onGenerateZPL}
+                className="flex-1"
+              >
+                <Download className="h-4 w-4 mr-1" />
+                ZPL
+              </Button>
+            )}
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClearQueue}
+            className="w-full"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Limpar Fila
           </Button>
         </div>
       )}
@@ -193,9 +228,6 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium text-sm line-clamp-1">
-                          {item.name}
-                        </h4>
                         <Input
                           type="number"
                           min="1"
@@ -206,8 +238,11 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                           }
                           className="w-12 h-6 text-xs p-1"
                         />
+                        <h4 className="font-medium text-sm line-clamp-1">
+                          {item.name}
+                        </h4>
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground ml-14">
                         {item.sku}
                       </p>
                     </div>
@@ -227,50 +262,6 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
           </div>
         )}
       </ScrollArea>
-
-      {printQueue.length > 0 && (
-        <>
-          <Separator />
-
-          {/* Secondary Actions */}
-          <div className="p-4 space-y-2">
-            <div className="flex gap-2">
-              {onPreview && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onPreview}
-                  className="flex-1"
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Preview
-                </Button>
-              )}
-              {onGenerateZPL && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onGenerateZPL}
-                  className="flex-1"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  ZPL
-                </Button>
-              )}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClearQueue}
-              className="w-full"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Limpar Fila
-            </Button>
-          </div>
-        </>
-      )}
     </div>
   );
 };
