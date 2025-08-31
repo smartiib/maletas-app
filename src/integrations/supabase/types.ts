@@ -184,6 +184,53 @@ export type Database = {
         }
         Relationships: []
       }
+      label_print_history: {
+        Row: {
+          created_at: string
+          format: string
+          id: string
+          label_type: string
+          organization_id: string | null
+          printed_at: string
+          product_id: number
+          product_name: string
+          product_sku: string | null
+          quantity: number
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          id?: string
+          label_type?: string
+          organization_id?: string | null
+          printed_at?: string
+          product_id: number
+          product_name: string
+          product_sku?: string | null
+          quantity?: number
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          id?: string
+          label_type?: string
+          organization_id?: string | null
+          printed_at?: string
+          product_id?: number
+          product_name?: string
+          product_sku?: string | null
+          quantity?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_print_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maleta_items: {
         Row: {
           created_at: string
