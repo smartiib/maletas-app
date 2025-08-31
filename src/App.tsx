@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -27,6 +26,7 @@ import Settings from '@/pages/Settings';
 import Logs from '@/pages/Logs';
 import PdfTemplates from '@/pages/PdfTemplates';
 import Stock from '@/pages/Stock';
+import Labels from '@/pages/Labels';
 import NotFound from '@/pages/NotFound';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
@@ -100,6 +100,11 @@ function App() {
                   <Route path="/stock" element={
                     <ProtectedRoute>
                       <DashboardLayout><Stock /></DashboardLayout>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/labels" element={
+                    <ProtectedRoute>
+                      <Labels />
                     </ProtectedRoute>
                   } />
                   

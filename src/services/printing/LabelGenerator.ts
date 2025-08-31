@@ -1,11 +1,10 @@
-
 import { PrintService } from './PrintService';
 import { TemplateType, LabelData, PrintServiceOptions } from '@/types/printing';
 
 export interface LabelGenerationOptions {
   products: any[];
   labelType: 'standard' | 'promotional' | 'zebra' | 'maleta';
-  format: 'A4' | 'thermal_80mm' | 'thermal_58mm' | 'label_50x30' | 'label_40x20';
+  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm';
   layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3';
   includeBarcode: boolean;
   includeQRCode: boolean;
