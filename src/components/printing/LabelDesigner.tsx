@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { useWooCommerceFiltered } from '@/hooks/useWooCommerceFiltered';
+import { useWooCommerceFilteredProducts, useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
 import { useLabelPrinting } from '@/hooks/useLabelPrinting';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
@@ -15,17 +15,9 @@ export const LabelDesigner: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
-  // Usar o hook de produtos existente
-  const { 
-    products = [], 
-    categories = [], 
-    loading: productsLoading 
-  } = useWooCommerceFiltered({
-    filters: {
-      search: searchTerm,
-      category: categoryFilter === 'all' ? undefined : categoryFilter
-    }
-  });
+  // Usar os hooks específicos do useWooCommerceFiltered
+  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
+  const { data: categories = [] } = useWooCommerceFilteredCategories();
 
   // Hook para gerenciar impressão de etiquetas
   const {
@@ -43,10 +35,32 @@ export const LabelDesigner: React.FC = () => {
     getLastPrintDate
   } = useLabelPrinting();
 
+  // Filtrar produtos com base na busca e categoria
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+
+    // Filtro por busca
+    if (searchTerm) {
+      filtered = filtered.filter(product => 
+        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Filtro por categoria
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(product => 
+        product.categories?.some(cat => cat.id.toString() === categoryFilter)
+      );
+    }
+
+    return filtered;
+  }, [products, searchTerm, categoryFilter]);
+
   // Filtrar produtos que não estão na fila
   const availableProducts = useMemo(() => {
-    return products.filter(product => !isProductInQueue(product.id));
-  }, [products, isProductInQueue]);
+    return filteredProducts.filter(product => !isProductInQueue(product.id));
+  }, [filteredProducts, isProductInQueue]);
 
   const handlePreview = () => {
     if (printQueue.length === 0) {
