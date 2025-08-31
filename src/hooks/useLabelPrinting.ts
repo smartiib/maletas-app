@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
+import { PrintTemplate, LabelData } from '@/types/printing';
 import { toast } from 'sonner';
 
 interface PrintItem {
@@ -45,6 +46,7 @@ export const useLabelPrinting = () => {
     includeBarcode: true,
     includeQRCode: false
   });
+  const [selectedTemplate, setSelectedTemplate] = useState<PrintTemplate | null>(null);
 
   // Buscar histórico de impressão
   const { data: printHistory = [] } = useQuery({
@@ -152,6 +154,124 @@ export const useLabelPrinting = () => {
     return lastPrint ? new Date(lastPrint.printed_at) : null;
   }, [printHistory]);
 
+  // Converter items da fila para dados de etiqueta
+  const prepareLabelData = useCallback((): LabelData[] => {
+    return printQueue.flatMap(item => 
+      Array.from({ length: item.quantity }, () => ({
+        product_id: item.id,
+        name: item.name,
+        sku: item.sku,
+        price: parseFloat(item.price) || 0,
+        barcode: settings.includeBarcode ? item.sku : undefined,
+        qr_code: settings.includeQRCode ? JSON.stringify({
+          id: item.id,
+          sku: item.sku,
+          name: item.name,
+          price: item.price
+        }) : undefined
+      }))
+    );
+  }, [printQueue, settings]);
+
+  // Gerar preview HTML das etiquetas
+  const generatePreview = useCallback((template: PrintTemplate | null): string => {
+    if (!template) {
+      return '<div>Nenhum template selecionado</div>';
+    }
+
+    const labelData = prepareLabelData();
+    const { rows, cols } = getGridLayout(settings.layout);
+    const labelsPerPage = rows * cols;
+    const totalPages = Math.ceil(labelData.length / labelsPerPage);
+
+    let html = `
+      <style>
+        ${template.css_styles || ''}
+        .page {
+          page-break-after: always;
+          width: ${settings.format === 'A4' ? '210mm' : '80mm'};
+          min-height: ${settings.format === 'A4' ? '297mm' : '200mm'};
+          display: grid;
+          grid-template-rows: repeat(${rows}, 1fr);
+          grid-template-columns: repeat(${cols}, 1fr);
+          gap: 2mm;
+          padding: 10mm;
+        }
+        .label-item {
+          border: 1px solid #ddd;
+        }
+      </style>
+    `;
+
+    for (let page = 0; page < totalPages; page++) {
+      const startIndex = page * labelsPerPage;
+      const pageLabels = labelData.slice(startIndex, startIndex + labelsPerPage);
+      
+      html += '<div class="page">';
+      
+      for (let i = 0; i < labelsPerPage; i++) {
+        const label = pageLabels[i];
+        if (label) {
+          const labelHtml = template.html_template
+            .replace(/\{\{name\}\}/g, label.name)
+            .replace(/\{\{sku\}\}/g, label.sku)
+            .replace(/\{\{price\}\}/g, `R$ ${label.price.toFixed(2)}`)
+            .replace(/\{\{barcode\}\}/g, label.barcode || '')
+            .replace(/\{\{qr_code\}\}/g, label.qr_code || '');
+          
+          html += `<div class="label-item">${labelHtml}</div>`;
+        } else {
+          html += '<div class="label-item"></div>';
+        }
+      }
+      
+      html += '</div>';
+    }
+
+    return html;
+  }, [prepareLabelData, settings]);
+
+  // Gerar comandos ZPL para impressoras Zebra
+  const generateZPL = useCallback((): string => {
+    const labelData = prepareLabelData();
+    
+    let zplCommands = '';
+    
+    labelData.forEach((label, index) => {
+      zplCommands += `
+^XA
+^CF0,30
+^FO50,50^FD${truncateText(label.name, 20)}^FS
+^CF0,20
+^FO50,100^FDSKU: ${label.sku}^FS
+^FO50,130^FDR$ ${label.price.toFixed(2)}^FS
+${label.barcode ? `^FO50,160^BC^FD${label.barcode}^FS` : ''}
+${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
+^XZ
+`;
+    });
+    
+    return zplCommands.trim();
+  }, [prepareLabelData]);
+
+  // Função auxiliar para truncar texto
+  const truncateText = (text: string, maxLength: number): string => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength - 3) + '...';
+  };
+
+  // Função auxiliar para obter layout da grade
+  const getGridLayout = (layout: string) => {
+    switch (layout) {
+      case '1x1': return { rows: 1, cols: 1 };
+      case '2x1': return { rows: 1, cols: 2 };
+      case '3x1': return { rows: 1, cols: 3 };
+      case '2x2': return { rows: 2, cols: 2 };
+      case '3x3': return { rows: 3, cols: 3 };
+      default: return { rows: 2, cols: 2 };
+    }
+  };
+
   const printLabels = useCallback(async () => {
     if (printQueue.length === 0) {
       toast.error('Nenhum produto na fila de impressão');
@@ -174,6 +294,7 @@ export const useLabelPrinting = () => {
     printQueue,
     settings,
     printHistory,
+    selectedTemplate,
     
     // Ações
     addToQueue,
@@ -181,7 +302,13 @@ export const useLabelPrinting = () => {
     updateQuantity,
     clearQueue,
     setSettings,
+    setSelectedTemplate,
     printLabels,
+    
+    // Funcionalidades de preview e ZPL
+    generatePreview,
+    generateZPL,
+    prepareLabelData,
     
     // Verificações
     isProductInQueue,
