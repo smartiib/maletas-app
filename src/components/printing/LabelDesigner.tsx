@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -8,12 +9,13 @@ import { useLabelPrinting } from '@/hooks/useLabelPrinting';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
 import { LabelPreviewDialog } from './LabelPreviewDialog';
-import { Search, Filter, Package, Tag } from 'lucide-react';
+import { Search, Filter, Package, Tag, SortAsc } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const LabelDesigner: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [printFilter, setPrintFilter] = useState<string>('all'); // novo filtro
   const [showPreview, setShowPreview] = useState(false);
   
   // Usar os hooks específicos do useWooCommerceFiltered
@@ -59,23 +61,42 @@ export const LabelDesigner: React.FC = () => {
     return filtered;
   }, [products, searchTerm, categoryFilter]);
 
-  // Filtrar produtos que não estão na fila e ordenar (impressos recentes no final)
+  // Filtrar produtos que não estão na fila e aplicar filtros de impressão
   const availableProducts = useMemo(() => {
-    const available = filteredProducts.filter(product => !isProductInQueue(product.id));
+    let available = filteredProducts.filter(product => !isProductInQueue(product.id));
     
-    // Ordenar: produtos não impressos primeiro, depois os impressos recentemente
+    // Aplicar filtro de impressão
+    if (printFilter === 'printed') {
+      available = available.filter(product => wasRecentlyPrinted(product.id));
+    } else if (printFilter === 'not-printed') {
+      available = available.filter(product => !wasRecentlyPrinted(product.id));
+    }
+    
+    // Ordenar baseado no filtro selecionado
     return available.sort((a, b) => {
       const aWasRecentlyPrinted = wasRecentlyPrinted(a.id);
       const bWasRecentlyPrinted = wasRecentlyPrinted(b.id);
       
-      // Se apenas um foi impresso recentemente, colocar no final
-      if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return 1;
-      if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return -1;
+      if (printFilter === 'recent-first') {
+        // Impressos recentemente primeiro
+        if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return -1;
+        if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return 1;
+        
+        // Se ambos foram impressos, ordenar por data de impressão (mais recente primeiro)
+        if (aWasRecentlyPrinted && bWasRecentlyPrinted) {
+          const aDate = getLastPrintDate(a.id);
+          const bDate = getLastPrintDate(b.id);
+          if (aDate && bDate) return bDate.getTime() - aDate.getTime();
+        }
+      } else {
+        // Comportamento padrão: não impressos primeiro, impressos no final
+        if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return 1;
+        if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return -1;
+      }
       
-      // Se ambos foram impressos ou ambos não foram, manter ordem original
       return 0;
     });
-  }, [filteredProducts, isProductInQueue, wasRecentlyPrinted]);
+  }, [filteredProducts, isProductInQueue, wasRecentlyPrinted, getLastPrintDate, printFilter]);
 
   const handlePreview = () => {
     if (printQueue.length === 0) {
@@ -165,6 +186,21 @@ export const LabelDesigner: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              <div className="flex items-center gap-2">
+                <SortAsc className="h-4 w-4 text-muted-foreground" />
+                <Select value={printFilter} onValueChange={setPrintFilter}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filtrar por impressão" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os produtos</SelectItem>
+                    <SelectItem value="not-printed">Não impressos</SelectItem>
+                    <SelectItem value="printed">Impressos recentemente</SelectItem>
+                    <SelectItem value="recent-first">Mais recentes primeiro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
@@ -181,7 +217,7 @@ export const LabelDesigner: React.FC = () => {
                 <Package className="h-16 w-16 mb-4" />
                 <h3 className="text-lg font-medium mb-2">Nenhum produto encontrado</h3>
                 <p className="text-center">
-                  {searchTerm || categoryFilter !== 'all' 
+                  {searchTerm || categoryFilter !== 'all' || printFilter !== 'all'
                     ? 'Tente ajustar os filtros de busca'
                     : 'Todos os produtos estão na fila de impressão'
                   }
