@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -60,10 +59,23 @@ export const LabelDesigner: React.FC = () => {
     return filtered;
   }, [products, searchTerm, categoryFilter]);
 
-  // Filtrar produtos que não estão na fila
+  // Filtrar produtos que não estão na fila e ordenar (impressos recentes no final)
   const availableProducts = useMemo(() => {
-    return filteredProducts.filter(product => !isProductInQueue(product.id));
-  }, [filteredProducts, isProductInQueue]);
+    const available = filteredProducts.filter(product => !isProductInQueue(product.id));
+    
+    // Ordenar: produtos não impressos primeiro, depois os impressos recentemente
+    return available.sort((a, b) => {
+      const aWasRecentlyPrinted = wasRecentlyPrinted(a.id);
+      const bWasRecentlyPrinted = wasRecentlyPrinted(b.id);
+      
+      // Se apenas um foi impresso recentemente, colocar no final
+      if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return 1;
+      if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return -1;
+      
+      // Se ambos foram impressos ou ambos não foram, manter ordem original
+      return 0;
+    });
+  }, [filteredProducts, isProductInQueue, wasRecentlyPrinted]);
 
   const handlePreview = () => {
     if (printQueue.length === 0) {

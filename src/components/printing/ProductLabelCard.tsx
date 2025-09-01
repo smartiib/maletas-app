@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tag, Package } from 'lucide-react';
+import { Tag, Package, Printer } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -55,7 +55,7 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
     >
       <CardContent className="p-3">
         {/* Imagem do produto */}
-        <div className="aspect-square mb-3 overflow-hidden rounded-md bg-muted flex items-center justify-center">
+        <div className="aspect-square mb-3 overflow-hidden rounded-md bg-muted flex items-center justify-center relative">
           {imageUrl !== '/placeholder.svg' ? (
             <img
               src={imageUrl}
@@ -71,6 +71,16 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
           <div className={`flex items-center justify-center h-full w-full ${imageUrl !== '/placeholder.svg' ? 'hidden' : ''}`}>
             <Package className="h-12 w-12 text-muted-foreground" />
           </div>
+
+          {/* Badge de impresso recentemente - posicionado sobre a imagem */}
+          {wasRecentlyPrinted && lastPrintDate && (
+            <div className="absolute bottom-1 left-1 right-1">
+              <Badge variant="secondary" className="text-xs bg-orange-100/90 text-orange-800 backdrop-blur-sm flex items-center gap-1 justify-center w-full">
+                <Printer className="h-3 w-3" />
+                {formatDistanceToNow(lastPrintDate, { locale: ptBR, addSuffix: true }).replace('há ', '')}
+              </Badge>
+            </div>
+          )}
         </div>
 
         {/* Informações do produto */}
@@ -88,16 +98,11 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
             <Tag className="h-4 w-4 text-muted-foreground" />
           </div>
 
-          {/* Status badges */}
+          {/* Status badges - apenas para produtos na fila */}
           <div className="flex flex-wrap gap-1">
             {isInQueue && (
               <Badge variant="default" className="text-xs">
                 Na fila
-              </Badge>
-            )}
-            {wasRecentlyPrinted && lastPrintDate && (
-              <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-800">
-                Impresso {formatDistanceToNow(lastPrintDate, { locale: ptBR, addSuffix: true })}
               </Badge>
             )}
           </div>
