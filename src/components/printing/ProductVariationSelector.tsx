@@ -20,7 +20,7 @@ interface ProductVariationSelectorProps {
     type?: string;
     variations?: any[];
   };
-  onAddToQueue: (product: any, variation?: any) => void;
+  onAddToQueue: (product: any, variation?: any, quantity?: number) => void;
   onClose: () => void;
 }
 
@@ -97,20 +97,6 @@ const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
     onClose();
   };
 
-  const handleAddVariation = (variation: any) => {
-    const variationData = {
-      ...product,
-      id: variation.id,
-      name: `${product.name} - ${formatAttributes(variation.attributes)}`,
-      sku: variation.sku || `${product.sku || product.id}-${variation.id}`,
-      price: variation.price || variation.regular_price || product.price,
-      variation_id: variation.id,
-      parent_id: product.id,
-      is_variation: true
-    };
-    onAddToQueue(variationData);
-  };
-
   const updateVariationQuantity = (variationId: number, delta: number) => {
     setSelectedVariations(prev => {
       const current = prev[variationId] || 0;
@@ -127,9 +113,19 @@ const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
     Object.entries(selectedVariations).forEach(([variationId, quantity]) => {
       const variation = dbVariations.find(v => Number(v.id) === Number(variationId));
       if (variation && quantity > 0) {
-        for (let i = 0; i < quantity; i++) {
-          handleAddVariation(variation);
-        }
+        const variationData = {
+          ...product,
+          id: variation.id,
+          name: `${product.name} - ${formatAttributes(variation.attributes)}`,
+          sku: variation.sku || `${product.sku || product.id}-${variation.id}`,
+          price: variation.price || variation.regular_price || product.price,
+          variation_id: variation.id,
+          parent_id: product.id,
+          is_variation: true
+        };
+        
+        // Adicionar uma única vez com a quantidade especificada
+        onAddToQueue(variationData, variation, quantity);
       }
     });
     onClose();

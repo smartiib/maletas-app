@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -152,14 +153,14 @@ export const useLabelPrinting = () => {
     }
   });
 
-  const addToQueue = useCallback((product: any) => {
+  const addToQueue = useCallback((product: any, quantity: number = 1) => {
     const existingItem = printQueue.find(item => item.id === product.id);
     
     if (existingItem) {
       setPrintQueue(prev => 
         prev.map(item => 
           item.id === product.id 
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: item.quantity + quantity }
             : item
         )
       );
@@ -169,7 +170,7 @@ export const useLabelPrinting = () => {
         name: product.name,
         sku: product.sku || `PROD-${product.id}`,
         price: product.price || product.sale_price || product.regular_price || '0',
-        quantity: 1,
+        quantity: quantity,
         image: product.images?.[0]?.src
       };
       setPrintQueue(prev => [...prev, newItem]);

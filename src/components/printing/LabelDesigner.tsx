@@ -146,9 +146,10 @@ export const LabelDesigner: React.FC = () => {
     }
   };
 
-  const handleVariationAdd = (product: any, variation?: any) => {
+  const handleVariationAdd = (product: any, variation?: any, quantity: number = 1) => {
     if (variation) {
-      addToQueue({
+      // Adicionar uma única vez com a quantidade especificada
+      const variationData = {
         ...product,
         id: variation.id,
         name: `${product.name} - ${variation.formattedAttributes || 'Variação'}`,
@@ -157,7 +158,10 @@ export const LabelDesigner: React.FC = () => {
         variation_id: variation.id,
         parent_id: product.id,
         is_variation: true
-      });
+      };
+      
+      // Adicionar à fila com a quantidade correta
+      addToQueue(variationData, quantity);
     } else {
       addToQueue(product);
     }
