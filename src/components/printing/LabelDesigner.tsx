@@ -17,6 +17,7 @@ export const LabelDesigner: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [printFilter, setPrintFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
+  const [previewInitialTab, setPreviewInitialTab] = useState<'templates' | 'preview' | 'editor'>('preview');
   const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const [showVariationSelector, setShowVariationSelector] = useState(false);
   
@@ -95,6 +96,16 @@ export const LabelDesigner: React.FC = () => {
       toast.error('Adicione produtos à fila de impressão');
       return;
     }
+    setPreviewInitialTab('preview');
+    setShowPreview(true);
+  };
+
+  const handleCustomize = () => {
+    if (printQueue.length === 0) {
+      toast.error('Adicione produtos à fila de impressão');
+      return;
+    }
+    setPreviewInitialTab('editor');
     setShowPreview(true);
   };
 
@@ -277,6 +288,7 @@ export const LabelDesigner: React.FC = () => {
           onPreview={handlePreview}
           onGenerateZPL={handleGenerateZPL}
           onSaveSettings={saveSettings}
+          onCustomize={handleCustomize}
         />
       </div>
 
@@ -288,6 +300,7 @@ export const LabelDesigner: React.FC = () => {
         settings={settings}
         onPrintLabels={printLabels}
         onGenerateZPL={handleGenerateZPL}
+        initialTab={previewInitialTab}
       />
 
       {/* Variation Selector Dialog */}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -46,6 +47,7 @@ interface LabelPreviewDialogProps {
   settings: PrintSettings;
   onPrintLabels: () => void;
   onGenerateZPL: () => void;
+  initialTab?: 'templates' | 'preview' | 'editor';
 }
 
 export const LabelPreviewDialog: React.FC<LabelPreviewDialogProps> = ({
@@ -54,12 +56,20 @@ export const LabelPreviewDialog: React.FC<LabelPreviewDialogProps> = ({
   printQueue,
   settings,
   onPrintLabels,
-  onGenerateZPL
+  onGenerateZPL,
+  initialTab = 'preview'
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<PrintTemplate | null>(null);
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [previewData, setPreviewData] = useState<LabelData[]>([]);
-  const [activeTab, setActiveTab] = useState('preview');
+  const [activeTab, setActiveTab] = useState<'templates' | 'preview' | 'editor'>(initialTab);
+
+  // Ajustar a aba inicial toda vez que abrir o diálogo
+  useEffect(() => {
+    if (isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // Converter items da fila para dados de etiqueta
   useEffect(() => {
@@ -105,7 +115,7 @@ export const LabelPreviewDialog: React.FC<LabelPreviewDialogProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="templates">Templates</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>

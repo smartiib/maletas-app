@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,7 +27,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
   const { currentOrganization } = useOrganization();
   const [formData, setFormData] = useState({
     name: '',
-    type: 'product_label' as TemplateType,
+    type: 'etiqueta' as TemplateType,
     paper_size: 'A4',
     orientation: 'portrait',
     html_template: '',
@@ -41,7 +40,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
     if (template) {
       setFormData({
         name: template.name,
-        type: template.type,
+        type: (template.type as TemplateType) || 'etiqueta',
         paper_size: template.paper_size || 'A4',
         orientation: template.orientation || 'portrait',
         html_template: template.html_template,
@@ -51,7 +50,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
       // Template padrão para novos templates
       setFormData({
         name: `Novo Template ${labelType}`,
-        type: getTemplateType(labelType),
+        type: 'etiqueta',
         paper_size: 'A4',
         orientation: 'portrait',
         html_template: getDefaultHtmlTemplate(),
@@ -65,11 +64,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
   }, [formData.html_template]);
 
   const getTemplateType = (type: string): TemplateType => {
-    switch (type) {
-      case 'promotional': return 'promo_label';
-      case 'maleta': return 'maleta_label';
-      default: return 'product_label';
-    }
+    return 'etiqueta';
   };
 
   const getDefaultHtmlTemplate = () => `
@@ -180,7 +175,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
     try {
       const templateData = {
         name: formData.name,
-        type: formData.type,
+        type: 'etiqueta' as const,
         format: formData.paper_size,
         html_template: formData.html_template,
         css_styles: formData.css_styles,
