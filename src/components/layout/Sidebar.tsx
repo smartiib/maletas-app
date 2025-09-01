@@ -31,6 +31,13 @@ interface SidebarProps {
   onToggle?: () => void;
 }
 
+interface MenuItem {
+  title: string;
+  icon: React.ComponentType<any>;
+  path: string;
+  badge?: string;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ 
   isCollapsed = false, 
   onToggle = () => {} 
@@ -41,7 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Verificar se o usuário é super administrador
   const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
   
-  const menuItems = [
+  const menuItems: MenuItem[] = [
     {
       title: 'Dashboard',
       icon: Home,
@@ -106,7 +113,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   // Itens que só aparecem para super administrador
-  const adminOnlyItems = [
+  const adminOnlyItems: MenuItem[] = [
     {
       title: 'Organizações',
       icon: Building,
