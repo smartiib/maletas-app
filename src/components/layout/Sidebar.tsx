@@ -24,6 +24,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -35,6 +36,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggle = () => {} 
 }) => {
   const isMobile = useIsMobile();
+  const { user } = useAuth();
+  
+  // Verificar se o usuário é super administrador
+  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
   
   const menuItems = [
     {
@@ -94,6 +99,15 @@ const Sidebar: React.FC<SidebarProps> = ({
       badge: 'Em breve'
     },
     {
+      title: 'Configurações',
+      icon: Settings,
+      path: '/settings',
+    },
+  ];
+
+  // Itens que só aparecem para super administrador
+  const adminOnlyItems = [
+    {
       title: 'Organizações',
       icon: Building,
       path: '/organizations',
@@ -113,12 +127,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       icon: Bug,
       path: '/logs',
     },
-    {
-      title: 'Configurações',
-      icon: Settings,
-      path: '/settings',
-    },
   ];
+
+  // Combinar itens normais com itens de admin (se for super admin)
+  const allMenuItems = isSuperAdmin ? [...menuItems, ...adminOnlyItems] : menuItems;
 
   if (isMobile) {
     return null;
@@ -146,7 +158,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Menu Items */}
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
-            {menuItems.map((item) => (
+            {allMenuItems.map((item) => (
               <li key={item.path}>
                 <NavLink
                   to={item.path}
