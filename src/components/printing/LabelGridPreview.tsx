@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,8 +6,20 @@ import { PrintTemplate, LabelData } from '@/types/printing';
 import { Edit, ZoomIn, ZoomOut, Grid3x3 } from 'lucide-react';
 
 interface PrintSettings {
-  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3';
-  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm';
+  labelType: 'standard' | 'promotional' | 'zebra' | 'maleta';
+  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm' | 'custom';
+  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3' | 'custom';
+  includeBarcode: boolean;
+  includeQRCode: boolean;
+  customSize?: {
+    width: number;
+    height: number;
+    unit: 'mm' | 'cm' | 'in';
+  };
+  customLayout?: {
+    rows: number;
+    cols: number;
+  };
 }
 
 interface LabelGridPreviewProps {

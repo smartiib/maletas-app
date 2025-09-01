@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -25,10 +24,19 @@ interface PrintItem {
 
 interface PrintSettings {
   labelType: 'standard' | 'promotional' | 'zebra' | 'maleta';
-  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm';
-  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3';
+  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm' | 'custom';
+  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3' | 'custom';
   includeBarcode: boolean;
   includeQRCode: boolean;
+  customSize?: {
+    width: number;
+    height: number;
+    unit: 'mm' | 'cm' | 'in';
+  };
+  customLayout?: {
+    rows: number;
+    cols: number;
+  };
 }
 
 interface LabelPreviewDialogProps {
