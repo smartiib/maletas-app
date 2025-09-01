@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PrintTemplate, TemplateType } from '@/types/printing';
+import { PrintTemplate, TemplateType, TemplateFormat, PaperSize } from '@/types/printing';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { Save, X, Eye, Code } from 'lucide-react';
@@ -35,6 +36,24 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
   });
   const [previewHtml, setPreviewHtml] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Mapeia o paper_size selecionado para o format aceito no banco
+  const mapPaperSizeToFormat = (paperSize: PaperSize | string): TemplateFormat => {
+    switch (paperSize) {
+      case 'A4':
+        return 'A4';
+      case '80mm':
+        return 'thermal_80mm';
+      case '58mm':
+        return 'thermal_58mm';
+      case '50x30mm':
+        return 'label_50x30';
+      case '40x20mm':
+        return 'label_40x20';
+      default:
+        return 'custom';
+    }
+  };
 
   useEffect(() => {
     if (template) {
@@ -176,7 +195,7 @@ export const LabelTemplateEditor: React.FC<LabelTemplateEditorProps> = ({
       const templateData = {
         name: formData.name,
         type: 'etiqueta' as const,
-        format: formData.paper_size,
+        format: mapPaperSizeToFormat(formData.paper_size),
         html_template: formData.html_template,
         css_styles: formData.css_styles,
         printer_type: 'pdf',
