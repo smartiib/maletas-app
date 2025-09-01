@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,10 +27,19 @@ interface PrintHistory {
 
 interface PrintSettings {
   labelType: 'standard' | 'promotional' | 'zebra' | 'maleta';
-  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm';
-  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3';
+  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm' | 'custom';
+  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3' | 'custom';
   includeBarcode: boolean;
   includeQRCode: boolean;
+  customSize?: {
+    width: number;
+    height: number;
+    unit: 'mm' | 'cm' | 'in';
+  };
+  customLayout?: {
+    rows: number;
+    cols: number;
+  };
 }
 
 export const useLabelPrinting = () => {
@@ -48,6 +56,56 @@ export const useLabelPrinting = () => {
   });
   const [selectedTemplate, setSelectedTemplate] = useState<PrintTemplate | null>(null);
 
+  // Carregar configurações salvas
+  useEffect(() => {
+    const loadSavedSettings = async () => {
+      if (!currentOrganization?.id) return;
+
+      try {
+        const { data } = await supabase
+          .from('user_configurations')
+          .select('config_data')
+          .eq('config_type', 'label_print_settings')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .single();
+
+        if (data?.config_data) {
+          setSettings(prev => ({ ...prev, ...data.config_data }));
+        }
+      } catch (error) {
+        console.log('Nenhuma configuração salva encontrada');
+      }
+    };
+
+    loadSavedSettings();
+  }, [currentOrganization?.id]);
+
+  // Salvar configurações
+  const saveSettings = useCallback(async () => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      const user = await supabase.auth.getUser();
+      if (!user.data.user) return;
+
+      await supabase
+        .from('user_configurations')
+        .upsert({
+          user_id: user.data.user.id,
+          config_type: 'label_print_settings',
+          config_data: settings,
+          is_active: true
+        }, {
+          onConflict: 'user_id,config_type'
+        });
+
+      toast.success('Configurações salvas com sucesso');
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      toast.error('Erro ao salvar configurações');
+    }
+  }, [settings, currentOrganization?.id]);
+
   // Buscar histórico de impressão
   const { data: printHistory = [] } = useQuery({
     queryKey: ['label-print-history', currentOrganization?.id],
@@ -57,7 +115,7 @@ export const useLabelPrinting = () => {
         .from('label_print_history')
         .select('*')
         .eq('organization_id', currentOrganization!.id)
-        .gte('printed_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()) // Últimos 3 dias
+        .gte('printed_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
         .order('printed_at', { ascending: false });
 
       if (error) {
@@ -262,6 +320,13 @@ ${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
 
   // Função auxiliar para obter layout da grade
   const getGridLayout = (layout: string) => {
+    if (layout === 'custom' && settings.customLayout) {
+      return {
+        rows: settings.customLayout.rows,
+        cols: settings.customLayout.cols
+      };
+    }
+
     switch (layout) {
       case '1x1': return { rows: 1, cols: 1 };
       case '2x1': return { rows: 1, cols: 2 };
@@ -278,7 +343,6 @@ ${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
       return;
     }
 
-    // Salvar no histórico
     try {
       await savePrintHistoryMutation.mutateAsync(printQueue);
       clearQueue();
@@ -290,13 +354,11 @@ ${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
   }, [printQueue, savePrintHistoryMutation, clearQueue]);
 
   return {
-    // Estado
     printQueue,
     settings,
     printHistory,
     selectedTemplate,
     
-    // Ações
     addToQueue,
     removeFromQueue,
     updateQuantity,
@@ -304,18 +366,16 @@ ${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
     setSettings,
     setSelectedTemplate,
     printLabels,
+    saveSettings,
     
-    // Funcionalidades de preview e ZPL
     generatePreview,
     generateZPL,
     prepareLabelData,
     
-    // Verificações
     isProductInQueue,
     wasRecentlyPrinted,
     getLastPrintDate,
     
-    // Totais
     queueCount: printQueue.length,
     totalQuantity: printQueue.reduce((total, item) => total + item.quantity, 0)
   };

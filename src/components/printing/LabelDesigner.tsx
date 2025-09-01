@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,14 +14,12 @@ import { toast } from 'sonner';
 export const LabelDesigner: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [printFilter, setPrintFilter] = useState<string>('all'); // novo filtro
+  const [printFilter, setPrintFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
   
-  // Usar os hooks específicos do useWooCommerceFiltered
   const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
   const { data: categories = [] } = useWooCommerceFilteredCategories();
 
-  // Hook para gerenciar impressão de etiquetas
   const {
     printQueue,
     settings,
@@ -34,16 +31,15 @@ export const LabelDesigner: React.FC = () => {
     setSettings,
     printLabels,
     generateZPL,
+    saveSettings,
     isProductInQueue,
     wasRecentlyPrinted,
     getLastPrintDate
   } = useLabelPrinting();
 
-  // Filtrar produtos com base na busca e categoria
   const filteredProducts = useMemo(() => {
     let filtered = products;
 
-    // Filtro por busca
     if (searchTerm) {
       filtered = filtered.filter(product => 
         product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -51,7 +47,6 @@ export const LabelDesigner: React.FC = () => {
       );
     }
 
-    // Filtro por categoria
     if (categoryFilter !== 'all') {
       filtered = filtered.filter(product => 
         product.categories?.some(cat => cat.id.toString() === categoryFilter)
@@ -61,35 +56,29 @@ export const LabelDesigner: React.FC = () => {
     return filtered;
   }, [products, searchTerm, categoryFilter]);
 
-  // Filtrar produtos que não estão na fila e aplicar filtros de impressão
   const availableProducts = useMemo(() => {
     let available = filteredProducts.filter(product => !isProductInQueue(product.id));
     
-    // Aplicar filtro de impressão
     if (printFilter === 'printed') {
       available = available.filter(product => wasRecentlyPrinted(product.id));
     } else if (printFilter === 'not-printed') {
       available = available.filter(product => !wasRecentlyPrinted(product.id));
     }
     
-    // Ordenar baseado no filtro selecionado
     return available.sort((a, b) => {
       const aWasRecentlyPrinted = wasRecentlyPrinted(a.id);
       const bWasRecentlyPrinted = wasRecentlyPrinted(b.id);
       
       if (printFilter === 'recent-first') {
-        // Impressos recentemente primeiro
         if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return -1;
         if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return 1;
         
-        // Se ambos foram impressos, ordenar por data de impressão (mais recente primeiro)
         if (aWasRecentlyPrinted && bWasRecentlyPrinted) {
           const aDate = getLastPrintDate(a.id);
           const bDate = getLastPrintDate(b.id);
           if (aDate && bDate) return bDate.getTime() - aDate.getTime();
         }
       } else {
-        // Comportamento padrão: não impressos primeiro, impressos no final
         if (aWasRecentlyPrinted && !bWasRecentlyPrinted) return 1;
         if (!aWasRecentlyPrinted && bWasRecentlyPrinted) return -1;
       }
@@ -115,7 +104,6 @@ export const LabelDesigner: React.FC = () => {
     try {
       const zplCommands = generateZPL();
       
-      // Criar e baixar arquivo ZPL
       const blob = new Blob([zplCommands], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -144,6 +132,7 @@ export const LabelDesigner: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Tag className="h-6 w-6 text-primary" />
                 <h1 className="text-2xl font-bold">Etiquetas</h1>
+                <Badge variant="secondary" className="ml-2">Em breve</Badge>
               </div>
               
               <div className="flex items-center gap-2">
@@ -252,6 +241,7 @@ export const LabelDesigner: React.FC = () => {
           onPrintLabels={printLabels}
           onPreview={handlePreview}
           onGenerateZPL={handleGenerateZPL}
+          onSaveSettings={saveSettings}
         />
       </div>
 

@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Switch } from '@/components/ui/switch';
 import { 
   Printer, 
   Trash2, 
@@ -16,7 +16,8 @@ import {
   Eye, 
   Download,
   Settings2,
-  ShoppingCart
+  ShoppingCart,
+  Save
 } from 'lucide-react';
 
 interface PrintItem {
@@ -30,10 +31,19 @@ interface PrintItem {
 
 interface PrintSettings {
   labelType: 'standard' | 'promotional' | 'zebra' | 'maleta';
-  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm';
-  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3';
+  format: 'A4' | '80mm' | '58mm' | '50x30mm' | '40x20mm' | 'custom';
+  layout: '1x1' | '2x1' | '3x1' | '2x2' | '3x3' | 'custom';
   includeBarcode: boolean;
   includeQRCode: boolean;
+  customSize?: {
+    width: number;
+    height: number;
+    unit: 'mm' | 'cm' | 'in';
+  };
+  customLayout?: {
+    rows: number;
+    cols: number;
+  };
 }
 
 interface LabelPrintSidebarProps {
@@ -47,6 +57,7 @@ interface LabelPrintSidebarProps {
   onPrintLabels: () => void;
   onPreview?: () => void;
   onGenerateZPL?: () => void;
+  onSaveSettings?: () => void;
   loading?: boolean;
 }
 
@@ -61,8 +72,34 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
   onPrintLabels,
   onPreview,
   onGenerateZPL,
+  onSaveSettings,
   loading = false
 }) => {
+  const handleCustomSizeChange = (field: 'width' | 'height' | 'unit', value: any) => {
+    onUpdateSettings({
+      ...settings,
+      customSize: {
+        ...settings.customSize,
+        width: settings.customSize?.width || 50,
+        height: settings.customSize?.height || 30,
+        unit: settings.customSize?.unit || 'mm',
+        [field]: value
+      }
+    });
+  };
+
+  const handleCustomLayoutChange = (field: 'rows' | 'cols', value: number) => {
+    onUpdateSettings({
+      ...settings,
+      customLayout: {
+        ...settings.customLayout,
+        rows: settings.customLayout?.rows || 2,
+        cols: settings.customLayout?.cols || 2,
+        [field]: value
+      }
+    });
+  };
+
   return (
     <div className="w-80 border-l bg-card h-full flex flex-col">
       {/* Header */}
@@ -80,88 +117,190 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
         </div>
       </div>
 
-      {/* Settings Accordion - Above everything when there are items */}
-      {printQueue.length > 0 && (
-        <div className="border-b">
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="settings" className="border-none">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <Settings2 className="h-4 w-4" />
-                  <span className="font-medium text-sm">Configurações</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4">
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs">Tipo de Etiqueta</Label>
-                    <Select
-                      value={settings.labelType}
-                      onValueChange={(value: any) => 
-                        onUpdateSettings({ ...settings, labelType: value })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="standard">Padrão</SelectItem>
-                        <SelectItem value="promotional">Promocional</SelectItem>
-                        <SelectItem value="zebra">Zebra</SelectItem>
-                        <SelectItem value="maleta">Maleta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+      {/* Settings - Always visible and fixed at top */}
+      <div className="border-b bg-muted/10">
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Settings2 className="h-4 w-4" />
+              <span className="font-medium text-sm">Configurações</span>
+            </div>
+            {onSaveSettings && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onSaveSettings}
+                className="h-8 px-2"
+              >
+                <Save className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
 
-                  <div>
-                    <Label className="text-xs">Formato</Label>
-                    <Select
-                      value={settings.format}
-                      onValueChange={(value: any) => 
-                        onUpdateSettings({ ...settings, format: value })
-                      }
-                    >
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="A4">A4</SelectItem>
-                        <SelectItem value="80mm">80mm</SelectItem>
-                        <SelectItem value="58mm">58mm</SelectItem>
-                        <SelectItem value="50x30mm">50x30mm</SelectItem>
-                        <SelectItem value="40x20mm">40x20mm</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">Tipo de Etiqueta</Label>
+              <Select
+                value={settings.labelType}
+                onValueChange={(value: any) => 
+                  onUpdateSettings({ ...settings, labelType: value })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="standard">Padrão</SelectItem>
+                  <SelectItem value="promotional">Promocional</SelectItem>
+                  <SelectItem value="zebra">Zebra</SelectItem>
+                  <SelectItem value="maleta">Maleta</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
+            <div>
+              <Label className="text-xs">Formato</Label>
+              <Select
+                value={settings.format}
+                onValueChange={(value: any) => 
+                  onUpdateSettings({ ...settings, format: value })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A4">A4</SelectItem>
+                  <SelectItem value="80mm">80mm</SelectItem>
+                  <SelectItem value="58mm">58mm</SelectItem>
+                  <SelectItem value="50x30mm">50x30mm</SelectItem>
+                  <SelectItem value="40x20mm">40x20mm</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom Size Options */}
+            {settings.format === 'custom' && (
+              <div className="space-y-2 p-2 bg-muted/20 rounded">
+                <Label className="text-xs font-medium">Tamanho Personalizado</Label>
+                <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label className="text-xs">Layout</Label>
+                    <Label className="text-xs">Largura</Label>
+                    <Input
+                      type="number"
+                      value={settings.customSize?.width || 50}
+                      onChange={(e) => handleCustomSizeChange('width', parseInt(e.target.value))}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Altura</Label>
+                    <Input
+                      type="number"
+                      value={settings.customSize?.height || 30}
+                      onChange={(e) => handleCustomSizeChange('height', parseInt(e.target.value))}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Unidade</Label>
                     <Select
-                      value={settings.layout}
-                      onValueChange={(value: any) => 
-                        onUpdateSettings({ ...settings, layout: value })
-                      }
+                      value={settings.customSize?.unit || 'mm'}
+                      onValueChange={(value) => handleCustomSizeChange('unit', value)}
                     >
-                      <SelectTrigger className="h-8 text-xs">
+                      <SelectTrigger className="h-7 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1x1">1x1 (1 por página)</SelectItem>
-                        <SelectItem value="2x1">2x1 (2 por página)</SelectItem>
-                        <SelectItem value="3x1">3x1 (3 por página)</SelectItem>
-                        <SelectItem value="2x2">2x2 (4 por página)</SelectItem>
-                        <SelectItem value="3x3">3x3 (9 por página)</SelectItem>
+                        <SelectItem value="mm">mm</SelectItem>
+                        <SelectItem value="cm">cm</SelectItem>
+                        <SelectItem value="in">in</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-xs">Layout</Label>
+              <Select
+                value={settings.layout}
+                onValueChange={(value: any) => 
+                  onUpdateSettings({ ...settings, layout: value })
+                }
+              >
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1x1">1x1 (1 por página)</SelectItem>
+                  <SelectItem value="2x1">2x1 (2 por página)</SelectItem>
+                  <SelectItem value="3x1">3x1 (3 por página)</SelectItem>
+                  <SelectItem value="2x2">2x2 (4 por página)</SelectItem>
+                  <SelectItem value="3x3">3x3 (9 por página)</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Custom Layout Options */}
+            {settings.layout === 'custom' && (
+              <div className="space-y-2 p-2 bg-muted/20 rounded">
+                <Label className="text-xs font-medium">Layout Personalizado</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-xs">Linhas</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={settings.customLayout?.rows || 2}
+                      onChange={(e) => handleCustomLayoutChange('rows', parseInt(e.target.value))}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Colunas</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="10"
+                      value={settings.customLayout?.cols || 2}
+                      onChange={(e) => handleCustomLayoutChange('cols', parseInt(e.target.value))}
+                      className="h-7 text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Código de Barras</Label>
+                <Switch
+                  checked={settings.includeBarcode}
+                  onCheckedChange={(checked) => 
+                    onUpdateSettings({ ...settings, includeBarcode: checked })
+                  }
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">QR Code</Label>
+                <Switch
+                  checked={settings.includeQRCode}
+                  onCheckedChange={(checked) => 
+                    onUpdateSettings({ ...settings, includeQRCode: checked })
+                  }
+                />
+              </div>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
 
-      {/* Action Buttons - Fixed at Top */}
+      {/* Action Buttons - Only when there are items */}
       {printQueue.length > 0 && (
         <div className="p-4 border-b bg-muted/20 space-y-3">
           <Button
