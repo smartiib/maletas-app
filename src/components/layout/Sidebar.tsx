@@ -1,183 +1,106 @@
-
-import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { 
-  Home, 
-  Package, 
-  ShoppingCart, 
-  Users, 
-  CreditCard, 
-  Briefcase, 
-  DollarSign,
-  TrendingUp,
-  UserCheck,
-  Archive,
-  FileText,
-  Tag,
-  Settings,
-  Building,
-  Receipt,
-  Bug,
-  ChevronLeft,
-  ChevronRight
+import React from 'react';
+import {
+  LayoutDashboard,
+  ListChecks,
+  ShoppingCart,
+  Users,
+  Boxes,
+  Coins,
+  TrendingDown,
+  Gift
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { Sidebar as RadixSidebar, SidebarTrigger, SidebarContent, SidebarItem, SidebarFooter } from '@/components/ui/sidebar';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
-interface SidebarProps {
-  isCollapsed?: boolean;
-  onToggle?: () => void;
-}
+const Sidebar = () => {
+  const { currentOrganization } = useOrganization();
+  const { isConfigured } = useWooCommerceConfig();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-const Sidebar: React.FC<SidebarProps> = ({ 
-  isCollapsed = false, 
-  onToggle = () => {} 
-}) => {
-  const isMobile = useIsMobile();
-  
-  const menuItems = [
-    {
-      title: 'Dashboard',
-      icon: Home,
-      path: '/dashboard',
-    },
-    {
-      title: 'Produtos',
-      icon: Package,
-      path: '/products',
-    },
-    {
-      title: 'Pedidos',
-      icon: ShoppingCart,
-      path: '/orders',
-    },
-    {
-      title: 'Clientes',
-      icon: Users,
-      path: '/customers',
-    },
-    {
-      title: 'PDV',
-      icon: CreditCard,
-      path: '/pos',
-    },
-    {
-      title: 'Maletas',
-      icon: Briefcase,
-      path: '/maletas',
-    },
-    {
-      title: 'Financeiro',
-      icon: DollarSign,
-      path: '/financeiro',
-    },
-    {
-      title: 'Fornecedores',
-      icon: UserCheck,
-      path: '/suppliers',
-    },
-    {
-      title: 'Estoque',
-      icon: Archive,
-      path: '/stock',
-    },
-    {
-      title: 'Relatórios',
-      icon: TrendingUp,
-      path: '/reports',
-    },
-    {
-      title: 'Etiquetas',
-      icon: Tag,
-      path: '/labels',
-      badge: 'Em breve'
-    },
-    {
-      title: 'Organizações',
-      icon: Building,
-      path: '/organizations',
-    },
-    {
-      title: 'Cobrança',
-      icon: Receipt,
-      path: '/billing',
-    },
-    {
-      title: 'Templates PDF',
-      icon: FileText,
-      path: '/pdf-templates',
-    },
-    {
-      title: 'Logs',
-      icon: Bug,
-      path: '/logs',
-    },
-    {
-      title: 'Configurações',
-      icon: Settings,
-      path: '/settings',
-    },
-  ];
-
-  if (isMobile) {
-    return null;
-  }
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
 
   return (
-    <div className={cn(
-      'fixed left-0 top-0 z-50 h-full bg-card text-card-foreground border-r border-border transition-all duration-300',
-      isCollapsed ? 'w-16' : 'w-64'
-    )}>
-      <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          {!isCollapsed && (
-            <h2 className="text-lg font-semibold text-foreground">Menu</h2>
-          )}
-          <button
-            onClick={onToggle}
-            className="p-2 rounded-md hover:bg-accent hover:text-accent-foreground"
-          >
-            {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+    <RadixSidebar className="md:block hidden">
+      <SidebarTrigger className="hidden" />
+      <SidebarContent className="bg-secondary border-r border-muted min-h-screen">
+        <div className="p-4">
+          <h1 className="font-bold text-xl">
+            {currentOrganization?.name || 'Selecione a organização'}
+          </h1>
+          <p className="text-muted-foreground text-sm">
+            {currentOrganization?.description || 'Gerencie sua empresa'}
+          </p>
         </div>
-
-        {/* Menu Items */}
-        <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1 px-3">
-            {menuItems.map((item) => (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'hover:bg-accent hover:text-accent-foreground',
-                      isCollapsed && 'justify-center px-2'
-                    )
-                  }
-                >
-                  <item.icon className="h-4 w-4 flex-shrink-0" />
-                  {!isCollapsed && (
-                    <div className="flex items-center justify-between w-full">
-                      <span className="truncate">{item.title}</span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="text-xs ml-2">
-                          {item.badge}
-                        </Badge>
-                      )}
-                    </div>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-    </div>
+        <SidebarItem
+          icon={LayoutDashboard}
+          label="Dashboard"
+          path="/"
+          active={isActive("/")}
+          onClick={() => navigate('/')}
+        />
+        <SidebarItem
+          icon={ShoppingCart}
+          label="Pedidos"
+          path="/pedidos"
+          active={isActive("/pedidos")}
+          onClick={() => navigate('/pedidos')}
+        />
+        <SidebarItem
+          icon={ListChecks}
+          label="Tarefas"
+          path="/tarefas"
+          active={isActive("/tarefas")}
+          onClick={() => navigate('/tarefas')}
+        />
+        <SidebarItem
+          icon={Users}
+          label="Clientes"
+          path="/clientes"
+          active={isActive("/clientes")}
+          onClick={() => navigate('/clientes')}
+        />
+        <SidebarItem
+          icon={Boxes}
+          label="Estoque"
+          path="/estoque"
+          active={isActive("/estoque")}
+          onClick={() => navigate('/estoque')}
+        />
+        <SidebarItem
+          icon={Coins}
+          label="Financeiro"
+          path="/financeiro"
+          active={isActive("/financeiro")}
+          onClick={() => navigate('/financeiro')}
+          disabled={!isConfigured}
+        />
+            <SidebarItem
+              icon={Gift}
+              label="Aniversariantes"
+              path="/aniversariantes"
+              active={isActive("/aniversariantes")}
+              onClick={() => navigate('/aniversariantes')}
+            />
+            <SidebarItem
+              icon={TrendingDown}  
+              label="Perdas e Quebras"
+              path="/perdas"
+              active={isActive("/perdas")}
+              onClick={() => navigate('/perdas')}
+            />
+        <SidebarFooter className="p-4">
+          <Button variant="outline" onClick={() => navigate('/configuracoes')}>
+            Configurações
+          </Button>
+        </SidebarFooter>
+      </SidebarContent>
+    </RadixSidebar>
   );
 };
 
