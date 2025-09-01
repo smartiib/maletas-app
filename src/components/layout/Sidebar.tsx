@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   LayoutDashboard,
@@ -9,7 +10,15 @@ import {
   TrendingDown,
   Gift
 } from 'lucide-react';
-import { Sidebar as RadixSidebar, SidebarTrigger, SidebarContent, SidebarItem, SidebarFooter } from '@/components/ui/sidebar';
+import { 
+  Sidebar as RadixSidebar, 
+  SidebarTrigger, 
+  SidebarContent, 
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton
+} from '@/components/ui/sidebar';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -25,6 +34,57 @@ const Sidebar = () => {
     return location.pathname === path;
   };
 
+  const menuItems = [
+    {
+      icon: LayoutDashboard,
+      label: "Dashboard",
+      path: "/",
+      disabled: false
+    },
+    {
+      icon: ShoppingCart,
+      label: "Pedidos",
+      path: "/pedidos",
+      disabled: false
+    },
+    {
+      icon: ListChecks,
+      label: "Tarefas",
+      path: "/tarefas",
+      disabled: false
+    },
+    {
+      icon: Users,
+      label: "Clientes",
+      path: "/clientes",
+      disabled: false
+    },
+    {
+      icon: Boxes,
+      label: "Estoque",
+      path: "/estoque",
+      disabled: false
+    },
+    {
+      icon: Coins,
+      label: "Financeiro",
+      path: "/financeiro",
+      disabled: !isConfigured
+    },
+    {
+      icon: Gift,
+      label: "Aniversariantes",
+      path: "/aniversariantes",
+      disabled: false
+    },
+    {
+      icon: TrendingDown,
+      label: "Perdas e Quebras",
+      path: "/perdas",
+      disabled: false
+    }
+  ];
+
   return (
     <RadixSidebar className="md:block hidden">
       <SidebarTrigger className="hidden" />
@@ -34,66 +94,30 @@ const Sidebar = () => {
             {currentOrganization?.name || 'Selecione a organização'}
           </h1>
           <p className="text-muted-foreground text-sm">
-            {currentOrganization?.description || 'Gerencie sua empresa'}
+            Gerencie sua empresa
           </p>
         </div>
-        <SidebarItem
-          icon={LayoutDashboard}
-          label="Dashboard"
-          path="/"
-          active={isActive("/")}
-          onClick={() => navigate('/')}
-        />
-        <SidebarItem
-          icon={ShoppingCart}
-          label="Pedidos"
-          path="/pedidos"
-          active={isActive("/pedidos")}
-          onClick={() => navigate('/pedidos')}
-        />
-        <SidebarItem
-          icon={ListChecks}
-          label="Tarefas"
-          path="/tarefas"
-          active={isActive("/tarefas")}
-          onClick={() => navigate('/tarefas')}
-        />
-        <SidebarItem
-          icon={Users}
-          label="Clientes"
-          path="/clientes"
-          active={isActive("/clientes")}
-          onClick={() => navigate('/clientes')}
-        />
-        <SidebarItem
-          icon={Boxes}
-          label="Estoque"
-          path="/estoque"
-          active={isActive("/estoque")}
-          onClick={() => navigate('/estoque')}
-        />
-        <SidebarItem
-          icon={Coins}
-          label="Financeiro"
-          path="/financeiro"
-          active={isActive("/financeiro")}
-          onClick={() => navigate('/financeiro')}
-          disabled={!isConfigured}
-        />
-            <SidebarItem
-              icon={Gift}
-              label="Aniversariantes"
-              path="/aniversariantes"
-              active={isActive("/aniversariantes")}
-              onClick={() => navigate('/aniversariantes')}
-            />
-            <SidebarItem
-              icon={TrendingDown}  
-              label="Perdas e Quebras"
-              path="/perdas"
-              active={isActive("/perdas")}
-              onClick={() => navigate('/perdas')}
-            />
+        
+        <SidebarMenu className="px-2">
+          {menuItems.map((item) => (
+            <SidebarMenuItem key={item.path}>
+              <SidebarMenuButton
+                asChild
+                isActive={isActive(item.path)}
+                className={`w-full justify-start gap-3 ${
+                  item.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                onClick={item.disabled ? undefined : () => navigate(item.path)}
+              >
+                <div className="flex items-center gap-3 w-full">
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+
         <SidebarFooter className="p-4">
           <Button variant="outline" onClick={() => navigate('/configuracoes')}>
             Configurações
