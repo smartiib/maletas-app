@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -29,8 +30,6 @@ import Stock from '@/pages/Stock';
 import Labels from '@/pages/Labels';
 import NotFound from '@/pages/NotFound';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import Aniversariantes from '@/pages/Aniversariantes';
-import Perdas from '@/pages/Perdas';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -135,24 +134,6 @@ const App: React.FC = () => {
                     <ConfigGuard>
                       <DashboardLayout><PdfTemplates /></DashboardLayout>
                     </ConfigGuard>
-                  } />
-                  <Route path="/aniversariantes" element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Aniversariantes />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/perdas" element={
-                    <ProtectedRoute>
-                      <ConfigGuard>
-                        <DashboardLayout>
-                          <Perdas />
-                        </DashboardLayout>
-                      </ConfigGuard>
-                    </ProtectedRoute>
                   } />
                   
                   <Route path="*" element={<NotFound />} />

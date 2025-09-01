@@ -14,65 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      accounts_payable: {
-        Row: {
-          amount: number
-          category: string | null
-          created_at: string
-          description: string
-          due_date: string
-          id: string
-          notes: string | null
-          organization_id: string | null
-          payment_date: string | null
-          payment_method: string | null
-          status: string
-          supplier_id: string | null
-          updated_at: string
-          user_id: string | null
-        }
-        Insert: {
-          amount: number
-          category?: string | null
-          created_at?: string
-          description: string
-          due_date: string
-          id?: string
-          notes?: string | null
-          organization_id?: string | null
-          payment_date?: string | null
-          payment_method?: string | null
-          status?: string
-          supplier_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Update: {
-          amount?: number
-          category?: string | null
-          created_at?: string
-          description?: string
-          due_date?: string
-          id?: string
-          notes?: string | null
-          organization_id?: string | null
-          payment_date?: string | null
-          payment_method?: string | null
-          status?: string
-          supplier_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "accounts_payable_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       changelog_items: {
         Row: {
           category: string | null
@@ -194,39 +135,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      expense_categories: {
-        Row: {
-          color: string | null
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean
-          name: string
-          organization_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          color?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name: string
-          organization_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          color?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean
-          name?: string
-          organization_id?: string | null
-          updated_at?: string
-        }
-        Relationships: []
       }
       financial_transactions: {
         Row: {
@@ -1256,54 +1164,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      stock_adjustments: {
-        Row: {
-          adjustment_type: string
-          created_at: string
-          id: string
-          notes: string | null
-          organization_id: string | null
-          product_id: number
-          quantity_adjusted: number
-          quantity_after: number
-          quantity_before: number
-          reason: string
-          updated_at: string
-          user_id: string | null
-          variation_id: number | null
-        }
-        Insert: {
-          adjustment_type: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          organization_id?: string | null
-          product_id: number
-          quantity_adjusted: number
-          quantity_after?: number
-          quantity_before?: number
-          reason: string
-          updated_at?: string
-          user_id?: string | null
-          variation_id?: number | null
-        }
-        Update: {
-          adjustment_type?: string
-          created_at?: string
-          id?: string
-          notes?: string | null
-          organization_id?: string | null
-          product_id?: number
-          quantity_adjusted?: number
-          quantity_after?: number
-          quantity_before?: number
-          reason?: string
-          updated_at?: string
-          user_id?: string | null
-          variation_id?: number | null
-        }
-        Relationships: []
       }
       stock_history: {
         Row: {
