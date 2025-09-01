@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
@@ -20,6 +21,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -89,6 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Etiquetas',
       icon: Tag,
       path: '/labels',
+      badge: 'Em breve'
     },
     {
       title: 'Organizações',
@@ -159,7 +162,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <item.icon className="h-4 w-4 flex-shrink-0" />
                   {!isCollapsed && (
-                    <span className="truncate">{item.title}</span>
+                    <div className="flex items-center justify-between w-full">
+                      <span className="truncate">{item.title}</span>
+                      {item.badge && (
+                        <Badge variant="secondary" className="text-xs ml-2">
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </div>
                   )}
                 </NavLink>
               </li>

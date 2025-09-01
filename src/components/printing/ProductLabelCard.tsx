@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Tag, Package, Printer } from 'lucide-react';
+import { Tag, Package, Printer, Box } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -15,11 +15,14 @@ interface ProductLabelCardProps {
     sale_price?: string;
     regular_price?: string;
     images?: Array<{ src: string; alt?: string }>;
+    type?: string;
+    variations?: any[];
   };
   isInQueue: boolean;
   wasRecentlyPrinted: boolean;
   lastPrintDate?: Date | null;
   onAddToQueue: () => void;
+  onSelectVariations?: () => void;
 }
 
 export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
@@ -27,10 +30,12 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
   isInQueue,
   wasRecentlyPrinted,
   lastPrintDate,
-  onAddToQueue
+  onAddToQueue,
+  onSelectVariations
 }) => {
   const displaySku = product.sku || `PROD-${product.id}`;
   const imageUrl = product.images?.[0]?.src || '/placeholder.svg';
+  const hasVariations = product.type === 'variable' && product.variations?.length;
 
   const getCardClassName = () => {
     if (isInQueue) {
@@ -44,7 +49,11 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
 
   const handleClick = () => {
     if (!isInQueue) {
-      onAddToQueue();
+      if (hasVariations && onSelectVariations) {
+        onSelectVariations();
+      } else {
+        onAddToQueue();
+      }
     }
   };
 
@@ -72,6 +81,16 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
             <Package className="h-12 w-12 text-muted-foreground" />
           </div>
 
+          {/* Badge de produto com variações */}
+          {hasVariations && (
+            <div className="absolute top-1 right-1">
+              <Badge variant="default" className="text-xs bg-blue-100/90 text-blue-800 backdrop-blur-sm flex items-center gap-1">
+                <Box className="h-3 w-3" />
+                {product.variations?.length}
+              </Badge>
+            </div>
+          )}
+
           {/* Badge de impresso recentemente - posicionado sobre a imagem */}
           {wasRecentlyPrinted && lastPrintDate && (
             <div className="absolute bottom-1 left-1 right-1">
@@ -94,8 +113,13 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center justify-end">
-            <Tag className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              <Tag className="h-3 w-3 text-muted-foreground" />
+              {hasVariations && (
+                <span className="text-xs text-muted-foreground">Variável</span>
+              )}
+            </div>
           </div>
 
           {/* Status badges - apenas para produtos na fila */}

@@ -8,6 +8,7 @@ import { useLabelPrinting } from '@/hooks/useLabelPrinting';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
 import { LabelPreviewDialog } from './LabelPreviewDialog';
+import ProductVariationSelector from './ProductVariationSelector';
 import { Search, Filter, Package, Tag, SortAsc } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,6 +17,8 @@ export const LabelDesigner: React.FC = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [printFilter, setPrintFilter] = useState<string>('all');
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [showVariationSelector, setShowVariationSelector] = useState(false);
   
   const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
   const { data: categories = [] } = useWooCommerceFilteredCategories();
@@ -121,6 +124,34 @@ export const LabelDesigner: React.FC = () => {
     }
   };
 
+  const handleProductSelect = (product: any) => {
+    const hasVariations = product.type === 'variable' && product.variations?.length;
+    
+    if (hasVariations) {
+      setSelectedProduct(product);
+      setShowVariationSelector(true);
+    } else {
+      addToQueue(product);
+    }
+  };
+
+  const handleVariationAdd = (product: any, variation?: any) => {
+    if (variation) {
+      addToQueue({
+        ...product,
+        id: variation.id,
+        name: `${product.name} - ${variation.formattedAttributes || 'Variação'}`,
+        sku: variation.sku || `${product.sku || product.id}-${variation.id}`,
+        price: variation.price || variation.regular_price || product.price,
+        variation_id: variation.id,
+        parent_id: product.id,
+        is_variation: true
+      });
+    } else {
+      addToQueue(product);
+    }
+  };
+
   return (
     <>
       <div className="flex h-screen bg-background">
@@ -221,7 +252,11 @@ export const LabelDesigner: React.FC = () => {
                     isInQueue={isProductInQueue(product.id)}
                     wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
                     lastPrintDate={getLastPrintDate(product.id)}
-                    onAddToQueue={() => addToQueue(product)}
+                    onAddToQueue={() => handleProductSelect(product)}
+                    onSelectVariations={() => {
+                      setSelectedProduct(product);
+                      setShowVariationSelector(true);
+                    }}
                   />
                 ))}
               </div>
@@ -254,6 +289,20 @@ export const LabelDesigner: React.FC = () => {
         onPrintLabels={printLabels}
         onGenerateZPL={handleGenerateZPL}
       />
+
+      {/* Variation Selector Dialog */}
+      {showVariationSelector && selectedProduct && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <ProductVariationSelector
+            product={selectedProduct}
+            onAddToQueue={handleVariationAdd}
+            onClose={() => {
+              setShowVariationSelector(false);
+              setSelectedProduct(null);
+            }}
+          />
+        </div>
+      )}
     </>
   );
 };
