@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { 
   Sidebar as RadixSidebar, 
-  SidebarTrigger, 
   SidebarContent, 
   SidebarFooter,
   SidebarMenu,
@@ -86,9 +85,8 @@ const Sidebar = () => {
   ];
 
   return (
-    <RadixSidebar className="md:block hidden">
-      <SidebarTrigger className="hidden" />
-      <SidebarContent className="bg-secondary border-r border-muted min-h-screen">
+    <RadixSidebar>
+      <SidebarContent className="bg-secondary border-r border-muted">
         <div className="p-4">
           <h1 className="font-bold text-xl">
             {currentOrganization?.name || 'Selecione a organização'}
@@ -102,17 +100,14 @@ const Sidebar = () => {
           {menuItems.map((item) => (
             <SidebarMenuItem key={item.path}>
               <SidebarMenuButton
-                asChild
                 isActive={isActive(item.path)}
                 className={`w-full justify-start gap-3 ${
                   item.disabled ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
                 onClick={item.disabled ? undefined : () => navigate(item.path)}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
-                </div>
+                <item.icon className="h-4 w-4" />
+                <span>{item.label}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
