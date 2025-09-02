@@ -14,10 +14,10 @@ export const BirthdayWidget = ({ customers, onShowBirthdays }: BirthdayWidgetPro
   const { birthdayStats } = useBirthdays(customers);
 
   return (
-    <Card className="bg-gradient-to-br from-pink-50 to-purple-50 border-pink-200 dark:from-pink-950/20 dark:to-purple-950/20 dark:border-pink-800">
+    <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-pink-700 dark:text-pink-300">
-          <Cake className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2">
+          <Cake className="h-5 w-5 text-primary" />
           Aniversariantes
         </CardTitle>
       </CardHeader>

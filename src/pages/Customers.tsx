@@ -4,10 +4,12 @@ import { Plus, Calendar, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ViewModeToggle from "@/components/ui/view-mode-toggle";
+import { Badge } from "@/components/ui/badge";
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerDialog from "@/components/customers/CustomerDialog";
+import CustomerDetails from "@/components/customers/CustomerDetails";
 import { BirthdayWidget } from "@/components/customers/BirthdayWidget";
 import { BirthdayActions } from "@/components/customers/BirthdayActions";
 import { BirthdayCampaignDialog } from "@/components/customers/BirthdayCampaignDialog";
@@ -19,10 +21,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
 import { useBirthdays } from "@/hooks/useBirthdays";
 import { getMonthOptions } from "@/utils/dateUtils";
+import { formatBRL } from "@/utils/currency";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
   const [birthdayFilter, setBirthdayFilter] = useState<string>("");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
@@ -80,6 +86,10 @@ const Customers = () => {
 
   const monthOptions = getMonthOptions();
 
+  const isRepresentative = (customer: any) => customer?.meta_data?.some((m: any) => m.key === 'is_representative' && (m.value === true || m.value === '1' || m.value === 1));
+  const totalCustomers = customers.length;
+  const representativesCount = customers.filter(isRepresentative).length;
+  const totalRevenue = customers.reduce((sum, c) => sum + (parseFloat(c.total_spent || '0') || 0), 0);
   const handleShowBirthdays = (filter: 'today' | 'upcoming' | 'thisMonth') => {
     setBirthdayFilter(filter);
     setSelectedMonth("");
@@ -91,7 +101,15 @@ const Customers = () => {
     setSearchTerm("");
   };
 
-  const getCampaignCustomers = () => {
+  const handleView = (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsDetailsOpen(true);
+  };
+
+  const handleEdit = (customer: any) => {
+    setSelectedCustomer(customer);
+    setIsEditDialogOpen(true);
+  };
     if (birthdayFilter === 'today') return getBirthdaysToday();
     if (birthdayFilter === 'upcoming') return getUpcomingBirthdays(7);
     if (birthdayFilter === 'thisMonth') return getBirthdaysThisMonth();
@@ -203,6 +221,34 @@ const Customers = () => {
             Novo Cliente
           </Button>
         </div>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Clientes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCustomers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Representantes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{representativesCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Receita total</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatBRL(totalRevenue)}</div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filtros */}
