@@ -110,6 +110,8 @@ const Customers = () => {
     setSelectedCustomer(customer);
     setIsEditDialogOpen(true);
   };
+
+  const getCampaignCustomers = () => {
     if (birthdayFilter === 'today') return getBirthdaysToday();
     if (birthdayFilter === 'upcoming') return getUpcomingBirthdays(7);
     if (birthdayFilter === 'thisMonth') return getBirthdaysThisMonth();
@@ -328,7 +330,13 @@ const Customers = () => {
           : "space-y-3"
       }>
         {filteredCustomers.map((customer) => (
-          <CustomerCard key={customer.id} customer={customer} viewMode={viewMode} />
+          <CustomerCard 
+            key={customer.id} 
+            customer={customer} 
+            viewMode={viewMode} 
+            onView={handleView}
+            onEdit={handleEdit}
+          />
         ))}
       </div>
 
@@ -344,6 +352,19 @@ const Customers = () => {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         mode="create"
+      />
+
+      <CustomerDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        customer={selectedCustomer}
+        mode="edit"
+      />
+
+      <CustomerDetails
+        open={isDetailsOpen}
+        onOpenChange={setIsDetailsOpen}
+        customer={selectedCustomer}
       />
 
       <BirthdayCampaignDialog
