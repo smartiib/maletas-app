@@ -13,7 +13,7 @@ import { Search, Filter } from 'lucide-react';
 import { useState } from 'react';
 
 export const LabelDesigner: React.FC = () => {
-  const { data: products = [] } = useWooCommerceFilteredProducts();
+  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts(1, 100);
   const { data: categories = [] } = useWooCommerceCategories();
   const {
     printQueue,
@@ -139,8 +139,13 @@ export const LabelDesigner: React.FC = () => {
 
         {/* Products grid */}
         <div className="flex-1 p-6 overflow-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredProducts.map((product) => (
+          {productsLoading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Carregando produtos...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {filteredProducts.map((product) => (
               <ProductLabelCard
                 key={product.id}
                 product={product}
@@ -149,10 +154,11 @@ export const LabelDesigner: React.FC = () => {
                 wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
                 lastPrintDate={getLastPrintDate(product.id)}
               />
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
-          {filteredProducts.length === 0 && (
+          {!productsLoading && filteredProducts.length === 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
                 {searchTerm || selectedCategory ? 
