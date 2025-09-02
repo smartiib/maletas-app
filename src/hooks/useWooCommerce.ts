@@ -543,3 +543,18 @@ export const useRepresentantes = () => {
     enabled: !!currentOrganization,
   });
 };
+
+// Combined hook for compatibility
+export const useWooCommerce = () => {
+  const { data: products = [] } = useWooCommerceFilteredProducts();
+  const { data: categories = [] } = useWooCommerceCategories();
+  const { data: orders = [] } = useWooCommerceFilteredOrders();
+  const { data: customers = [] } = useWooCommerceFilteredCustomers();
+  
+  return {
+    products,
+    categories,
+    orders,
+    customers
+  };
+};
