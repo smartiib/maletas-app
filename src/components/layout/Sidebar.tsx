@@ -43,10 +43,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggle = () => {} 
 }) => {
   const isMobile = useIsMobile();
-  const { user } = useAuth();
-  
-  // Verificar se o usuário é super administrador
-  const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
+  const { user, profile } = useAuth();
+
+  // Determinar super administrador por role (super_admin) com fallback para o e-mail específico
+  const isSuperAdmin = profile?.role === 'super_admin' || user?.email === 'douglas@agencia2b.com.br';
+  console.log('[Sidebar] email:', user?.email, 'role:', profile?.role, 'isSuperAdmin:', isSuperAdmin);
   
   const menuItems: MenuItem[] = [
     {
