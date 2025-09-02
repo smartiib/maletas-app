@@ -122,13 +122,15 @@ export const LabelDesigner: React.FC = () => {
                 <Filter className="h-4 w-4 mr-2" />
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[80] bg-background">
                 <SelectItem value="all">Todas as categorias</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </SelectItem>
-                ))}
+                {categories
+                  .filter((category: any) => category && category.id !== undefined && category.id !== null && category.id !== '')
+                  .map((category: any) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name || `Categoria ${category.id}`}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </div>
