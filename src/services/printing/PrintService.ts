@@ -54,42 +54,91 @@ export class PrintService {
     }
   }
 
-  /**
-   * Gerar PDF usando edge function
-   */
   private async generatePDF(template: PrintTemplate, renderedContent: string, options: PrintServiceOptions): Promise<string> {
     try {
-      const response = await supabase.functions.invoke('generate-pdf-template', {
-        body: {
-          template_type: template.type,
-          template_data: options.data,
-          template_config: {
-            html_template: renderedContent,
-            css_styles: template.css_styles,
-            paper_size: template.paper_size,
-            orientation: template.orientation,
-            margins: template.margins
+      // Gerar PDF no cliente usando jsPDF para evitar PDF em branco do mock no Edge
+      const { default: jsPDF } = await import('jspdf');
+
+      // Dimensões por formato
+      const data = options.data as any;
+      const format = (data?.format || 'A4') as string;
+      const layout = data?.layout || { rows: 2, cols: 2 };
+
+      const sizeByFormat: Record<string, [number, number]> = {
+        A4: [210, 297],
+        '80mm': [80, 200],
+        '58mm': [58, 200],
+        '50x30mm': [50, 30],
+        '40x20mm': [40, 20],
+      };
+
+      const pageSize = sizeByFormat[format] || sizeByFormat['A4'];
+      const doc = new jsPDF({ unit: 'mm', format: pageSize });
+
+      const labels: any[] = Array.isArray(data?.labels) ? data.labels : [];
+      const rows = layout.rows || 2;
+      const cols = layout.cols || 2;
+      const labelsPerPage = rows * cols;
+
+      const pageWidth = pageSize[0];
+      const pageHeight = pageSize[1];
+      const margin = 10;
+      const gap = 2;
+      const gridWidth = pageWidth - margin * 2;
+      const gridHeight = pageHeight - margin * 2;
+      const cellWidth = (gridWidth - gap * (cols - 1)) / cols;
+      const cellHeight = (gridHeight - gap * (rows - 1)) / rows;
+
+      const totalPages = Math.max(1, Math.ceil(labels.length / labelsPerPage));
+
+      let labelIndex = 0;
+      for (let p = 0; p < totalPages; p++) {
+        if (p > 0) doc.addPage(pageSize);
+
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const x = margin + c * (cellWidth + gap);
+            const y = margin + r * (cellHeight + gap);
+
+            // Moldura da etiqueta
+            doc.setDrawColor(220);
+            doc.rect(x, y, cellWidth, cellHeight);
+
+            const label = labels[labelIndex];
+            if (label) {
+              const lineY = (offset: number) => y + 6 + offset;
+
+              doc.setTextColor(0);
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(10);
+              const name = String(label.name || '').substring(0, 36);
+              doc.text(name, x + 2, lineY(0));
+
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(8);
+              const sku = `SKU: ${label.sku || ''}`;
+              doc.text(sku, x + 2, lineY(6));
+
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(12);
+              const price = `R$ ${(label.price || 0).toFixed(2)}`;
+              doc.text(price, x + 2, lineY(14));
+
+              // Opcional: mostrar barcode como texto
+              if (label.barcode) {
+                doc.setFont('courier', 'normal');
+                doc.setFontSize(7);
+                doc.text(String(label.barcode), x + 2, y + cellHeight - 4);
+              }
+
+              labelIndex++;
+            }
           }
         }
-      });
-
-      if (response.error) {
-        throw new Error(`Erro ao gerar PDF: ${response.error.message}`);
       }
 
-      // Criar blob e URL para download
-      const blob = new Blob([response.data], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      
-      // Download automático
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${template.type}-${Date.now()}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
+      const fileName = `${template.type}-${Date.now()}.pdf`;
+      doc.save(fileName);
       return 'PDF gerado e baixado com sucesso';
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
