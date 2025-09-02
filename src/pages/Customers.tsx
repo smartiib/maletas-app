@@ -1,31 +1,104 @@
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Calendar, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerDialog from "@/components/customers/CustomerDialog";
+import { BirthdayWidget } from "@/components/customers/BirthdayWidget";
+import { BirthdayActions } from "@/components/customers/BirthdayActions";
+import { BirthdayCampaignDialog } from "@/components/customers/BirthdayCampaignDialog";
 import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useViewMode } from "@/hooks/useViewMode";
+import { useBirthdays } from "@/hooks/useBirthdays";
+import { getMonthOptions } from "@/utils/dateUtils";
 
 const Customers = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCampaignDialogOpen, setIsCampaignDialogOpen] = useState(false);
+  const [birthdayFilter, setBirthdayFilter] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode } = useViewMode('customers');
+  const { 
+    birthdayStats, 
+    filterCustomersByBirthday, 
+    prepareBirthdayCampaignData,
+    getBirthdaysToday,
+    getUpcomingBirthdays,
+    getBirthdaysThisMonth,
+    getBirthdaysByMonth
+  } = useBirthdays(customers);
 
-  const filteredCustomers = customers.filter((customer) =>
+  // Aplicar filtros
+  let filteredCustomers = customers.filter((customer) =>
     customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Aplicar filtros de aniversário
+  if (birthdayFilter) {
+    switch (birthdayFilter) {
+      case 'today':
+        filteredCustomers = getBirthdaysToday();
+        break;
+      case 'upcoming':
+        filteredCustomers = getUpcomingBirthdays(7);
+        break;
+      case 'thisMonth':
+        filteredCustomers = getBirthdaysThisMonth();
+        break;
+      case 'specificMonth':
+        if (selectedMonth) {
+          const monthIndex = parseInt(selectedMonth);
+          filteredCustomers = getBirthdaysByMonth(monthIndex);
+        }
+        break;
+    }
+    
+    // Aplicar busca por texto após filtro de aniversário
+    if (searchTerm) {
+      filteredCustomers = filteredCustomers.filter((customer) =>
+        customer.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+  }
+
+  const monthOptions = getMonthOptions();
+
+  const handleShowBirthdays = (filter: 'today' | 'upcoming' | 'thisMonth') => {
+    setBirthdayFilter(filter);
+    setSelectedMonth("");
+  };
+
+  const clearFilters = () => {
+    setBirthdayFilter("");
+    setSelectedMonth("");
+    setSearchTerm("");
+  };
+
+  const getCampaignCustomers = () => {
+    if (birthdayFilter === 'today') return getBirthdaysToday();
+    if (birthdayFilter === 'upcoming') return getUpcomingBirthdays(7);
+    if (birthdayFilter === 'thisMonth') return getBirthdaysThisMonth();
+    if (birthdayFilter === 'specificMonth' && selectedMonth) {
+      return getBirthdaysByMonth(parseInt(selectedMonth));
+    }
+    return filteredCustomers;
+  };
 
   if (orgLoading) {
     return (
@@ -111,27 +184,92 @@ const Customers = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+      <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+        <div className="flex-1">
           <h1 className="text-2xl sm:text-3xl font-bold">Clientes</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
             Gerencie seus clientes ({customers.length} clientes)
           </p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-          <Plus className="mr-2 h-4 w-4" />
-          Novo Cliente
-        </Button>
+        
+        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+          <div className="lg:w-80">
+            <BirthdayWidget customers={customers} onShowBirthdays={handleShowBirthdays} />
+          </div>
+          
+          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" />
+            Novo Cliente
+          </Button>
+        </div>
       </div>
 
-      <div className="flex gap-4">
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-4">
         <Input
           placeholder="Buscar por nome ou email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full sm:max-w-sm"
         />
+        
+        <Select value={birthdayFilter} onValueChange={setBirthdayFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Filtrar aniversários" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="today">🎂 Aniversário hoje</SelectItem>
+            <SelectItem value="upcoming">📅 Próximos 7 dias</SelectItem>
+            <SelectItem value="thisMonth">🗓️ Este mês</SelectItem>
+            <SelectItem value="specificMonth">📆 Mês específico</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {birthdayFilter === 'specificMonth' && (
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-full sm:w-[150px]">
+              <SelectValue placeholder="Selecionar mês" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map((month) => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        {(birthdayFilter || searchTerm) && (
+          <Button variant="outline" onClick={clearFilters}>
+            <Filter className="mr-2 h-4 w-4" />
+            Limpar Filtros
+          </Button>
+        )}
       </div>
+
+      {/* Ações para campanhas */}
+      {birthdayFilter && filteredCustomers.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-gradient-to-r from-pink-50 to-purple-50 dark:from-pink-950/20 dark:to-purple-950/20 rounded-lg border border-pink-200 dark:border-pink-800">
+          <div className="flex items-center gap-3">
+            <Badge variant="secondary" className="text-pink-600">
+              {filteredCustomers.length} aniversariante{filteredCustomers.length !== 1 ? 's' : ''}
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {birthdayFilter === 'today' && 'Fazem aniversário hoje'}
+              {birthdayFilter === 'upcoming' && 'Próximos aniversários (7 dias)'}
+              {birthdayFilter === 'thisMonth' && 'Aniversariantes este mês'}
+              {birthdayFilter === 'specificMonth' && selectedMonth && `Aniversariantes em ${monthOptions[parseInt(selectedMonth)]?.label}`}
+            </span>
+          </div>
+          
+          <BirthdayActions 
+            customers={getCampaignCustomers()}
+            variant="bulk"
+            onCampaignClick={() => setIsCampaignDialogOpen(true)}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {filteredCustomers.map((customer) => (
@@ -151,6 +289,12 @@ const Customers = () => {
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         mode="create"
+      />
+
+      <BirthdayCampaignDialog
+        open={isCampaignDialogOpen}
+        onOpenChange={setIsCampaignDialogOpen}
+        customers={prepareBirthdayCampaignData(getCampaignCustomers())}
       />
     </div>
   );

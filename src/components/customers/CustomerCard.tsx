@@ -12,6 +12,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import CreateMaletaFromCustomer from '@/components/maletas/CreateMaletaFromCustomer';
+import { CustomerBirthdayBadge } from './CustomerBirthdayBadge';
+import { BirthdayActions } from './BirthdayActions';
+import { getBirthdayInfo } from '@/utils/dateUtils';
 
 interface CustomerCardProps {
   customer: Customer;
@@ -32,6 +35,8 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
     return customer.meta_data?.some(meta => meta.key === 'is_representative' && (meta.value === true || meta.value === '1' || meta.value === 1));
   };
 
+  const birthdayInfo = getBirthdayInfo(customer);
+
   return (
     <Card className="hover:shadow-md transition-all-smooth">
       <CardContent className="p-4">
@@ -46,12 +51,18 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">
                       {customer.first_name} {customer.last_name}
+                      {birthdayInfo.isToday && <span className="ml-2">🎂</span>}
                     </h3>
                     {isRepresentative(customer) && (
                       <Crown className="w-4 h-4 text-warning" />
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">ID: {customer.id}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">ID: {customer.id}</p>
+                    {birthdayInfo.age && (
+                      <span className="text-xs text-muted-foreground">{birthdayInfo.age} anos</span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -74,18 +85,26 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
                <span className="font-semibold">
                  R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
                </span>
-              {isRepresentative(customer) ? (
-                <Badge variant="secondary" className="bg-warning-100 text-warning-800">
-                  <Crown className="w-3 h-3 mr-1" />
-                  Representante
-                </Badge>
-              ) : (
-                <Badge variant="outline">Cliente</Badge>
-              )}
+              <div className="flex flex-wrap gap-1">
+                {isRepresentative(customer) && (
+                  <Badge variant="secondary" className="bg-warning-100 text-warning-800">
+                    <Crown className="w-3 h-3 mr-1" />
+                    Representante
+                  </Badge>
+                )}
+                <CustomerBirthdayBadge customer={customer} variant="compact" />
+                {customer.orders_count > 0 && (
+                  <Badge variant="outline" className="text-xs">
+                    {customer.orders_count} pedidos
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           
-          <div className={viewMode === 'grid' ? 'flex justify-end' : ''}>
+          <div className={viewMode === 'grid' ? 'flex justify-end gap-2' : 'flex items-center gap-2'}>
+            <BirthdayActions customer={customer} variant="individual" />
+            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="sm">
