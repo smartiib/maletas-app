@@ -113,7 +113,11 @@ const POS = () => {
   // Ordenar categorias por quantidade de produtos (mais produtos primeiro)
   const categoriesWithCounts = categoriesData.map(categoryName => ({
     name: categoryName,
-    productCount: products.filter(p => p.categories?.some(c => c.name === categoryName)).length
+    productCount: products.filter(p => p.categories?.some(c => {
+      // Handle both string categories and object categories
+      const categoryName = typeof c === 'string' ? c : c?.name;
+      return categoryName === categoryName;
+    })).length
   })).sort((a, b) => b.productCount - a.productCount);
 
   const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
@@ -137,7 +141,11 @@ const POS = () => {
       
       // Filtro de categoria
       const matchesCategory = selectedCategory === 'Todos' || 
-                             product.categories?.some(cat => cat.name === selectedCategory);
+                             product.categories?.some(cat => {
+                               // Handle both string categories and object categories
+                               const categoryName = typeof cat === 'string' ? cat : cat?.name;
+                               return categoryName === selectedCategory;
+                             });
       
       return matchesSearch && matchesCategory;
     })
