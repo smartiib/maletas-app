@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { PrintTemplate, LabelData } from '@/types/printing';
+import { usePrintService } from '@/hooks/usePrintService';
 import { toast } from 'sonner';
 
 interface PrintItem {
@@ -46,6 +47,7 @@ interface PrintSettings {
 export const useLabelPrinting = () => {
   const { currentOrganization } = useOrganization();
   const queryClient = useQueryClient();
+  const { print, getDefaultTemplate, loadTemplates } = usePrintService();
   
   const [printQueue, setPrintQueue] = useState<PrintItem[]>([]);
   const [settings, setSettings] = useState<PrintSettings>({
@@ -56,6 +58,7 @@ export const useLabelPrinting = () => {
     includeQRCode: false
   });
   const [selectedTemplate, setSelectedTemplate] = useState<PrintTemplate | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Carregar configurações salvas
   useEffect(() => {
@@ -80,6 +83,60 @@ export const useLabelPrinting = () => {
 
     loadSavedSettings();
   }, [currentOrganization?.id]);
+
+  // Buscar histórico de impressão
+  const { data: printHistory = [] } = useQuery({
+    queryKey: ['label-print-history', currentOrganization?.id],
+    enabled: !!currentOrganization?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('label_print_history')
+        .select('*')
+        .eq('organization_id', currentOrganization!.id)
+        .gte('printed_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
+        .order('printed_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar histórico:', error);
+        return [];
+      }
+
+      return data as PrintHistory[];
+    }
+  });
+
+  // Carregar templates disponíveis
+  const { data: availableTemplates = [] } = useQuery({
+    queryKey: ['label-templates', settings.labelType],
+    queryFn: async () => {
+      return await loadTemplates('etiqueta');
+    }
+  });
+
+  // Salvar histórico de impressão
+  const savePrintHistoryMutation = useMutation({
+    mutationFn: async (items: PrintItem[]) => {
+      const historyData = items.map(item => ({
+        product_id: item.id,
+        product_name: item.name,
+        product_sku: item.sku,
+        quantity: item.quantity,
+        label_type: settings.labelType,
+        format: settings.format,
+        organization_id: currentOrganization!.id
+      }));
+
+      const { error } = await supabase
+        .from('label_print_history')
+        .insert(historyData);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['label-print-history'] });
+      console.log('Histórico de impressão salvo');
+    }
+  });
 
   // Salvar configurações
   const saveSettings = useCallback(async () => {
@@ -106,52 +163,6 @@ export const useLabelPrinting = () => {
       toast.error('Erro ao salvar configurações');
     }
   }, [settings, currentOrganization?.id]);
-
-  // Buscar histórico de impressão
-  const { data: printHistory = [] } = useQuery({
-    queryKey: ['label-print-history', currentOrganization?.id],
-    enabled: !!currentOrganization?.id,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('label_print_history')
-        .select('*')
-        .eq('organization_id', currentOrganization!.id)
-        .gte('printed_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString())
-        .order('printed_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao buscar histórico:', error);
-        return [];
-      }
-
-      return data as PrintHistory[];
-    }
-  });
-
-  // Salvar histórico de impressão
-  const savePrintHistoryMutation = useMutation({
-    mutationFn: async (items: PrintItem[]) => {
-      const historyData = items.map(item => ({
-        product_id: item.id,
-        product_name: item.name,
-        product_sku: item.sku,
-        quantity: item.quantity,
-        label_type: settings.labelType,
-        format: settings.format,
-        organization_id: currentOrganization!.id
-      }));
-
-      const { error } = await supabase
-        .from('label_print_history')
-        .insert(historyData);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['label-print-history'] });
-      toast.success('Histórico de impressão salvo');
-    }
-  });
 
   const addToQueue = useCallback((product: any, quantity: number = 1) => {
     const existingItem = printQueue.find(item => item.id === product.id);
@@ -338,27 +349,79 @@ ${label.qr_code ? `^FO200,200^BQ^FDMA,${label.qr_code}^FS` : ''}
     }
   };
 
+  // Função principal de impressão usando PrintService
   const printLabels = useCallback(async () => {
     if (printQueue.length === 0) {
       toast.error('Nenhum produto na fila de impressão');
       return;
     }
 
+    setIsLoading(true);
+    console.log('[useLabelPrinting] Iniciando impressão...', { 
+      queueLength: printQueue.length,
+      settings,
+      selectedTemplate: selectedTemplate?.id 
+    });
+
     try {
+      // 1. Buscar template padrão se nenhum foi selecionado
+      let templateToUse = selectedTemplate;
+      if (!templateToUse) {
+        console.log('[useLabelPrinting] Buscando template padrão...');
+        templateToUse = await getDefaultTemplate('etiqueta');
+        
+        if (!templateToUse) {
+          toast.error('Nenhum template de etiqueta encontrado. Configure um template primeiro.');
+          return;
+        }
+        
+        console.log('[useLabelPrinting] Template padrão encontrado:', templateToUse.name);
+      }
+
+      // 2. Preparar dados das etiquetas
+      const labelData = prepareLabelData();
+      console.log('[useLabelPrinting] Dados das etiquetas preparados:', labelData.length);
+
+      // 3. Usar PrintService para gerar PDF
+      console.log('[useLabelPrinting] Chamando PrintService...');
+      const result = await print('etiqueta', {
+        labels: labelData,
+        settings: settings,
+        layout: getGridLayout(settings.layout),
+        format: settings.format,
+        includeBarcode: settings.includeBarcode,
+        includeQRCode: settings.includeQRCode
+      }, {
+        template: templateToUse,
+        quantity: 1,
+        priority: 0
+      });
+
+      console.log('[useLabelPrinting] Resultado da impressão:', result);
+
+      // 4. Salvar histórico após impressão bem-sucedida
       await savePrintHistoryMutation.mutateAsync(printQueue);
+
+      // 5. Limpar fila após sucesso
       clearQueue();
-      toast.success(`${printQueue.length} etiquetas enviadas para impressão`);
+      
+      toast.success('Etiquetas impressas com sucesso!');
+      
     } catch (error) {
-      console.error('Erro ao imprimir:', error);
-      toast.error('Erro ao processar impressão');
+      console.error('[useLabelPrinting] Erro ao imprimir:', error);
+      toast.error(`Erro ao imprimir etiquetas: ${error.message}`);
+    } finally {
+      setIsLoading(false);
     }
-  }, [printQueue, savePrintHistoryMutation, clearQueue]);
+  }, [printQueue, settings, selectedTemplate, prepareLabelData, print, getDefaultTemplate, savePrintHistoryMutation, clearQueue]);
 
   return {
     printQueue,
     settings,
     printHistory,
     selectedTemplate,
+    availableTemplates,
+    isLoading,
     
     addToQueue,
     removeFromQueue,

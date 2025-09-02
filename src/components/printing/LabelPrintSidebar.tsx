@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +16,8 @@ import {
   Download,
   Settings2,
   ShoppingCart,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 
 interface PrintItem {
@@ -58,8 +58,9 @@ interface LabelPrintSidebarProps {
   onPreview?: () => void;
   onGenerateZPL?: () => void;
   onSaveSettings?: () => void;
-  onCustomize?: () => void; // novo handler para abrir editor diretamente
+  onCustomize?: () => void;
   loading?: boolean;
+  isLoading?: boolean;
 }
 
 export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
@@ -75,7 +76,8 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
   onGenerateZPL,
   onSaveSettings,
   onCustomize,
-  loading = false
+  loading = false,
+  isLoading = false
 }) => {
   const handleCustomSizeChange = (field: 'width' | 'height' | 'unit', value: any) => {
     onUpdateSettings({
@@ -326,12 +328,21 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
         <div className="p-4 border-b bg-muted/20 space-y-3">
           <Button
             onClick={onPrintLabels}
-            disabled={loading}
+            disabled={loading || isLoading}
             className="w-full"
             size="lg"
           >
-            <Printer className="h-4 w-4 mr-2" />
-            Imprimir {totalQuantity} Etiquetas
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Gerando PDF...
+              </>
+            ) : (
+              <>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimir {totalQuantity} Etiquetas
+              </>
+            )}
           </Button>
 
           <div className="flex gap-2">
@@ -341,6 +352,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                 size="sm"
                 onClick={onPreview}
                 className="flex-1"
+                disabled={isLoading}
               >
                 <Eye className="h-4 w-4 mr-1" />
                 Preview
@@ -352,6 +364,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                 size="sm"
                 onClick={onGenerateZPL}
                 className="flex-1"
+                disabled={isLoading}
               >
                 <Download className="h-4 w-4 mr-1" />
                 ZPL
@@ -364,6 +377,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
             size="sm"
             onClick={onClearQueue}
             className="w-full"
+            disabled={isLoading}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Limpar Fila
@@ -397,6 +411,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                             onUpdateQuantity(item.id, parseInt(e.target.value) || 1)
                           }
                           className="w-12 h-6 text-xs p-1"
+                          disabled={isLoading}
                         />
                         <h4 className="font-medium text-sm line-clamp-1">
                           {item.name}
@@ -412,6 +427,7 @@ export const LabelPrintSidebar: React.FC<LabelPrintSidebarProps> = ({
                       size="sm"
                       className="h-6 w-6 p-0 ml-2"
                       onClick={() => onRemoveFromQueue(item.id)}
+                      disabled={isLoading}
                     >
                       <X className="h-3 w-3" />
                     </Button>
