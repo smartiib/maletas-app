@@ -213,20 +213,14 @@ const Customers = () => {
           </p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-          <div className="lg:w-80">
-            <BirthdayWidget customers={customers} onShowBirthdays={handleShowBirthdays} />
-          </div>
-          
-          <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
-            <Plus className="mr-2 h-4 w-4" />
-            Novo Cliente
-          </Button>
-        </div>
+        <Button onClick={() => setIsDialogOpen(true)} className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Cliente
+        </Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Clientes</CardTitle>
@@ -251,6 +245,7 @@ const Customers = () => {
             <div className="text-2xl font-bold">{formatBRL(totalRevenue)}</div>
           </CardContent>
         </Card>
+        <BirthdayWidget customers={customers} onShowBirthdays={handleShowBirthdays} />
       </div>
 
       {/* Filtros */}
