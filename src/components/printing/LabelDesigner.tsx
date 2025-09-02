@@ -37,7 +37,7 @@ export const LabelDesigner: React.FC = () => {
   } = useLabelPrinting();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPreview, setShowPreview] = useState(false);
 
   // Log para debug
@@ -55,7 +55,7 @@ export const LabelDesigner: React.FC = () => {
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || 
+    const matchesCategory = !selectedCategory || selectedCategory === 'all' || 
                            product.categories?.some((cat: any) => cat.id.toString() === selectedCategory);
     return matchesSearch && matchesCategory;
   });
@@ -123,7 +123,7 @@ export const LabelDesigner: React.FC = () => {
                 <SelectValue placeholder="Categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todas as categorias</SelectItem>
+                <SelectItem value="all">Todas as categorias</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id.toString()}>
                     {category.name}
