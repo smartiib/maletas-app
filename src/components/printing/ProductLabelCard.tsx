@@ -21,7 +21,7 @@ interface ProductLabelCardProps {
   isInQueue: boolean;
   wasRecentlyPrinted: boolean;
   lastPrintDate?: Date | null;
-  onAddToQueue: () => void;
+  onAddToQueue: (product: any, quantity?: number) => void;
   onSelectVariations?: () => void;
 }
 
@@ -52,7 +52,7 @@ export const ProductLabelCard: React.FC<ProductLabelCardProps> = ({
       if (hasVariations && onSelectVariations) {
         onSelectVariations();
       } else {
-        onAddToQueue();
+        onAddToQueue(product, 1);
       }
     }
   };

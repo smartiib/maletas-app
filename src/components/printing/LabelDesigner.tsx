@@ -1,7 +1,7 @@
 
 import React, { useEffect } from 'react';
 import { useLabelPrinting } from '@/hooks/useLabelPrinting';
-import { useWooCommerce } from '@/hooks/useWooCommerce';
+import { useWooCommerceFilteredProducts, useWooCommerceCategories } from '@/hooks/useWooCommerce';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
 import { LabelPreviewDialog } from './LabelPreviewDialog';
@@ -13,7 +13,8 @@ import { Search, Filter } from 'lucide-react';
 import { useState } from 'react';
 
 export const LabelDesigner: React.FC = () => {
-  const { products, categories } = useWooCommerce();
+  const { data: products = [] } = useWooCommerceFilteredProducts();
+  const { data: categories = [] } = useWooCommerceCategories();
   const {
     printQueue,
     settings,
@@ -140,7 +141,7 @@ export const LabelDesigner: React.FC = () => {
               <ProductLabelCard
                 key={product.id}
                 product={product}
-                onAddToQueue={addToQueue}
+                onAddToQueue={(product, quantity) => addToQueue(product, quantity)}
                 isInQueue={isProductInQueue(product.id)}
                 wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
               />
