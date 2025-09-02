@@ -329,6 +329,7 @@ export type Database = {
           id: string
           maleta_id: string
           name: string
+          organization_id: string | null
           price: number
           product_id: number
           quantity: number
@@ -343,6 +344,7 @@ export type Database = {
           id?: string
           maleta_id: string
           name: string
+          organization_id?: string | null
           price: number
           product_id: number
           quantity: number
@@ -357,6 +359,7 @@ export type Database = {
           id?: string
           maleta_id?: string
           name?: string
+          organization_id?: string | null
           price?: number
           product_id?: number
           quantity?: number
@@ -374,6 +377,13 @@ export type Database = {
             referencedRelation: "maletas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "maleta_items_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       maleta_returns: {
@@ -387,6 +397,7 @@ export type Database = {
           items_sold: Json
           maleta_id: string
           notes: string | null
+          organization_id: string | null
           penalty_amount: number | null
           return_date: string
         }
@@ -400,6 +411,7 @@ export type Database = {
           items_sold?: Json
           maleta_id: string
           notes?: string | null
+          organization_id?: string | null
           penalty_amount?: number | null
           return_date?: string
         }
@@ -413,6 +425,7 @@ export type Database = {
           items_sold?: Json
           maleta_id?: string
           notes?: string | null
+          organization_id?: string | null
           penalty_amount?: number | null
           return_date?: string
         }
@@ -422,6 +435,13 @@ export type Database = {
             columns: ["maleta_id"]
             isOneToOne: false
             referencedRelation: "maletas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maleta_returns_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
