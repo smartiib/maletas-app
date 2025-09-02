@@ -38,23 +38,23 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
   const birthdayInfo = getBirthdayInfo(customer);
 
   return (
-    <Card className="hover:shadow-md transition-all-smooth">
+    <Card className="hover:shadow-md transition-all duration-200">
       <CardContent className="p-4">
         <div className={viewMode === 'grid' ? 'space-y-4' : 'flex items-center justify-between'}>
           <div className="flex-1">
             <div className={viewMode === 'grid' ? 'space-y-3' : 'flex items-center gap-4'}>
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
-                  <User className="w-6 h-6 text-primary-foreground" />
+                <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-primary" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">
+                    <h3 className="font-semibold text-foreground">
                       {customer.first_name} {customer.last_name}
-                      {birthdayInfo.isToday && <span className="ml-2">🎂</span>}
+                      {birthdayInfo.isToday && <span className="ml-1">🎂</span>}
                     </h3>
                     {isRepresentative(customer) && (
-                      <Crown className="w-4 h-4 text-warning" />
+                      <Crown className="w-4 h-4 text-yellow-600" />
                     )}
                   </div>
                   <div className="flex items-center justify-between">
@@ -68,26 +68,35 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
             </div>
             
             <div className={viewMode === 'grid' ? 'space-y-2 mt-3' : 'flex items-center gap-6 ml-16'}>
-              <div className="flex items-center gap-1 text-sm">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Mail className="w-3 h-3" />
-                {customer.email}
+                <span>{customer.email}</span>
               </div>
-              {customer.billing.phone && (
-                <div className="flex items-center gap-1 text-sm">
+              {customer.billing?.phone && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Phone className="w-3 h-3" />
-                  {customer.billing.phone}
+                  <span>{customer.billing.phone}</span>
                 </div>
               )}
-              <div className="flex items-center gap-1 text-sm">
-                <MapPin className="w-3 h-3" />
-                {customer.billing.city}, {customer.billing.state}
+              {(customer.billing?.city || customer.billing?.state) && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="w-3 h-3" />
+                  <span>{customer.billing.city}{customer.billing.city && customer.billing.state && ', '}{customer.billing.state}</span>
+                </div>
+              )}
+            </div>
+
+            <div className={viewMode === 'grid' ? 'mt-3 space-y-2' : 'ml-16'}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Total gasto:</span>
+                <span className="font-semibold text-green-600">
+                  R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
+                </span>
               </div>
-               <span className="font-semibold">
-                 R$ {(parseFloat(customer.total_spent || '0') || 0).toFixed(2)}
-               </span>
+              
               <div className="flex flex-wrap gap-1">
                 {isRepresentative(customer) && (
-                  <Badge variant="secondary" className="bg-warning-100 text-warning-800">
+                  <Badge variant="secondary" className="text-yellow-700 bg-yellow-100 border-yellow-200">
                     <Crown className="w-3 h-3 mr-1" />
                     Representante
                   </Badge>
@@ -102,7 +111,7 @@ const CustomerCard: React.FC<CustomerCardProps> = ({
             </div>
           </div>
           
-          <div className={viewMode === 'grid' ? 'flex justify-end gap-2' : 'flex items-center gap-2'}>
+          <div className={viewMode === 'grid' ? 'flex justify-end gap-2 mt-2' : 'flex items-center gap-2'}>
             <BirthdayActions customer={customer} variant="individual" />
             
             <DropdownMenu>

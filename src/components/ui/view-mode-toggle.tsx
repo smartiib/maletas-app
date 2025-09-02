@@ -1,42 +1,52 @@
-
-import React from 'react';
-import { LayoutGrid, LayoutList } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { ViewMode } from '@/hooks/useViewMode';
+import { Button } from "@/components/ui/button";
+import { Grid3X3, List } from "lucide-react";
+import { ViewMode } from "@/hooks/useViewMode";
 
 interface ViewModeToggleProps {
   viewMode: ViewMode;
-  onToggle: () => void;
+  onViewModeChange?: (mode: ViewMode) => void;
+  onToggle?: () => void;
   className?: string;
 }
 
-const ViewModeToggle: React.FC<ViewModeToggleProps> = ({
-  viewMode,
-  onToggle,
-  className
-}) => {
+const ViewModeToggle = ({ viewMode, onViewModeChange, onToggle, className }: ViewModeToggleProps) => {
+  const handleGridClick = () => {
+    if (onViewModeChange) {
+      onViewModeChange('grid');
+    } else if (onToggle && viewMode === 'list') {
+      onToggle();
+    }
+  };
+
+  const handleListClick = () => {
+    if (onViewModeChange) {
+      onViewModeChange('list');
+    } else if (onToggle && viewMode === 'grid') {
+      onToggle();
+    }
+  };
+
   return (
-    <div className={`flex border rounded-md overflow-hidden ${className || ''}`}>
-      <Button
-        variant={viewMode === 'list' ? 'default' : 'ghost'}
-        size="sm"
-        onClick={() => viewMode !== 'list' && onToggle()}
-        className="rounded-none border-r-0"
-      >
-        <LayoutList className="w-4 h-4" />
-        <span className="ml-2 hidden sm:inline">Lista</span>
-      </Button>
+    <div className={`flex items-center gap-1 border rounded-lg p-1 ${className || ''}`}>
       <Button
         variant={viewMode === 'grid' ? 'default' : 'ghost'}
         size="sm"
-        onClick={() => viewMode !== 'grid' && onToggle()}
-        className="rounded-none"
+        onClick={handleGridClick}
+        className="h-8 w-8 p-0"
       >
-        <LayoutGrid className="w-4 h-4" />
-        <span className="ml-2 hidden sm:inline">Grade</span>
+        <Grid3X3 className="h-4 w-4" />
+      </Button>
+      <Button
+        variant={viewMode === 'list' ? 'default' : 'ghost'}
+        size="sm"
+        onClick={handleListClick}
+        className="h-8 w-8 p-0"
+      >
+        <List className="h-4 w-4" />
       </Button>
     </div>
   );
 };
 
 export default ViewModeToggle;
+export { ViewModeToggle };

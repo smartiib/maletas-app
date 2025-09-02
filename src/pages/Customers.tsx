@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import ViewModeToggle from "@/components/ui/view-mode-toggle";
 import CustomerCard from "@/components/customers/CustomerCard";
 import CustomerDialog from "@/components/customers/CustomerDialog";
 import { BirthdayWidget } from "@/components/customers/BirthdayWidget";
@@ -29,7 +30,7 @@ const Customers = () => {
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
   const { isConfigured } = useWooCommerceConfig();
-  const { viewMode } = useViewMode('customers');
+  const { viewMode, setViewMode } = useViewMode('customers');
   const { 
     birthdayStats, 
     filterCustomersByBirthday, 
@@ -205,7 +206,7 @@ const Customers = () => {
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-4 items-center">
         <Input
           placeholder="Buscar por nome ou email..."
           value={searchTerm}
@@ -246,6 +247,10 @@ const Customers = () => {
             Limpar Filtros
           </Button>
         )}
+
+        <div className="ml-auto">
+          <ViewModeToggle viewMode={viewMode} onViewModeChange={setViewMode} />
+        </div>
       </div>
 
       {/* Ações para campanhas */}
@@ -271,7 +276,11 @@ const Customers = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className={
+        viewMode === 'grid' 
+          ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6" 
+          : "space-y-3"
+      }>
         {filteredCustomers.map((customer) => (
           <CustomerCard key={customer.id} customer={customer} viewMode={viewMode} />
         ))}
