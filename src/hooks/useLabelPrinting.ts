@@ -113,6 +113,17 @@ export const useLabelPrinting = () => {
     }
   });
 
+  // Se nenhum template estiver selecionado, selecionar o padrão automaticamente quando disponível
+  useEffect(() => {
+    const selectDefault = async () => {
+      if (!selectedTemplate && availableTemplates && availableTemplates.length > 0) {
+        const def = await getDefaultTemplate('etiqueta');
+        if (def) setSelectedTemplate(def);
+      }
+    };
+    selectDefault();
+  }, [selectedTemplate, availableTemplates, getDefaultTemplate]);
+
   // Salvar histórico de impressão
   const savePrintHistoryMutation = useMutation({
     mutationFn: async (items: PrintItem[]) => {
