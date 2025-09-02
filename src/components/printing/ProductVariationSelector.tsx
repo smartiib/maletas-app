@@ -1,298 +1,236 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Package, Plus, Minus, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
-import ProductResyncButton from '@/components/products/ProductResyncButton';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Minus, Package } from 'lucide-react';
+import { useWooCommerceProduct } from '@/hooks/useWooCommerce';
 
 interface ProductVariationSelectorProps {
+  isOpen: boolean;
+  onClose: () => void;
   product: {
     id: number;
     name: string;
     sku?: string;
-    price?: string;
-    sale_price?: string;
-    regular_price?: string;
-    images?: Array<{ src: string; alt?: string }>;
     type?: string;
     variations?: any[];
-  };
-  onAddToQueue: (product: any, variation?: any, quantity?: number) => void;
-  onClose: () => void;
+    images?: Array<{ src: string; alt?: string }>;
+  } | null;
+  onAddToQueue: (variation: any, quantity: number) => void;
 }
 
-const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
+interface VariationSelection {
+  variationId: number;
+  quantity: number;
+  variation: any;
+}
+
+export const ProductVariationSelector: React.FC<ProductVariationSelectorProps> = ({
+  isOpen,
+  onClose,
   product,
-  onAddToQueue,
-  onClose
+  onAddToQueue
 }) => {
-  const [expandedProduct, setExpandedProduct] = useState(true);
-  const [selectedVariations, setSelectedVariations] = useState<Record<number, number>>({});
+  const [selections, setSelections] = useState<VariationSelection[]>([]);
+  const { data: productDetails } = useWooCommerceProduct(product?.id.toString() || '');
 
-  const hasVariations = product.type === 'variable' && product.variations?.length;
-  const variationIds = hasVariations 
-    ? (product.variations || [])
-        .map((v: any) => (typeof v === 'object' && v?.id ? Number(v.id) : Number(v)))
-        .filter((id: any) => typeof id === 'number' && !Number.isNaN(id))
-    : [];
-
-  const { data: dbVariationsParent = [] } = useProductVariations(
-    hasVariations ? product.id : undefined
-  );
-
-  const missingIds = hasVariations && dbVariationsParent?.length 
-    ? variationIds.filter(id => !dbVariationsParent.find((v: any) => Number(v.id) === id))
-    : variationIds;
-
-  const { data: dbVariationsByIds = [] } = useProductVariationsByIds(
-    missingIds.length > 0 ? missingIds : undefined
-  );
-
-  const dbVariations = React.useMemo(() => {
-    const map = new Map<number, any>();
-    (dbVariationsParent || []).forEach((v: any) => map.set(Number(v.id), v));
-    (dbVariationsByIds || []).forEach((v: any) => map.set(Number(v.id), v));
-    return Array.from(map.values());
-  }, [dbVariationsParent, dbVariationsByIds]);
-
-  const displaySku = product.sku || `PROD-${product.id}`;
-  const imageUrl = product.images?.[0]?.src || '/placeholder.svg';
-
-  const formatAttributes = (attributes: any): string => {
-    if (!attributes) return 'Variação';
-    
-    let attrs = attributes;
-    if (typeof attrs === 'string') {
-      try { attrs = JSON.parse(attrs); } catch { return 'Variação'; }
+  // Reset selections when dialog opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelections([]);
     }
-    if (!Array.isArray(attrs)) return 'Variação';
+  }, [isOpen]);
 
-    const prettifyName = (name: string) => {
-      const nameMap: { [key: string]: string } = {
-        'pa_tamanho-do-anel': 'Tamanho',
-        'pa_tamanho': 'Tamanho',
-        'pa_size': 'Tamanho',
-        'pa_cor': 'Cor',
-        'pa_color': 'Cor',
-        'pa_material': 'Material'
+  if (!product) return null;
+
+  const variations = productDetails?.variations || product.variations || [];
+
+  const updateQuantity = (variationId: number, quantity: number) => {
+    setSelections(prev => {
+      const existing = prev.find(s => s.variationId === variationId);
+      if (existing) {
+        if (quantity <= 0) {
+          return prev.filter(s => s.variationId !== variationId);
+        }
+        return prev.map(s => 
+          s.variationId === variationId 
+            ? { ...s, quantity }
+            : s
+        );
+      } else if (quantity > 0) {
+        const variation = variations.find((v: any) => v.id === variationId);
+        if (variation) {
+          return [...prev, { variationId, quantity, variation }];
+        }
+      }
+      return prev;
+    });
+  };
+
+  const getQuantity = (variationId: number) => {
+    return selections.find(s => s.variationId === variationId)?.quantity || 0;
+  };
+
+  const handleAddSelected = () => {
+    selections.forEach(selection => {
+      // Create a product-like object for the variation
+      const variationProduct = {
+        ...product,
+        id: selection.variation.id,
+        name: `${product.name} - ${getVariationName(selection.variation)}`,
+        sku: selection.variation.sku || `${product.sku}-VAR-${selection.variation.id}`,
+        price: selection.variation.price || selection.variation.regular_price || '0',
+        variation_id: selection.variation.id,
+        parent_id: product.id,
+        attributes: selection.variation.attributes
       };
-      return nameMap[name] || name.replace(/^pa_/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    };
-
-    return attrs
-      .map((attr: any) => {
-        const name = attr?.name ?? attr?.slug ?? '';
-        const option = attr?.option ?? (Array.isArray(attr?.options) ? attr.options[0] : '');
-        return `${prettifyName(name)}: ${option}`;
-      })
-      .filter(Boolean)
-      .join(', ') || 'Variação';
-  };
-
-  const handleAddSimpleProduct = () => {
-    onAddToQueue(product);
+      
+      onAddToQueue(variationProduct, selection.quantity);
+    });
+    
     onClose();
   };
 
-  const updateVariationQuantity = (variationId: number, delta: number) => {
-    setSelectedVariations(prev => {
-      const current = prev[variationId] || 0;
-      const newQuantity = Math.max(0, current + delta);
-      if (newQuantity === 0) {
-        const { [variationId]: removed, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [variationId]: newQuantity };
-    });
+  const getVariationName = (variation: any) => {
+    if (!variation.attributes || !Array.isArray(variation.attributes)) {
+      return `Variação ${variation.id}`;
+    }
+    
+    return variation.attributes
+      .map((attr: any) => `${attr.name}: ${attr.option}`)
+      .join(', ') || `Variação ${variation.id}`;
   };
 
-  const handleAddSelectedVariations = () => {
-    Object.entries(selectedVariations).forEach(([variationId, quantity]) => {
-      const variation = dbVariations.find(v => Number(v.id) === Number(variationId));
-      if (variation && quantity > 0) {
-        const variationData = {
-          ...product,
-          id: variation.id,
-          name: `${product.name} - ${formatAttributes(variation.attributes)}`,
-          sku: variation.sku || `${product.sku || product.id}-${variation.id}`,
-          price: variation.price || variation.regular_price || product.price,
-          variation_id: variation.id,
-          parent_id: product.id,
-          is_variation: true
-        };
-        
-        // Adicionar uma única vez com a quantidade especificada
-        onAddToQueue(variationData, variation, quantity);
-      }
-    });
-    onClose();
+  const formatPrice = (price: string | number) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(numPrice) ? 'Preço não definido' : `R$ ${numPrice.toFixed(2)}`;
   };
 
-  const totalSelected = Object.values(selectedVariations).reduce((sum, qty) => sum + qty, 0);
+  const totalQuantity = selections.reduce((total, s) => total + s.quantity, 0);
 
-  if (!hasVariations) {
-    // Produto simples
-    return (
-      <Card className="w-full max-w-md">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium">Adicionar Produto</h3>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Selecionar Variações - {product.name}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Product info */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                {product.images?.[0]?.src ? (
+                  <img
+                    src={product.images[0].src}
+                    alt={product.name}
+                    className="w-16 h-16 object-cover rounded-md"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center">
+                    <Package className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <h3 className="font-medium">{product.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    SKU: {product.sku || `PROD-${product.id}`}
+                  </p>
+                  <Badge variant="outline" className="mt-1">
+                    {variations.length} variações disponíveis
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Variations list */}
+          <div className="space-y-3">
+            <Label className="text-base font-medium">Variações Disponíveis:</Label>
+            
+            {variations.map((variation: any) => {
+              const quantity = getQuantity(variation.id);
+              
+              return (
+                <Card key={variation.id} className={quantity > 0 ? 'border-primary' : ''}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-sm">
+                          {getVariationName(variation)}
+                        </h4>
+                        <div className="flex gap-4 mt-1 text-xs text-muted-foreground">
+                          <span>SKU: {variation.sku || `VAR-${variation.id}`}</span>
+                          <span>{formatPrice(variation.price || variation.regular_price || 0)}</span>
+                          {variation.stock_quantity !== undefined && (
+                            <span>Estoque: {variation.stock_quantity}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateQuantity(variation.id, Math.max(0, quantity - 1))}
+                          disabled={quantity === 0}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        
+                        <Input
+                          type="number"
+                          min="0"
+                          value={quantity}
+                          onChange={(e) => updateQuantity(variation.id, parseInt(e.target.value) || 0)}
+                          className="w-16 text-center"
+                        />
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateQuantity(variation.id, quantity + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
 
-          <div className="flex gap-3 mb-4">
-            <div className="w-16 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-              {imageUrl !== '/placeholder.svg' ? (
-                <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
+          {/* Summary and actions */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="text-sm text-muted-foreground">
+              {totalQuantity > 0 ? (
+                <span>Total: {totalQuantity} etiquetas selecionadas</span>
               ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="h-6 w-6 text-muted-foreground" />
-                </div>
+                <span>Nenhuma variação selecionada</span>
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-medium text-sm leading-tight line-clamp-2">{product.name}</h4>
-              <p className="text-xs text-muted-foreground mt-1">SKU: {displaySku}</p>
-            </div>
-          </div>
-
-          <Button onClick={handleAddSimpleProduct} className="w-full">
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar à Fila
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Produto com variações
-  return (
-    <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
-      <CardContent className="p-4 flex flex-col flex-1 min-h-0">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">Selecionar Variações</h3>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-
-        {/* Informações do produto */}
-        <div className="flex gap-3 mb-4">
-          <div className="w-16 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-            {imageUrl !== '/placeholder.svg' ? (
-              <img src={imageUrl} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Package className="h-6 w-6 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-sm leading-tight line-clamp-2">{product.name}</h4>
-            <p className="text-xs text-muted-foreground mt-1">SKU: {displaySku}</p>
-            <Badge variant="secondary" className="text-xs mt-1">
-              {dbVariations.length} variações
-            </Badge>
-          </div>
-        </div>
-
-        <Separator className="mb-4" />
-
-        {/* Lista de variações */}
-        <div className="flex-1 overflow-auto space-y-2">
-          {dbVariations.length > 0 ? (
-            dbVariations.map((variation) => {
-              const variationId = Number(variation.id);
-              const selectedQuantity = selectedVariations[variationId] || 0;
-              const stockQuantity = Math.max(0, Number(variation.stock_quantity) || 0);
-
-              return (
-                <div key={variationId} className="p-3 bg-muted/40 rounded-lg">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium line-clamp-1">
-                        {formatAttributes(variation.attributes)}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        SKU: {variation.sku || `${displaySku}-${variationId}`}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        Estoque: {stockQuantity}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => updateVariationQuantity(variationId, -1)}
-                        disabled={selectedQuantity === 0}
-                      >
-                        <Minus className="w-3 h-3" />
-                      </Button>
-                      
-                      <span className="text-sm font-medium w-8 text-center">
-                        {selectedQuantity}
-                      </span>
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => updateVariationQuantity(variationId, 1)}
-                      >
-                        <Plus className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-center">
-              <p className="text-sm text-amber-800 mb-3">
-                Este produto variável não possui variações sincronizadas.
-              </p>
-              <ProductResyncButton
-                productId={product.id}
-                productName={product.name}
-                isVariable={true}
-                hasVariations={false}
-                size="default"
-                variant="outline"
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Botões de ação */}
-        {dbVariations.length > 0 && (
-          <>
-            <Separator className="my-4" />
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm text-muted-foreground">
-                {totalSelected > 0 ? `${totalSelected} variações selecionadas` : 'Nenhuma variação selecionada'}
-              </div>
+            
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
               <Button 
-                onClick={handleAddSelectedVariations}
-                disabled={totalSelected === 0}
-                className="flex-shrink-0"
+                onClick={handleAddSelected}
+                disabled={totalQuantity === 0}
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Selecionadas
+                Adicionar à Fila ({totalQuantity})
               </Button>
             </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
-
-export default ProductVariationSelector;

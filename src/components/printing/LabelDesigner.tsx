@@ -4,6 +4,7 @@ import { useLabelPrinting } from '@/hooks/useLabelPrinting';
 import { useWooCommerceFilteredProducts, useWooCommerceCategories } from '@/hooks/useWooCommerce';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
+import { ProductVariationSelector } from './ProductVariationSelector';
 import { LabelPreviewDialog } from './LabelPreviewDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +41,7 @@ export const LabelDesigner: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showPreview, setShowPreview] = useState(false);
+  const [selectedProductForVariations, setSelectedProductForVariations] = useState<any>(null);
 
   // Log para debug
   useEffect(() => {
@@ -84,6 +86,10 @@ export const LabelDesigner: React.FC = () => {
     } catch (error) {
       console.error('[LabelDesigner] Erro ao gerar ZPL:', error);
     }
+  };
+
+  const handleSelectVariations = (product: any) => {
+    setSelectedProductForVariations(product);
   };
 
   return (
@@ -146,14 +152,15 @@ export const LabelDesigner: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {filteredProducts.map((product) => (
-              <ProductLabelCard
-                key={product.id}
-                product={product}
-                onAddToQueue={(product, quantity) => addToQueue(product, quantity)}
-                isInQueue={isProductInQueue(product.id)}
-                wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
-                lastPrintDate={getLastPrintDate(product.id)}
-              />
+                <ProductLabelCard
+                  key={product.id}
+                  product={product}
+                  onAddToQueue={(product, quantity) => addToQueue(product, quantity)}
+                  onSelectVariations={() => handleSelectVariations(product)}
+                  isInQueue={isProductInQueue(product.id)}
+                  wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
+                  lastPrintDate={getLastPrintDate(product.id)}
+                />
               ))}
             </div>
           )}
@@ -196,6 +203,17 @@ export const LabelDesigner: React.FC = () => {
         settings={settings}
         onPrintLabels={printLabels}
         onGenerateZPL={handleGenerateZPL}
+      />
+
+      {/* Product Variation Selector */}
+      <ProductVariationSelector
+        isOpen={!!selectedProductForVariations}
+        onClose={() => setSelectedProductForVariations(null)}
+        product={selectedProductForVariations}
+        onAddToQueue={(variation, quantity) => {
+          addToQueue(variation, quantity);
+          setSelectedProductForVariations(null);
+        }}
       />
     </div>
   );
