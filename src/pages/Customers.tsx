@@ -87,9 +87,9 @@ const Customers = () => {
   const monthOptions = getMonthOptions();
 
   const isRepresentative = (customer: any) => customer?.meta_data?.some((m: any) => m.key === 'is_representative' && (m.value === true || m.value === '1' || m.value === 1));
-  const totalCustomers = customers.length;
-  const representativesCount = customers.filter(isRepresentative).length;
-  const totalRevenue = customers.reduce((sum, c) => sum + (parseFloat(c.total_spent || '0') || 0), 0);
+  const totalCustomers = customers?.length || 0;
+  const representativesCount = customers?.filter(isRepresentative)?.length || 0;
+  const totalRevenue = customers?.reduce((sum, c) => sum + (parseFloat(c.total_spent || '0') || 0), 0) || 0;
   const handleShowBirthdays = (filter: 'today' | 'upcoming' | 'thisMonth') => {
     setBirthdayFilter(filter);
     setSelectedMonth("");

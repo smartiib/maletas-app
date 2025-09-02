@@ -15,6 +15,7 @@ const customerSchema = z.object({
   last_name: z.string().min(1, 'Sobrenome é obrigatório'),
   username: z.string().min(1, 'Nome de usuário é obrigatório'),
   is_representative: z.boolean().default(false),
+  date_of_birth: z.string().optional(),
   billing: z.object({
     first_name: z.string().min(1, 'Nome é obrigatório'),
     last_name: z.string().min(1, 'Sobrenome é obrigatório'),
@@ -47,6 +48,7 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmit, isLoadi
       last_name: customer?.last_name || '',
       username: customer?.username || '',
       is_representative: customer?.meta_data?.some(meta => meta.key === 'is_representative' && meta.value) || false,
+      date_of_birth: customer?.meta_data?.find(meta => meta.key === 'date_of_birth')?.value || '',
       billing: {
         first_name: customer?.billing?.first_name || '',
         last_name: customer?.billing?.last_name || '',
@@ -132,6 +134,20 @@ const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onSubmit, isLoadi
               )}
             />
           </div>
+
+          <FormField
+            control={form.control}
+            name="date_of_birth"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data de Nascimento</FormLabel>
+                <FormControl>
+                  <Input {...field} type="date" placeholder="yyyy-mm-dd" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <FormField
             control={form.control}
