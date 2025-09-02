@@ -7,25 +7,77 @@ export class TemplateEngine {
    */
   render(template: PrintTemplate, data: Record<string, any>): string {
     console.log('TemplateEngine.render called with:', { template: template.name, data });
-    
     try {
+      // Se for um lote de etiquetas (array de labels), renderiza em grade
+      if (Array.isArray(data.labels) && data.labels.length > 0) {
+        return this.renderGrid(template, data);
+      }
+
+      // Caso simples (um único item)
       let rendered = template.html_template;
-      
-      // Substituir variáveis no formato {{variable}}
       rendered = this.replaceVariables(rendered, data);
-      
-      // Processar loops no formato {{#each items}} ... {{/each}}
       rendered = this.processLoops(rendered, data);
-      
-      // Processar condicionais no formato {{#if condition}} ... {{/if}}
       rendered = this.processConditionals(rendered, data);
-      
       console.log('Template renderizado com sucesso');
       return rendered;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao renderizar template:', error);
       throw new Error(`Erro ao renderizar template: ${error.message}`);
     }
+  }
+
+  /**
+   * Renderiza uma grade de etiquetas usando data.labels e layout fornecido
+   */
+  private renderGrid(template: PrintTemplate, data: Record<string, any>): string {
+    const labels: any[] = Array.isArray(data.labels) ? data.labels : [];
+    const rows = data.layout?.rows ?? 2;
+    const cols = data.layout?.cols ?? 2;
+    const format = data.format ?? 'A4';
+    const labelsPerPage = rows * cols;
+    const totalPages = Math.ceil(labels.length / labelsPerPage) || 1;
+
+    let html = `
+      <style>
+        ${template.css_styles || ''}
+        .page { page-break-after: always; width: ${format === 'A4' ? '210mm' : '80mm'}; min-height: ${format === 'A4' ? '297mm' : '200mm'}; display: grid; grid-template-rows: repeat(${rows}, 1fr); grid-template-columns: repeat(${cols}, 1fr); gap: 2mm; padding: 10mm; }
+        .label-item { border: 1px solid #e5e7eb; overflow: hidden; }
+      </style>
+    `;
+
+    for (let page = 0; page < totalPages; page++) {
+      const startIndex = page * labelsPerPage;
+      const pageLabels = labels.slice(startIndex, startIndex + labelsPerPage);
+      html += '<div class="page">';
+
+      for (let i = 0; i < labelsPerPage; i++) {
+        const label = pageLabels[i];
+        if (label) {
+          const itemHtml = this.renderSingle(template.html_template, label, data);
+          html += `<div class="label-item">${itemHtml}</div>`;
+        } else {
+          html += '<div class="label-item"></div>';
+        }
+      }
+
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  /**
+   * Renderiza um único item de etiqueta usando variáveis e condicionais
+   */
+  private renderSingle(templateStr: string, itemData: Record<string, any>, globalData: Record<string, any>): string {
+    // Primeiro substitui com dados do item, depois permite fallback para dados globais
+    let rendered = this.replaceVariables(templateStr, itemData);
+    rendered = this.processLoops(rendered, itemData);
+
+    // Fallback para variáveis não resolvidas com dados globais
+    rendered = this.replaceVariables(rendered, { ...globalData, ...itemData });
+    rendered = this.processConditionals(rendered, { ...globalData, ...itemData });
+    return rendered;
   }
 
   /**

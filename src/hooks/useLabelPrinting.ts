@@ -143,8 +143,8 @@ export const useLabelPrinting = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['label-print-history'] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['label-print-history', currentOrganization?.id] });
       console.log('Histórico de impressão salvo');
     }
   });

@@ -33,6 +33,7 @@ export const LabelDesigner: React.FC = () => {
     generateZPL,
     isProductInQueue,
     wasRecentlyPrinted,
+    getLastPrintDate,
     totalQuantity
   } = useLabelPrinting();
 
@@ -146,6 +147,7 @@ export const LabelDesigner: React.FC = () => {
                 onAddToQueue={(product, quantity) => addToQueue(product, quantity)}
                 isInQueue={isProductInQueue(product.id)}
                 wasRecentlyPrinted={wasRecentlyPrinted(product.id)}
+                lastPrintDate={getLastPrintDate(product.id)}
               />
             ))}
           </div>
