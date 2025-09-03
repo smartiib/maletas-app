@@ -3,6 +3,7 @@ import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Product } from '@/services/woocommerce';
 import { ViewMode } from '@/hooks/useViewMode';
 import {
@@ -23,6 +24,8 @@ interface ProductCardProps {
   getTotalStock?: (product: any) => number;
   productStatus?: 'normal' | 'em-revisao' | 'nao-alterar';
   onStatusChange?: (productId: number, status: 'normal' | 'em-revisao' | 'nao-alterar') => void;
+  isSelected?: boolean;
+  onSelectionChange?: (productId: number, selected: boolean) => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
@@ -33,7 +36,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onDelete,
   getTotalStock,
   productStatus = 'normal',
-  onStatusChange
+  onStatusChange,
+  isSelected = false,
+  onSelectionChange
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -181,8 +186,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   if (viewMode === 'grid') {
     return (
-      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()}`}>
+      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
         <CardContent className="p-4 space-y-3 h-full flex flex-col">
+          {/* Selection checkbox */}
+          {onSelectionChange && (
+            <div className="absolute top-2 left-2 z-10">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}
+                className="bg-white/80 border-white"
+              />
+            </div>
+          )}
           {/* Image */}
           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
             {product.images && product.images.length > 0 ? (
@@ -198,7 +213,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
             
             {/* Stock status icon */}
-            <div className={`absolute top-2 left-2 w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
+            <div className={`absolute top-2 ${onSelectionChange ? 'right-2' : 'left-2'} w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
               <Package className="w-2.5 h-2.5 text-white" />
             </div>
 
@@ -212,7 +227,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
 
             {/* Three dots menu */}
-            <div className="absolute top-2 right-2">
+            <div className={`absolute top-2 ${onSelectionChange ? 'right-8' : 'right-2'}`}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="sm" className="w-6 h-6 p-0 bg-white/80 hover:bg-white">
@@ -276,9 +291,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
   }
 
   return (
-    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()}`}>
+    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
+          {/* Selection checkbox */}
+          {onSelectionChange && (
+            <div className="mr-3">
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}
+              />
+            </div>
+          )}
           <div className="flex-1">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">

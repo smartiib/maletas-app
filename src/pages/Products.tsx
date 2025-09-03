@@ -19,8 +19,7 @@ import ProductBulkActions, { BulkAction } from "@/components/products/ProductBul
 import { Product } from "@/services/woocommerce";
 import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
 import { useQueryClient } from "@tanstack/react-query";
-import { useProductCleanup } from "@/hooks/useProductCleanup";
-import { Trash2 } from "lucide-react";
+import { useDeleteProducts } from "@/hooks/useDeleteProducts";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,7 +45,8 @@ const Products = () => {
 
   const queryClient = useQueryClient();
   const prevDialogOpenRef = useRef(isDialogOpen);
-  const { mutate: cleanupProducts, isPending: isCleaningUp } = useProductCleanup();
+  const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const { mutate: deleteProducts, isPending: isDeletingProducts } = useDeleteProducts();
 
   useEffect(() => {
     // Quando o diálogo fechar (true -> false), invalidar a lista para atualizar imediatamente
@@ -78,6 +78,18 @@ const Products = () => {
     const productIds = filteredProducts.map(product => product.id);
 
     switch (action) {
+      case 'select-all':
+        setSelectedProducts(new Set(productIds));
+        break;
+      case 'deselect-all':
+        setSelectedProducts(new Set());
+        break;
+      case 'delete-selected':
+        if (selectedProducts.size > 0) {
+          deleteProducts(Array.from(selectedProducts));
+          setSelectedProducts(new Set());
+        }
+        break;
       case 'mark-all-review':
         bulkUpdateStatuses(productIds, 'em-revisao');
         break;
@@ -127,6 +139,18 @@ const Products = () => {
   const handleDeleteProduct = (id: number, name: string) => {
     console.log('Delete product:', id, name);
     // TODO: Implement delete functionality
+  };
+
+  const handleProductSelectionChange = (productId: number, selected: boolean) => {
+    setSelectedProducts(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(productId);
+      } else {
+        newSet.delete(productId);
+      }
+      return newSet;
+    });
   };
 
   const filteredProducts = useMemo(() => {
@@ -333,18 +357,11 @@ const Products = () => {
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
-          <Button
-            onClick={() => cleanupProducts()}
-            disabled={isCleaningUp}
-            variant="destructive"
-            size="sm"
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {isCleaningUp ? 'Limpando...' : 'Limpar USC'}
-          </Button>
           <ProductBulkActions 
             onBulkAction={handleBulkAction}
             disabled={filteredProducts.length === 0}
+            selectedProducts={selectedProducts}
+            onClearSelection={() => setSelectedProducts(new Set())}
           />
           <Button onClick={handleCreateProduct} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
@@ -396,6 +413,8 @@ const Products = () => {
               getTotalStock={getTotalStock}
               productStatus={getProductStatus(product.id)}
               onStatusChange={handleProductStatusChange}
+              isSelected={selectedProducts.has(product.id)}
+              onSelectionChange={handleProductSelectionChange}
             />
           ))}
         </div>
