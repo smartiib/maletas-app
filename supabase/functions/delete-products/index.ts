@@ -37,12 +37,13 @@ serve(async (req) => {
     console.log(`Deleting ${productIds.length} products for organization:`, organizationId)
     console.log('Product IDs:', productIds)
 
-    // Delete products with the specified IDs and organization
+    // Delete products with the specified IDs for this organization or global (null)
     const { data: deletedProducts, error: deleteError } = await supabaseClient
       .from('wc_products')
       .delete()
       .in('id', productIds)
-      .eq('organization_id', organizationId)
+      .or(`organization_id.eq.${organizationId},organization_id.is.null`)
+      .select('id');
 
     if (deleteError) {
       console.error('Error deleting products:', deleteError)
@@ -67,8 +68,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `${productIds.length} produtos excluídos com sucesso`,
-        deletedCount: productIds.length,
+        message: `${(deletedProducts?.length || 0)} produtos excluídos com sucesso`,
+        deletedCount: deletedProducts?.length || 0,
         finalProductCount: finalCount || 0
       }),
       { 
