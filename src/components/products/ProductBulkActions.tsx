@@ -19,22 +19,53 @@ export type BulkAction =
   | 'remove-all-marks'
   | 'delete-selected'
   | 'select-all'
-  | 'deselect-all';
+  | 'deselect-all'
+  | 'start-deletion-mode'
+  | 'cancel-deletion-mode';
 
 interface ProductBulkActionsProps {
   onBulkAction: (action: BulkAction) => void;
   disabled?: boolean;
   selectedProducts: Set<number>;
   onClearSelection: () => void;
+  isDeletionMode?: boolean;
 }
 
 const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({ 
   onBulkAction, 
   disabled = false,
   selectedProducts,
-  onClearSelection
+  onClearSelection,
+  isDeletionMode = false
 }) => {
   const hasSelection = selectedProducts.size > 0;
+  if (isDeletionMode) {
+    return (
+      <div className="flex gap-2 items-center">
+        <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+          Modo Exclusão: {selectedProducts.size} produto{selectedProducts.size !== 1 ? 's' : ''} selecionado{selectedProducts.size !== 1 ? 's' : ''}
+        </Badge>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => onBulkAction('cancel-deletion-mode')}
+        >
+          Cancelar
+        </Button>
+        {hasSelection && (
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={() => onBulkAction('delete-selected')}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Excluir Selecionados
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="flex gap-2 items-center">
       {hasSelection && (
@@ -48,14 +79,6 @@ const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({
             onClick={onClearSelection}
           >
             <X className="h-4 w-4" />
-          </Button>
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={() => onBulkAction('delete-selected')}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            Excluir
           </Button>
         </div>
       )}
@@ -75,6 +98,11 @@ const ProductBulkActions: React.FC<ProductBulkActionsProps> = ({
           <DropdownMenuItem onClick={() => onBulkAction('deselect-all')}>
             <Square className="mr-2 h-4 w-4" />
             Desmarcar Todos
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onBulkAction('start-deletion-mode')}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Excluir em Massa
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => onBulkAction('mark-all-review')}>

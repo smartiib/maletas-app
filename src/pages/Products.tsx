@@ -46,6 +46,7 @@ const Products = () => {
   const queryClient = useQueryClient();
   const prevDialogOpenRef = useRef(isDialogOpen);
   const [selectedProducts, setSelectedProducts] = useState<Set<number>>(new Set());
+  const [isDeletionMode, setIsDeletionMode] = useState(false);
   const { mutate: deleteProducts, isPending: isDeletingProducts } = useDeleteProducts();
 
   useEffect(() => {
@@ -78,6 +79,14 @@ const Products = () => {
     const productIds = filteredProducts.map(product => product.id);
 
     switch (action) {
+      case 'start-deletion-mode':
+        setIsDeletionMode(true);
+        setSelectedProducts(new Set());
+        break;
+      case 'cancel-deletion-mode':
+        setIsDeletionMode(false);
+        setSelectedProducts(new Set());
+        break;
       case 'select-all':
         setSelectedProducts(new Set(productIds));
         break;
@@ -88,6 +97,7 @@ const Products = () => {
         if (selectedProducts.size > 0) {
           deleteProducts(Array.from(selectedProducts));
           setSelectedProducts(new Set());
+          setIsDeletionMode(false);
         }
         break;
       case 'mark-all-review':
@@ -151,6 +161,13 @@ const Products = () => {
       }
       return newSet;
     });
+  };
+
+  const clearSelection = () => {
+    setSelectedProducts(new Set());
+    if (isDeletionMode) {
+      setIsDeletionMode(false);
+    }
   };
 
   const filteredProducts = useMemo(() => {
@@ -361,7 +378,8 @@ const Products = () => {
             onBulkAction={handleBulkAction}
             disabled={filteredProducts.length === 0}
             selectedProducts={selectedProducts}
-            onClearSelection={() => setSelectedProducts(new Set())}
+            onClearSelection={clearSelection}
+            isDeletionMode={isDeletionMode}
           />
           <Button onClick={handleCreateProduct} className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
@@ -414,7 +432,8 @@ const Products = () => {
               productStatus={getProductStatus(product.id)}
               onStatusChange={handleProductStatusChange}
               isSelected={selectedProducts.has(product.id)}
-              onSelectionChange={handleProductSelectionChange}
+              onSelectionChange={isDeletionMode ? handleProductSelectionChange : undefined}
+              isDeletionMode={isDeletionMode}
             />
           ))}
         </div>

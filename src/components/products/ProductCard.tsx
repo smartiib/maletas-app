@@ -26,6 +26,7 @@ interface ProductCardProps {
   onStatusChange?: (productId: number, status: 'normal' | 'em-revisao' | 'nao-alterar') => void;
   isSelected?: boolean;
   onSelectionChange?: (productId: number, selected: boolean) => void;
+  isDeletionMode?: boolean;
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ 
@@ -38,7 +39,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   productStatus = 'normal',
   onStatusChange,
   isSelected = false,
-  onSelectionChange
+  onSelectionChange,
+  isDeletionMode = false
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -104,6 +106,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const getProductBackgroundClass = () => {
+    if (isDeletionMode && isSelected) {
+      return 'bg-red-50 border-red-500 border-2';
+    }
     switch (productStatus) {
       case 'em-revisao': return 'bg-yellow-50';
       case 'nao-alterar': return 'bg-green-50';
@@ -186,7 +191,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   if (viewMode === 'grid') {
     return (
-      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''}`}>
         <CardContent className="p-4 space-y-3 h-full flex flex-col">
           {/* Selection checkbox */}
           {onSelectionChange && (
@@ -194,10 +199,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}
-                className="bg-white/80 border-white"
+                className={`bg-white/80 border-white ${isDeletionMode && isSelected ? 'border-red-500' : ''}`}
               />
             </div>
           )}
+          
+          {/* Deletion tag */}
+          {isDeletionMode && isSelected && (
+            <div className="absolute top-2 right-2 z-10">
+              <Badge variant="destructive" className="bg-red-600 text-white">
+                EXCLUIR
+              </Badge>
+            </div>
+          )}
+          
           {/* Image */}
           <div className="relative aspect-square bg-muted rounded-lg overflow-hidden">
             {product.images && product.images.length > 0 ? (
@@ -213,12 +228,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
             
             {/* Stock status icon */}
-            <div className={`absolute top-2 ${onSelectionChange ? 'right-2' : 'left-2'} w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
-              <Package className="w-2.5 h-2.5 text-white" />
-            </div>
+            {!isDeletionMode && (
+              <div className={`absolute top-2 ${onSelectionChange ? 'right-2' : 'left-2'} w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
+                <Package className="w-2.5 h-2.5 text-white" />
+              </div>
+            )}
 
             {/* Status tag */}
-            {productStatus === 'em-revisao' && (
+            {!isDeletionMode && productStatus === 'em-revisao' && (
               <div className="absolute top-2 left-1/2 transform -translate-x-1/2">
                 <Badge className="bg-yellow-500 text-white text-xs px-2 py-1">
                   Em Revisão
@@ -227,30 +244,32 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
 
             {/* Three dots menu */}
-            <div className={`absolute top-2 ${onSelectionChange ? 'right-8' : 'right-2'}`}>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="w-6 h-6 p-0 bg-white/80 hover:bg-white">
-                    <MoreHorizontal className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-white">
-                  <DropdownMenuItem onClick={() => onEdit?.(product)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
-                    Em Revisão
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
-                    Não Alterar
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
-                    Remover Marcação
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            {!isDeletionMode && (
+              <div className={`absolute top-2 ${onSelectionChange ? 'right-8' : 'right-2'}`}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="w-6 h-6 p-0 bg-white/80 hover:bg-white">
+                      <MoreHorizontal className="w-3 h-3" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="bg-white">
+                    <DropdownMenuItem onClick={() => onEdit?.(product)}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
+                      Em Revisão
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
+                      Não Alterar
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
+                      Remover Marcação
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )}
           </div>
 
           {/* Content */}
@@ -291,7 +310,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   }
 
   return (
-    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
+    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''}`}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           {/* Selection checkbox */}
@@ -300,9 +319,20 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}
+                className={isDeletionMode && isSelected ? 'border-red-500' : ''}
               />
             </div>
           )}
+          
+          {/* Deletion tag for list view */}
+          {isDeletionMode && isSelected && (
+            <div className="mr-3">
+              <Badge variant="destructive" className="bg-red-600 text-white">
+                EXCLUIR
+              </Badge>
+            </div>
+          )}
+          
           <div className="flex-1">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
@@ -317,12 +347,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
                     <Package className="w-6 h-6 text-muted-foreground" />
                   )}
                   {/* Stock status icon */}
-                  <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
-                    <Package className="w-2.5 h-2.5 text-white" />
-                  </div>
+                  {!isDeletionMode && (
+                    <div className={`absolute -top-1 -right-1 w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
+                      <Package className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  )}
                   
                   {/* Status tag for list view */}
-                  {productStatus === 'em-revisao' && (
+                  {!isDeletionMode && productStatus === 'em-revisao' && (
                     <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
                       <Badge className="bg-yellow-500 text-white text-xs px-1 py-0">
                         Em Revisão
@@ -352,41 +384,43 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
           
-          <div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-white">
-                <DropdownMenuItem onClick={() => onView?.(product)}>
-                  <Eye className="w-4 h-4 mr-2" />
-                  Visualizar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleEdit}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
-                  Em Revisão
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
-                  Não Alterar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
-                  Remover Marcação
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={() => onDelete?.(product.id, product.name)}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Excluir
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          {!isDeletionMode && (
+            <div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuItem onClick={() => onView?.(product)}>
+                    <Eye className="w-4 h-4 mr-2" />
+                    Visualizar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleEdit}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('em-revisao')}>
+                    Em Revisão
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('nao-alterar')}>
+                    Não Alterar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleStatusChange('normal')}>
+                    Remover Marcação
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    className="text-destructive"
+                    onClick={() => onDelete?.(product.id, product.name)}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
