@@ -18,7 +18,7 @@ export const useWooCommerceFilteredProducts = () => {
       const { data, error } = await supabase
         .from('wc_products')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`)
         .order('name');
 
       if (error) {
