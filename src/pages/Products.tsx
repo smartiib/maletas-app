@@ -19,6 +19,8 @@ import ProductBulkActions, { BulkAction } from "@/components/products/ProductBul
 import { Product } from "@/services/woocommerce";
 import { useProductReviewStatus, ProductStatus } from "@/hooks/useProductReviewStatus";
 import { useQueryClient } from "@tanstack/react-query";
+import { useProductCleanup } from "@/hooks/useProductCleanup";
+import { Trash2 } from "lucide-react";
 
 const Products = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -44,6 +46,7 @@ const Products = () => {
 
   const queryClient = useQueryClient();
   const prevDialogOpenRef = useRef(isDialogOpen);
+  const { mutate: cleanupProducts, isPending: isCleaningUp } = useProductCleanup();
 
   useEffect(() => {
     // Quando o diálogo fechar (true -> false), invalidar a lista para atualizar imediatamente
@@ -330,6 +333,15 @@ const Products = () => {
           </p>
         </div>
         <div className="flex gap-2 w-full sm:w-auto">
+          <Button
+            onClick={() => cleanupProducts()}
+            disabled={isCleaningUp}
+            variant="destructive"
+            size="sm"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {isCleaningUp ? 'Limpando...' : 'Limpar USC'}
+          </Button>
           <ProductBulkActions 
             onBulkAction={handleBulkAction}
             disabled={filteredProducts.length === 0}
