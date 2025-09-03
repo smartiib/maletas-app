@@ -367,6 +367,43 @@ export const useIncrementalSync = () => {
       const allIds = [...discovery.missingIds, ...discovery.changedIds];
       
       if (allIds.length === 0) {
+        // Sanity check: se a contagem local divergir da contagem do Woo, força uma reconciliação completa
+        const { count: localCount } = await supabase
+          .from('wc_products')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
+
+        if ((localCount ?? 0) < discovery.totalItems) {
+          updateProgress({
+            progress: 60,
+            currentStep: `Reconciliação necessária: local ${localCount ?? 0} < Woo ${discovery.totalItems}. Executando sync completo...`
+          });
+
+          const { data, error } = await supabase.functions.invoke('wc-sync', {
+            body: {
+              sync_type: 'products',
+              config,
+              organization_id: currentOrganization.id,
+              batch_size: 100,
+              max_pages: 1000,
+              include_variations: false
+            }
+          });
+
+          if (error) {
+            throw new Error(`Falha no sync de reconciliação: ${error.message}`);
+          }
+
+          // Após reconciliação, atualizar caches e concluir
+          queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', currentOrganization.id] });
+          updateProgress({
+            progress: 100,
+            currentStep: 'Reconciliação concluída.'
+          });
+
+          return { processed: Number((data as any)?.processed ?? 0), errors: Number((data as any)?.errors ?? 0), upToDate: false, passes: 1, isFullyCompleted: true };
+        }
+
         updateProgress({
           progress: 100,
           currentStep: 'Todos os produtos já estão sincronizados!'
