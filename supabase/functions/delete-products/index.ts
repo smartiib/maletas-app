@@ -27,22 +27,17 @@ serve(async (req) => {
       )
     }
 
-    if (!organizationId) {
-      return new Response(
-        JSON.stringify({ error: 'Organization ID is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
+    console.log('Organization ID (optional):', organizationId)
+
 
     console.log(`Deleting ${productIds.length} products for organization:`, organizationId)
     console.log('Product IDs:', productIds)
 
-    // Delete products with the specified IDs for this organization or global (null)
+    // Delete products with the specified IDs (no organization filter - table has no organization_id)
     const { data: deletedProducts, error: deleteError } = await supabaseClient
       .from('wc_products')
       .delete()
       .in('id', productIds)
-      .or(`organization_id.eq.${organizationId},organization_id.is.null`)
       .select('id');
 
     if (deleteError) {
@@ -55,11 +50,10 @@ serve(async (req) => {
 
     console.log('Products deleted successfully')
 
-    // Get final count of products for the organization
+    // Get final count of products (table has no organization_id)
     const { count: finalCount, error: countError } = await supabaseClient
       .from('wc_products')
       .select('*', { count: 'exact', head: true })
-      .eq('organization_id', organizationId)
 
     if (countError) {
       console.error('Error getting final count:', countError)
