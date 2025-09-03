@@ -191,11 +191,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   if (viewMode === 'grid') {
     return (
-      <Card className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''}`}>
+      <Card 
+        className={`hover:shadow-md transition-all-smooth h-full ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''} ${isDeletionMode ? 'cursor-pointer' : ''}`}
+        onClick={isDeletionMode ? () => onSelectionChange?.(product.id, !isSelected) : undefined}
+      >
         <CardContent className="p-4 space-y-3 h-full flex flex-col">
           {/* Selection checkbox */}
-          {onSelectionChange && (
-            <div className="absolute top-2 left-2 z-10">
+          {(onSelectionChange && isDeletionMode) && (
+            <div className="absolute top-2 left-2 z-10" onClick={(e) => e.stopPropagation()}>
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}
@@ -229,7 +232,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             
             {/* Stock status icon */}
             {!isDeletionMode && (
-              <div className={`absolute top-2 ${onSelectionChange ? 'right-2' : 'left-2'} w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
+              <div className={`absolute top-2 ${isDeletionMode ? 'right-2' : (onSelectionChange ? 'right-2' : 'left-2')} w-4 h-4 ${getStockIcon(totalStock)} rounded-full flex items-center justify-center`}>
                 <Package className="w-2.5 h-2.5 text-white" />
               </div>
             )}
@@ -245,7 +248,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* Three dots menu */}
             {!isDeletionMode && (
-              <div className={`absolute top-2 ${onSelectionChange ? 'right-8' : 'right-2'}`}>
+              <div className={`absolute top-2 ${isDeletionMode ? 'right-8' : (onSelectionChange ? 'right-8' : 'right-2')}`}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="sm" className="w-6 h-6 p-0 bg-white/80 hover:bg-white">
@@ -310,12 +313,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
   }
 
   return (
-    <Card className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''}`}>
+    <Card 
+      className={`hover:shadow-md transition-all-smooth ${getProductBackgroundClass()} ${isSelected && !isDeletionMode ? 'ring-2 ring-primary' : ''} ${isDeletionMode ? 'cursor-pointer' : ''}`}
+      onClick={isDeletionMode ? () => onSelectionChange?.(product.id, !isSelected) : undefined}
+    >
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           {/* Selection checkbox */}
-          {onSelectionChange && (
-            <div className="mr-3">
+          {(onSelectionChange && isDeletionMode) && (
+            <div className="mr-3" onClick={(e) => e.stopPropagation()}>
               <Checkbox
                 checked={isSelected}
                 onCheckedChange={(checked) => onSelectionChange(product.id, !!checked)}

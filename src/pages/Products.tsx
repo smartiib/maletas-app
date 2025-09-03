@@ -432,7 +432,7 @@ const Products = () => {
               productStatus={getProductStatus(product.id)}
               onStatusChange={handleProductStatusChange}
               isSelected={selectedProducts.has(product.id)}
-              onSelectionChange={isDeletionMode ? handleProductSelectionChange : undefined}
+              onSelectionChange={handleProductSelectionChange}
               isDeletionMode={isDeletionMode}
             />
           ))}
