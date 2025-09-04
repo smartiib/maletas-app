@@ -379,29 +379,56 @@ export const useIncrementalSync = () => {
             currentStep: `Reconciliação necessária: local ${localCount ?? 0} < Woo ${discovery.totalItems}. Executando sync completo...`
           });
 
-          const { data, error } = await supabase.functions.invoke('wc-sync', {
-            body: {
-              sync_type: 'products',
-              config,
-              organization_id: currentOrganization.id,
-              batch_size: 100,
-              max_pages: 1000,
-              include_variations: false
-            }
-          });
+          // Loop de paginação até completar (usa hasMore/nextPage do Edge Function)
+          let page: number | null = 1;
+          let totalProcessed = 0;
+          let totalErrors = 0;
+          let passes = 0;
+          let hasMore = true;
 
-          if (error) {
-            throw new Error(`Falha no sync de reconciliação: ${error.message}`);
+          while (hasMore && page) {
+            const { data, error } = await supabase.functions.invoke('wc-sync', {
+              body: {
+                sync_type: 'products',
+                config,
+                organization_id: currentOrganization.id,
+                batch_size: 100,
+                max_pages: 1000,
+                include_variations: false,
+                page
+              }
+            });
+
+            if (error) {
+              throw new Error(`Falha no sync de reconciliação (página ${page}): ${error.message}`);
+            }
+
+            const resp: any = data || {};
+            totalProcessed += Number(resp.processed ?? 0);
+            totalErrors += Number(resp.errors ?? 0);
+            passes += 1;
+
+            updateProgress({
+              progress: Math.min(95, 60 + Math.round((totalProcessed / discovery.totalItems) * 40)),
+              currentStep: `Reconciliação: página ${resp.currentPage ?? page} processada (${totalProcessed}/${discovery.totalItems})`
+            });
+
+            hasMore = !!resp.hasMore && !!resp.nextPage;
+            page = resp.nextPage ?? null;
+
+            if (hasMore) {
+              await new Promise((r) => setTimeout(r, 200));
+            }
           }
 
-          // Após reconciliação, atualizar caches e concluir
+          // Atualizar caches e concluir
           queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', currentOrganization.id] });
           updateProgress({
             progress: 100,
             currentStep: 'Reconciliação concluída.'
           });
 
-          return { processed: Number((data as any)?.processed ?? 0), errors: Number((data as any)?.errors ?? 0), upToDate: false, passes: 1, isFullyCompleted: true };
+          return { processed: totalProcessed, errors: totalErrors, upToDate: false, passes, isFullyCompleted: true };
         }
 
         updateProgress({
