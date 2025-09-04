@@ -18,6 +18,11 @@ const logger = {
   },
 };
 
+// Debug: IDs específicos para auditoria detalhada (provisório)
+const DEBUG_PRODUCT_IDS = new Set<number>([
+  1294, 1391, 1277, 1278, 1279, 1289, 1382, 1384, 1385, 1386,
+]);
+
 // Normaliza valores numéricos vindos como "", string ou number
 function numOrNull(v: any): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -507,6 +512,9 @@ async function syncSpecificProducts(
 
       if (error || !upsertData || upsertData.length === 0) {
         logger.error(`[wc-sync] Erro ao upsert produto ${productId}:`, error);
+        if (DEBUG_PRODUCT_IDS.has(Number(productId))) {
+          logger.error(`[wc-sync][DEBUG] Upsert failed for ${productId} - payload:`, payload[0]);
+        }
         errors++;
         continue;
       }
@@ -644,6 +652,11 @@ async function syncProducts(
             stock_status: product.stock_status,
           }];
 
+          if (DEBUG_PRODUCT_IDS.has(Number(product.id))) {
+            logger.log(`[wc-sync][DEBUG] Upserting product ${product.id} (${product.name}) from page ${currentPage}`,
+              { type: product.type, status: product.status, price: product.price, variations: (product.variations||[]).length });
+          }
+
           const { data: upsertData, error } = await supabase
             .from("wc_products")
             .upsert(payload, { onConflict: "id" })
@@ -651,8 +664,15 @@ async function syncProducts(
 
           if (error || !upsertData || upsertData.length === 0) {
             logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
+            if (DEBUG_PRODUCT_IDS.has(Number(product.id))) {
+              logger.error(`[wc-sync][DEBUG] Upsert failed for ${product.id} - payload:`, payload[0]);
+            }
             totalErrors++;
             continue;
+          }
+
+          if (DEBUG_PRODUCT_IDS.has(Number(product.id))) {
+            logger.log(`[wc-sync][DEBUG] Upsert OK for ${product.id}`);
           }
 
           // Sincronizar variações apenas se includeVariations for true

@@ -443,6 +443,47 @@ export const useIncrementalSync = () => {
         productIds: allIds
       });
 
+      // Verificação pós-sync: se ainda houver divergência, força re-sync dos IDs faltantes (com variações)
+      try {
+        const verificationService = new IncrementalSyncService(config, currentOrganization.id);
+        const verification = await verificationService.discoverProductsToSync();
+        const stillMissing = verification.missingIds || [];
+
+        if (stillMissing.length > 0) {
+          console.warn(`[IncrementalSync] Pós-sync detectou ${stillMissing.length} produtos faltantes. Forçando re-sync com variações...`, stillMissing.slice(0, 20));
+          const CHUNK = 10;
+          for (let i = 0; i < stillMissing.length; i += CHUNK) {
+            const chunk = stillMissing.slice(i, i + CHUNK);
+            updateProgress({
+              progress: Math.min(99, progressState.progress + 1),
+              currentStep: `Reprocessando ${chunk.length} produtos faltantes...`
+            });
+
+            const { data, error } = await supabase.functions.invoke('wc-sync', {
+              body: {
+                sync_type: 'specific_products',
+                config,
+                organization_id: currentOrganization.id,
+                product_ids: chunk,
+                include_variations: true,
+                batch_size: chunk.length,
+              }
+            });
+
+            if (error) {
+              console.error('[IncrementalSync] Erro ao reprocessar faltantes:', error);
+              continue;
+            }
+            const resp: any = data || {};
+            console.log('[IncrementalSync] Reprocessados (faltantes):', resp.processedIds || resp);
+          }
+          // Invalida cache para refletir inclusão dos faltantes
+          queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', currentOrganization.id] });
+        }
+      } catch (auditErr) {
+        console.warn('[IncrementalSync] Auditoria pós-sync falhou:', auditErr);
+      }
+
       return { ...result, upToDate: false };
     },
     onError: (error: any) => {
