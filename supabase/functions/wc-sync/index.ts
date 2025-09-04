@@ -500,11 +500,12 @@ async function syncSpecificProducts(
         stock_status: product.stock_status,
       }];
 
-      const { error } = await supabase
-        .from("wc_products")
-        .upsert(payload, { onConflict: "id" });
+  const { data: upsertData, error } = await supabase
+    .from("wc_products")
+    .upsert(payload, { onConflict: "id" })
+    .select("id");
 
-      if (error) {
+      if (error || !upsertData || upsertData.length === 0) {
         logger.error(`[wc-sync] Erro ao upsert produto ${productId}:`, error);
         errors++;
         continue;
@@ -643,11 +644,12 @@ async function syncProducts(
             stock_status: product.stock_status,
           }];
 
-          const { error } = await supabase
+          const { data: upsertData, error } = await supabase
             .from("wc_products")
-            .upsert(payload, { onConflict: "id" });
+            .upsert(payload, { onConflict: "id" })
+            .select("id");
 
-          if (error) {
+          if (error || !upsertData || upsertData.length === 0) {
             logger.error(`[wc-sync] Error upserting product ${product.id}:`, error);
             totalErrors++;
             continue;
