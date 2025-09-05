@@ -483,7 +483,7 @@ const POS = () => {
             payment_method: paymentMethods.map(p => p.name).join(', '),
             category: 'Venda',
             reference_type: 'pos_sale',
-            reference_id: order.id.toString(),
+            reference_id: null, // Removido order.id pois reference_id é um campo UUID
             notes: `Venda realizada no POS - Pedido #${order.number || order.id}`,
             status: 'completed'
           });
