@@ -24,6 +24,8 @@ import PageHelp from '@/components/ui/page-help';
 import { helpContent } from '@/data/helpContent';
 import SyncHeader from '@/components/sync/SyncHeader';
 import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/contexts/OrganizationContext';
 
 interface CartItem extends Product {
   quantity: number;
@@ -84,6 +86,7 @@ const POS = () => {
 
   // Mobile detection
   const isMobile = useIsMobile();
+  const { currentOrganization } = useOrganization();
 
   // Carregar todos os produtos sincronizados do Supabase
   const { data: productsData = { products: [] }, isLoading, error } = useSupabaseProducts(1, '', '', '');
@@ -429,6 +432,28 @@ const POS = () => {
 
       const order = await createOrder.mutateAsync(orderData);
       
+      // Sincronizar pedido no Supabase (wc_orders) para aparecer imediatamente no sistema
+      try {
+        await supabase.from('wc_orders').upsert({
+          id: order.id,
+          organization_id: currentOrganization?.id,
+          number: order.number?.toString() || null,
+          date_created: order.date_created || new Date().toISOString(),
+          status: order.status || 'pending',
+          total: Number(order.total || getTotalPrice()),
+          customer_id: order.customer_id || 0,
+          billing: order.billing || {},
+          shipping: order.shipping || {},
+          payment_method: order.payment_method || paymentMethods.map(p => p.name).join(', '),
+          payment_method_title: order.payment_method_title || null,
+          line_items: order.line_items || [],
+          meta_data: order.meta_data || [],
+          currency: order.currency || 'BRL',
+        });
+      } catch (e) {
+        console.warn('[POS] Falha ao upsert wc_orders no Supabase:', e);
+      }
+      
       // Se há parcelamento ativo, criar no sistema financeiro
       if (activePaymentPlan) {
         try {
@@ -476,18 +501,23 @@ const POS = () => {
       } else {
         // Criar transação financeira para pagamentos diretos (não parcelados)
         try {
-          await createTransaction.mutateAsync({
-            type: 'entrada',
-            description: `Venda POS - ${isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim()}`,
-            amount: getTotalPrice(),
-            date: new Date().toISOString(),
-            payment_method: paymentMethods.map(p => p.name).join(', '),
-            category: 'Venda',
-            reference_type: 'pos_sale',
-            reference_id: null, // Removido order.id pois reference_id é um campo UUID
-            notes: `Venda realizada no POS - Pedido #${order.number || order.id}`,
-            status: 'completed'
-          });
+          const trxAmount = Number(order.total) || Number(getTotalPrice().toFixed(2));
+          if (trxAmount > 0) {
+            await createTransaction.mutateAsync({
+              type: 'entrada',
+              description: `Venda POS - ${isGuestSale ? guestData.name : `${selectedCustomer?.first_name || ''} ${selectedCustomer?.last_name || ''}`.trim()}`,
+              amount: trxAmount,
+              date: new Date().toISOString(),
+              payment_method: paymentMethods.map(p => p.name).join(', '),
+              category: 'Venda',
+              reference_type: 'pos_sale',
+              reference_id: null,
+              notes: `Venda realizada no POS - Pedido #${order.number || order.id}`,
+              status: 'completed'
+            });
+          } else {
+            console.warn('[POS] Transação financeira não criada: valor total <= 0');
+          }
         } catch (error) {
           console.error('Erro ao criar transação financeira:', error);
           toast({
