@@ -115,12 +115,13 @@ const POS = () => {
     name: categoryName,
     productCount: products.filter(p => p.categories?.some(c => {
       // Handle both string categories and object categories
-      const categoryName = typeof c === 'string' ? c : c?.name;
-      return categoryName === categoryName;
+      const catName = typeof c === 'string' ? c : c?.name;
+      return catName === categoryName; // Fixed variable name conflict
     })).length
   })).sort((a, b) => b.productCount - a.productCount);
 
-  const categories = ['Todos', ...categoriesWithCounts.map(cat => cat.name)];
+  // Remove duplicates from categories using Set
+  const uniqueCategories = ['Todos', ...Array.from(new Set(categoriesWithCounts.map(cat => cat.name)))];
 
   // Debug para verificar se o filtro está sendo recalculado
   console.log('Recalculando filtro:', { searchTerm, selectedCategory, productsLength: products.length });
@@ -607,7 +608,7 @@ const POS = () => {
             </div>
 
             <CategorySlider
-              categories={categories}
+              categories={uniqueCategories}
               selectedCategory={selectedCategory}
               onCategoryChange={handleCategoryChange}
             />

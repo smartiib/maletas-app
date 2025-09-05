@@ -65,9 +65,9 @@ const CategorySlider: React.FC<CategorySliderProps> = ({ categories, selectedCat
           msOverflowStyle: 'none'
         }}
       >
-        {categories.map(category => (
+        {categories.map((category, index) => (
           <Button
-            key={category}
+            key={`${category}-${index}`}
             variant={selectedCategory === category ? "default" : "outline"}
             onClick={() => onCategoryChange(category)}
             className={`whitespace-nowrap ${selectedCategory === category ? "bg-gradient-primary" : ""}`}
