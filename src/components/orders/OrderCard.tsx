@@ -55,12 +55,19 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 <div className="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center">
                   <Package className="w-6 h-6 text-primary-foreground" />
                 </div>
-                <div>
-                  <h3 className="font-semibold">Pedido #{order.number || order.id}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    {order.line_items?.length || 0} itens • {order.billing?.first_name} {order.billing?.last_name}
-                  </p>
-                </div>
+                 <div>
+                   <div className="flex items-center gap-2">
+                     <h3 className="font-semibold">Pedido #{order.number || order.id}</h3>
+                     {order.discount_total && Number(order.discount_total) > 0 && (
+                       <Badge variant="secondary" className="text-xs">
+                         COM DESCONTO
+                       </Badge>
+                     )}
+                   </div>
+                   <p className="text-sm text-muted-foreground">
+                     {order.line_items?.length || 0} itens • {order.billing?.first_name} {order.billing?.last_name}
+                   </p>
+                 </div>
               </div>
             </div>
             
@@ -73,12 +80,19 @@ const OrderCard: React.FC<OrderCardProps> = ({
                 <Calendar className="w-3 h-3" />
                 {new Date(order.date_created || Date.now()).toLocaleDateString('pt-BR')}
               </div>
-              <Badge className={getStatusColor(order.status)}>
-                {getStatusLabel(order.status)}
-              </Badge>
-              <span className="font-semibold">
-                {order.currency || 'BRL'} {parseFloat(String(order.total || 0)).toFixed(2)}
-              </span>
+               <Badge className={getStatusColor(order.status)}>
+                 {getStatusLabel(order.status)}
+               </Badge>
+               <div className="text-right">
+                 {order.discount_total && Number(order.discount_total) > 0 && (
+                   <span className="text-sm text-muted-foreground line-through block">
+                     {order.currency || 'BRL'} {parseFloat(String(order.subtotal || 0)).toFixed(2)}
+                   </span>
+                 )}
+                 <span className="font-semibold">
+                   {order.currency || 'BRL'} {parseFloat(String(order.total || 0)).toFixed(2)}
+                 </span>
+               </div>
             </div>
           </div>
           

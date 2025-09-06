@@ -126,6 +126,7 @@ export interface Order {
   shipping_tax: string;
   cart_tax: string;
   total: string;
+  subtotal?: string; // Added for POS discount support
   total_tax: string;
   prices_include_tax: boolean;
   customer_id: number;

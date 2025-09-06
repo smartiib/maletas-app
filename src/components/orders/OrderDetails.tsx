@@ -128,8 +128,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
                   <p className="font-semibold">{order.payment_method_title || order.payment_method || 'Não informado'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">Total</label>
-                  <p className="text-lg font-bold">{order.currency} {parseFloat(String(order.total || 0)).toFixed(2)}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Valores</label>
+                  {order.discount_total && Number(order.discount_total) > 0 ? (
+                    <div className="space-y-1">
+                      <p className="text-sm text-muted-foreground line-through">
+                        Subtotal: {order.currency} {parseFloat(String(order.subtotal || 0)).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-green-600">
+                        Desconto: -{order.currency} {parseFloat(String(order.discount_total)).toFixed(2)}
+                      </p>
+                      <p className="text-lg font-bold">
+                        Total: {order.currency} {parseFloat(String(order.total || 0)).toFixed(2)}
+                      </p>
+                      <Badge variant="secondary" className="w-fit">
+                        COM DESCONTO
+                      </Badge>
+                    </div>
+                  ) : (
+                    <p className="text-lg font-bold">{order.currency} {parseFloat(String(order.total || 0)).toFixed(2)}</p>
+                  )}
                 </div>
               </div>
             </CardContent>

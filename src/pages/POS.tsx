@@ -394,6 +394,11 @@ const POS = () => {
     }
 
     try {
+      // Calcular informações de desconto
+      const subtotal = getSubtotal();
+      const discountAmount = getGlobalDiscountAmount();
+      const hasDiscount = discountAmount > 0;
+      
       const orderData = {
         payment_method: paymentMethods.map(p => p.name).join(', '),
         payment_method_title: paymentMethods.map(p => `${p.name}: R$ ${p.amount.toFixed(2)}`).join(' | '),
@@ -427,7 +432,24 @@ const POS = () => {
           country: 'BR'
         },
         customer_note: notes,
-        total: getTotalPrice().toFixed(2)
+        total: getTotalPrice().toFixed(2),
+        // Incluir informações de desconto no WooCommerce
+        ...(hasDiscount && {
+          discount_total: discountAmount.toFixed(2),
+          discount_tax: '0.00',
+          coupon_lines: [{
+            code: 'desconto-pos',
+            discount: discountAmount.toFixed(2),
+            discount_tax: '0.00',
+            meta_data: [{
+              key: 'discount_type',
+              value: globalDiscount.type
+            }, {
+              key: 'discount_value',
+              value: globalDiscount.value.toString()
+            }]
+          }]
+        })
       };
 
       const order = await createOrder.mutateAsync(orderData);
@@ -449,6 +471,14 @@ const POS = () => {
           line_items: order.line_items || [],
           meta_data: order.meta_data || [],
           currency: order.currency || 'BRL',
+          // Incluir informações de desconto no Supabase
+          discount_total: order.discount_total || (hasDiscount ? discountAmount.toFixed(2) : null),
+          coupon_lines: order.coupon_lines || (hasDiscount ? [{
+            code: 'desconto-pos',
+            discount: discountAmount.toFixed(2),
+            discount_tax: '0.00'
+          }] : []),
+          subtotal: subtotal.toFixed(2),
         });
       } catch (e) {
         console.warn('[POS] Falha ao upsert wc_orders no Supabase:', e);
