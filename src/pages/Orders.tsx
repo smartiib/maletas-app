@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import OrderCard from "@/components/orders/OrderCard";
 import OrderDialog from "@/components/orders/OrderDialog";
+import OrderDetails from "@/components/orders/OrderDetails";
 import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -16,6 +17,9 @@ import ViewModeToggle from "@/components/ui/view-mode-toggle";
 const Orders = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<any>(null);
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
   const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
@@ -28,6 +32,26 @@ const Orders = () => {
     order.billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.billing?.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleViewOrder = (order: any) => {
+    setSelectedOrder(order);
+    setIsDetailsOpen(true);
+  };
+
+  const handleEditOrder = (order: any) => {
+    setEditingOrder(order);
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setIsDialogOpen(false);
+    setEditingOrder(null);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedOrder(null);
+  };
 
   if (orgLoading) {
     return (
@@ -149,7 +173,13 @@ const Orders = () => {
         : "space-y-4"
       }>
         {filteredOrders.map((order) => (
-          <OrderCard key={order.id} order={order} viewMode={viewMode} />
+          <OrderCard 
+            key={order.id} 
+            order={order} 
+            viewMode={viewMode}
+            onView={handleViewOrder}
+            onEdit={handleEditOrder}
+          />
         ))}
       </div>
 
@@ -163,8 +193,15 @@ const Orders = () => {
 
       <OrderDialog
         open={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        mode="create"
+        onOpenChange={editingOrder ? handleCloseEdit : setIsDialogOpen}
+        mode={editingOrder ? "edit" : "create"}
+        order={editingOrder}
+      />
+
+      <OrderDetails
+        open={isDetailsOpen}
+        onOpenChange={handleCloseDetails}
+        order={selectedOrder}
       />
     </div>
   );

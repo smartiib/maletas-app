@@ -18,14 +18,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'processing': return 'bg-blue-100 text-blue-800';
-      case 'on-hold': return 'bg-orange-100 text-orange-800';
-      case 'completed': return 'bg-success-100 text-success-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      case 'refunded': return 'bg-purple-100 text-purple-800';
-      case 'failed': return 'bg-red-100 text-red-800';
-      default: return 'bg-slate-100 text-slate-800';
+      case 'pending': return 'bg-warning/10 text-warning border-warning/20';
+      case 'processing': return 'bg-primary/10 text-primary border-primary/20';
+      case 'on-hold': return 'bg-muted text-muted-foreground border-border';
+      case 'completed': return 'bg-success/10 text-success border-success/20';
+      case 'cancelled': return 'bg-destructive/10 text-destructive border-destructive/20';
+      case 'refunded': return 'bg-secondary text-secondary-foreground border-border';
+      case 'failed': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -58,11 +58,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
             <Badge className={getStatusColor(order.status)}>
               {getStatusLabel(order.status)}
             </Badge>
-            <div className="text-sm text-slate-600">
+            <div className="text-sm text-muted-foreground">
               ID: {order.id}
             </div>
-            <div className="text-sm text-slate-600">
-              Total: {order.currency} {parseFloat(order.total).toFixed(2)}
+            <div className="text-sm text-muted-foreground">
+              Total: {order.currency} {parseFloat(String(order.total || 0)).toFixed(2)}
             </div>
           </div>
 
@@ -81,15 +81,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
                 <div>
                   <h4 className="font-semibold mb-2">Dados de Cobrança</h4>
                   <div className="space-y-1 text-sm">
-                    <p><strong>{order.billing.first_name} {order.billing.last_name}</strong></p>
-                    <p>{order.billing.email}</p>
-                    {order.billing.phone && <p>{order.billing.phone}</p>}
+                    <p><strong>{order.billing?.first_name} {order.billing?.last_name}</strong></p>
+                    <p>{order.billing?.email}</p>
+                    {order.billing?.phone && <p>{order.billing?.phone}</p>}
                     <div className="flex items-start gap-2 mt-2">
-                      <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                       <div>
-                        <p>{order.billing.address_1}</p>
-                        <p>{order.billing.city}, {order.billing.state}</p>
-                        <p>{order.billing.postcode} - {order.billing.country}</p>
+                        <p>{order.billing?.address_1}</p>
+                        <p>{order.billing?.city}, {order.billing?.state}</p>
+                        <p>{order.billing?.postcode} - {order.billing?.country}</p>
                       </div>
                     </div>
                   </div>
@@ -98,13 +98,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
                 <div>
                   <h4 className="font-semibold mb-2">Dados de Entrega</h4>
                   <div className="space-y-1 text-sm">
-                    <p><strong>{order.shipping.first_name} {order.shipping.last_name}</strong></p>
+                    <p><strong>{order.shipping?.first_name || order.billing?.first_name} {order.shipping?.last_name || order.billing?.last_name}</strong></p>
                     <div className="flex items-start gap-2 mt-2">
-                      <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                       <div>
-                        <p>{order.shipping.address_1}</p>
-                        <p>{order.shipping.city}, {order.shipping.state}</p>
-                        <p>{order.shipping.postcode} - {order.shipping.country}</p>
+                        <p>{order.shipping?.address_1 || order.billing?.address_1}</p>
+                        <p>{order.shipping?.city || order.billing?.city}, {order.shipping?.state || order.billing?.state}</p>
+                        <p>{order.shipping?.postcode || order.billing?.postcode} - {order.shipping?.country || order.billing?.country}</p>
                       </div>
                     </div>
                   </div>
@@ -124,12 +124,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-600">Método de Pagamento</label>
-                  <p className="font-semibold">{order.payment_method_title}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Método de Pagamento</label>
+                  <p className="font-semibold">{order.payment_method_title || order.payment_method || 'Não informado'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-600">Total</label>
-                  <p className="text-lg font-bold">{order.currency} {parseFloat(order.total).toFixed(2)}</p>
+                  <label className="text-sm font-medium text-muted-foreground">Total</label>
+                  <p className="text-lg font-bold">{order.currency} {parseFloat(String(order.total || 0)).toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
@@ -145,18 +145,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ open, onOpenChange, order }
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {order.line_items.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                {order.line_items?.length > 0 ? order.line_items.map((item, index) => (
+                  <div key={item.id || index} className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
                     <div>
                       <p className="font-medium">{item.name}</p>
-                      <p className="text-sm text-slate-600">Produto ID: {item.product_id}</p>
+                      <p className="text-sm text-muted-foreground">Produto ID: {item.product_id}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">Qtd: {item.quantity}</p>
-                      <p className="text-sm">{order.currency} {parseFloat(item.total).toFixed(2)}</p>
+                      <p className="text-sm">{order.currency} {parseFloat(String(item.total || 0)).toFixed(2)}</p>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <p className="text-muted-foreground">Nenhum item encontrado</p>
+                )}
               </div>
             </CardContent>
           </Card>
