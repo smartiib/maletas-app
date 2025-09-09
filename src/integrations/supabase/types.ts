@@ -1113,6 +1113,77 @@ export type Database = {
         }
         Relationships: []
       }
+      product_jewelry_info: {
+        Row: {
+          codigo_fornecedor_bruto: string | null
+          created_at: string
+          custo_bruto: number | null
+          custo_final: number | null
+          custo_fixo: number | null
+          custo_galvanica: number | null
+          custo_variavel: number | null
+          fornecedor_bruto: string | null
+          id: string
+          markup_desejado: number | null
+          milesimo: number | null
+          nome_galvanica: string | null
+          organization_id: string | null
+          peso_peca: number | null
+          preco_venda_sugerido: number | null
+          product_id: number
+          updated_at: string
+          valor_milesimo: number | null
+        }
+        Insert: {
+          codigo_fornecedor_bruto?: string | null
+          created_at?: string
+          custo_bruto?: number | null
+          custo_final?: number | null
+          custo_fixo?: number | null
+          custo_galvanica?: number | null
+          custo_variavel?: number | null
+          fornecedor_bruto?: string | null
+          id?: string
+          markup_desejado?: number | null
+          milesimo?: number | null
+          nome_galvanica?: string | null
+          organization_id?: string | null
+          peso_peca?: number | null
+          preco_venda_sugerido?: number | null
+          product_id: number
+          updated_at?: string
+          valor_milesimo?: number | null
+        }
+        Update: {
+          codigo_fornecedor_bruto?: string | null
+          created_at?: string
+          custo_bruto?: number | null
+          custo_final?: number | null
+          custo_fixo?: number | null
+          custo_galvanica?: number | null
+          custo_variavel?: number | null
+          fornecedor_bruto?: string | null
+          id?: string
+          markup_desejado?: number | null
+          milesimo?: number | null
+          nome_galvanica?: string | null
+          organization_id?: string | null
+          peso_peca?: number | null
+          preco_venda_sugerido?: number | null
+          product_id?: number
+          updated_at?: string
+          valor_milesimo?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_jewelry_info_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_review_status: {
         Row: {
           created_at: string

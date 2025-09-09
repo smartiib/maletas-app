@@ -14,8 +14,10 @@ import { useSuppliers } from '@/hooks/useSuppliers';
 import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
 import { useProductVariations, useProductVariationsByIds, DbVariation } from '@/hooks/useProductVariations';
 import { Badge } from '@/components/ui/badge';
-import { Package } from 'lucide-react';
+import { Package, Gem } from 'lucide-react';
 import VariationStockEditor from './VariationStockEditor';
+import { JewelryInfoForm } from './JewelryInfoForm';
+import { useProductJewelryInfo, useSaveProductJewelryInfo, extractJewelryInfoFromMetaData, ProductJewelryInfo } from '@/hooks/useProductJewelryInfo';
 
 const productSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório'),
@@ -42,6 +44,11 @@ interface ProductFormProps {
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading }) => {
   const { data: suppliers = [] } = useSuppliers();
   const { data: categories = [] } = useWooCommerceFilteredCategories();
+  
+  // Jewelry info hooks
+  const { data: jewelryInfo } = useProductJewelryInfo(product?.id ? Number(product.id) : undefined);
+  const saveJewelryInfo = useSaveProductJewelryInfo();
+  const [jewelryFormData, setJewelryFormData] = React.useState<Partial<ProductJewelryInfo> | null>(null);
 
   // ---- Carregamento consistente de variações (parent + fallback por IDs) ----
   const hasVariations = product?.type === 'variable' && Array.isArray((product as any)?.variations) && (product as any).variations.length > 0;
@@ -154,10 +161,34 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
     }
   }, [product, form]);
 
-  const handleSubmit = (data: ProductFormData) => {
+  const handleSubmit = async (data: ProductFormData) => {
     console.log('ProductForm - Submitting data:', data);
+    
+    // Save jewelry info if it exists
+    if (jewelryFormData && product?.id) {
+      try {
+        await saveJewelryInfo.mutateAsync({
+          ...jewelryFormData,
+          product_id: Number(product.id),
+        });
+      } catch (error) {
+        console.error('Error saving jewelry info:', error);
+        // Continue with product submission even if jewelry info fails
+      }
+    }
+    
     onSubmit(data);
   };
+
+  // Extract jewelry info from meta_data when product changes
+  React.useEffect(() => {
+    if (product && Array.isArray((product as any)?.meta_data)) {
+      const extractedJewelryInfo = extractJewelryInfoFromMetaData((product as any).meta_data);
+      if (Object.keys(extractedJewelryInfo).length > 0) {
+        setJewelryFormData(prev => ({ ...prev, ...extractedJewelryInfo }));
+      }
+    }
+  }, [product]);
 
   const productImage = getProductImage();
 
@@ -466,6 +497,19 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             </FormItem>
           )}
         />
+
+        {/* Jewelry Information Section */}
+        {product?.id && (
+          <div className="space-y-4">
+            <div className="border-t pt-6">
+              <JewelryInfoForm
+                productId={Number(product.id)}
+                initialData={jewelryInfo || null}
+                onDataChange={(data) => setJewelryFormData({ ...data, product_id: Number(product.id) })}
+              />
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           <Button type="submit" disabled={isLoading} className="bg-gradient-primary hover:opacity-90">

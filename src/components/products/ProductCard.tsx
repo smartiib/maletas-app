@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Edit, Trash2, Eye, MoreHorizontal } from 'lucide-react';
+import { Package, Edit, Trash2, Eye, MoreHorizontal, Gem } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import ProductVariationInfo from './ProductVariationInfo';
 import { useProductVariations } from '@/hooks/useProductVariations';
+import { useProductJewelryInfo } from '@/hooks/useProductJewelryInfo';
 
 interface ProductCardProps {
   product: Product;
@@ -42,6 +43,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onSelectionChange,
   isDeletionMode = false
 }) => {
+  const { data: jewelryInfo } = useProductJewelryInfo(product.id);
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'publish': return 'bg-success-100 text-success-800';
@@ -292,6 +294,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
                 <Badge className={getUnitsBadgeClass(totalStock)}>
                   {totalStock} unidades
                 </Badge>
+                {jewelryInfo && (
+                  <Badge variant="outline" className="bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200">
+                    <Gem className="w-3 h-3 mr-1" />
+                    Joia
+                  </Badge>
+                )}
               </div>
               
               <div className="text-sm font-semibold">
@@ -384,6 +392,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
               <Badge className={getUnitsBadgeClass(totalStock)}>
                 {totalStock} unidades
               </Badge>
+              {jewelryInfo && (
+                <Badge variant="outline" className="bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-700 border-amber-200">
+                  <Gem className="w-3 h-3 mr-1" />
+                  Joia
+                </Badge>
+              )}
               <span className="font-semibold">
                 {getProductPrice()}
               </span>

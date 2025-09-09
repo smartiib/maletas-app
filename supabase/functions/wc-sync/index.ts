@@ -647,6 +647,7 @@ async function syncProducts(
             date_modified: product.date_modified,
             images: Array.isArray(product.images) ? product.images : [],
             variations: Array.isArray(product.variations) ? product.variations : [],
+            meta_data: Array.isArray(product.meta_data) ? product.meta_data : [], // Include meta_data for jewelry info
             organization_id: organizationId,
             stock_quantity: intOrNull(product.stock_quantity),
             stock_status: product.stock_status,
