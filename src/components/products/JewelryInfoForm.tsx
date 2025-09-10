@@ -6,8 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Gem, Calculator, DollarSign, Package } from 'lucide-react';
 import { ProductJewelryInfo } from '@/hooks/useProductJewelryInfo';
+import { useSuppliers } from '@/hooks/useSuppliers';
 
 const jewelrySchema = z.object({
   fornecedor_bruto: z.string().optional(),
@@ -35,6 +37,8 @@ export const JewelryInfoForm: React.FC<JewelryInfoFormProps> = ({
   initialData,
   onDataChange,
 }) => {
+  const { data: suppliers = [] } = useSuppliers();
+  
   const form = useForm<JewelryFormData>({
     resolver: zodResolver(jewelrySchema),
     defaultValues: {
@@ -117,7 +121,18 @@ export const JewelryInfoForm: React.FC<JewelryInfoFormProps> = ({
                   <FormItem>
                     <FormLabel>Nome Fornecedor Bruto</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Nome do fornecedor bruto" />
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um fornecedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.name}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -145,7 +160,18 @@ export const JewelryInfoForm: React.FC<JewelryInfoFormProps> = ({
                   <FormItem>
                     <FormLabel>Nome da Galvânica (banho)</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Nome da galvânica" />
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione uma galvânica" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={supplier.name}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
