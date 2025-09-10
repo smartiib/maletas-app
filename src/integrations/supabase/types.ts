@@ -1113,6 +1113,116 @@ export type Database = {
         }
         Relationships: []
       }
+      product_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          image_url: string | null
+          is_active: boolean | null
+          name: string
+          organization_id: string | null
+          parent_id: string | null
+          slug: string
+          updated_at: string
+          wc_category_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name: string
+          organization_id?: string | null
+          parent_id?: string | null
+          slug: string
+          updated_at?: string
+          wc_category_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string | null
+          is_active?: boolean | null
+          name?: string
+          organization_id?: string | null
+          parent_id?: string | null
+          slug?: string
+          updated_at?: string
+          wc_category_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_categories_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "product_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          display_order: number | null
+          id: string
+          image_url: string
+          is_featured: boolean | null
+          organization_id: string | null
+          product_id: number
+          storage_path: string | null
+          updated_at: string
+          wc_image_id: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          image_url: string
+          is_featured?: boolean | null
+          organization_id?: string | null
+          product_id: number
+          storage_path?: string | null
+          updated_at?: string
+          wc_image_id?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_featured?: boolean | null
+          organization_id?: string | null
+          product_id?: number
+          storage_path?: string | null
+          updated_at?: string
+          wc_image_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_images_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_jewelry_info: {
         Row: {
           codigo_fornecedor_bruto: string | null
@@ -1257,6 +1367,76 @@ export type Database = {
             columns: ["supplier_id"]
             isOneToOne: false
             referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_tag_relations: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: number
+          tag_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: number
+          tag_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: number
+          tag_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_tag_relations_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "product_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_tags: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string | null
+          slug: string
+          updated_at: string
+          wc_tag_id: number | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          slug: string
+          updated_at?: string
+          wc_tag_id?: number | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          slug?: string
+          updated_at?: string
+          wc_tag_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_tags_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

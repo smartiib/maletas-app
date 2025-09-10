@@ -17,6 +17,9 @@ import { Badge } from '@/components/ui/badge';
 import { Package, Gem } from 'lucide-react';
 import VariationStockEditor from './VariationStockEditor';
 import { JewelryInfoForm } from './JewelryInfoForm';
+import { ProductImageGallery } from './ProductImageGallery';
+import { ProductTagsManager } from './ProductTagsManager';
+import { ProductCategoriesManager } from './ProductCategoriesManager';
 import { useProductJewelryInfo, useSaveProductJewelryInfo, extractJewelryInfoFromMetaData, ProductJewelryInfo } from '@/hooks/useProductJewelryInfo';
 
 const productSchema = z.object({
@@ -510,6 +513,20 @@ const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading 
             </div>
           </div>
         )}
+
+        {/* Product Images Gallery */}
+        <ProductImageGallery productId={product?.id ? Number(product.id) : undefined} />
+
+        {/* Product Tags Manager */}
+        <ProductTagsManager productId={product?.id ? Number(product.id) : undefined} />
+
+        {/* Product Categories Manager */}
+        <div className="space-y-4">
+          <ProductCategoriesManager 
+            selectedCategoryId={form.watch('category_id')}
+            onCategorySelect={(id) => form.setValue('category_id', id)}
+          />
+        </div>
 
         <div className="flex justify-end gap-2">
           <Button type="submit" disabled={isLoading} className="bg-gradient-primary hover:opacity-90">
