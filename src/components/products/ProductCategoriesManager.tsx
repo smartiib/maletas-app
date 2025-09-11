@@ -85,14 +85,14 @@ export const ProductCategoriesManager: React.FC<ProductCategoriesManagerProps> =
       name: newCategoryName.trim(),
       slug,
       description: newCategoryDescription.trim() || undefined,
-      parent_id: newCategoryParent || undefined,
+      parent_id: newCategoryParent && newCategoryParent !== 'root' ? newCategoryParent : undefined,
       display_order: 0,
       is_active: true,
     });
 
     setNewCategoryName('');
     setNewCategoryDescription('');
-    setNewCategoryParent('');
+    setNewCategoryParent('root');
     setIsCreateDialogOpen(false);
   };
 
@@ -129,7 +129,7 @@ export const ProductCategoriesManager: React.FC<ProductCategoriesManagerProps> =
                 <SelectValue placeholder="Selecione uma categoria" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma categoria</SelectItem>
+                <SelectItem value="none">Nenhuma categoria</SelectItem>
                 {categoryTree.flatMap(cat => renderCategoryOption(cat))}
               </SelectContent>
             </Select>
@@ -167,7 +167,7 @@ export const ProductCategoriesManager: React.FC<ProductCategoriesManagerProps> =
                       <SelectValue placeholder="Selecione uma categoria pai (opcional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Categoria raiz</SelectItem>
+                      <SelectItem value="root">Categoria raiz</SelectItem>
                       {categoryTree.flatMap(cat => renderCategoryOption(cat))}
                     </SelectContent>
                   </Select>
@@ -194,7 +194,7 @@ export const ProductCategoriesManager: React.FC<ProductCategoriesManagerProps> =
                     onClick={() => {
                       setNewCategoryName('');
                       setNewCategoryDescription('');
-                      setNewCategoryParent('');
+                      setNewCategoryParent('root');
                       setIsCreateDialogOpen(false);
                     }}
                     className="flex-1"
