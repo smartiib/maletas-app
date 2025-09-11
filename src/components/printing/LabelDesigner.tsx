@@ -1,7 +1,7 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLabelPrinting } from '@/hooks/useLabelPrinting';
-import { useWooCommerceFilteredProducts, useWooCommerceCategories } from '@/hooks/useWooCommerce';
+import { useWooCommerceFilteredProducts } from '@/hooks/useWooCommerceFiltered';
+import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
 import { ProductVariationSelector } from './ProductVariationSelector';
@@ -10,12 +10,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Search, Filter } from 'lucide-react';
-import { useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Search, Filter, AlertCircle, Database } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const LabelDesigner: React.FC = () => {
-  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts(1, 100);
-  const { data: categories = [] } = useWooCommerceCategories();
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useWooCommerceFilteredProducts();
+  const { data: categories = [] } = useWooCommerceFilteredCategories();
+  
   const {
     printQueue,
     settings,
@@ -50,16 +52,27 @@ export const LabelDesigner: React.FC = () => {
       totalQuantity,
       isLoading,
       availableTemplates: availableTemplates?.length || 0,
-      selectedTemplate: selectedTemplate?.name
+      selectedTemplate: {
+        _type: typeof selectedTemplate,
+        value: selectedTemplate?.name || 'undefined'
+      }
     });
   }, [printQueue.length, totalQuantity, isLoading, availableTemplates?.length, selectedTemplate?.name]);
 
+  // Show error message if products failed to load
+  useEffect(() => {
+    if (productsError) {
+      console.error('[LabelDesigner] Erro ao carregar produtos:', productsError);
+      toast.error('Erro ao carregar produtos. Verifique a configuração do WooCommerce.');
+    }
+  }, [productsError]);
+
   // Filtrar produtos
   const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.sku?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || selectedCategory === 'all' || 
-                           product.categories?.some((cat: any) => cat.id.toString() === selectedCategory);
+                           product.categories?.some((cat: any) => cat.id?.toString() === selectedCategory);
     return matchesSearch && matchesCategory;
   });
 
@@ -85,6 +98,7 @@ export const LabelDesigner: React.FC = () => {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('[LabelDesigner] Erro ao gerar ZPL:', error);
+      toast.error('Erro ao gerar arquivo ZPL');
     }
   };
 
@@ -111,6 +125,25 @@ export const LabelDesigner: React.FC = () => {
               </Badge>
             )}
           </div>
+
+          {/* Status da configuração */}
+          {productsError && (
+            <Alert className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Problemas ao carregar produtos. Verifique as configurações do WooCommerce nas configurações do sistema.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!productsLoading && products.length === 0 && !productsError && (
+            <Alert className="mb-4">
+              <Database className="h-4 w-4" />
+              <AlertDescription>
+                Nenhum produto sincronizado encontrado. Execute uma sincronização dos produtos primeiro.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Filters */}
           <div className="flex gap-4">
@@ -165,13 +198,10 @@ export const LabelDesigner: React.FC = () => {
             </div>
           )}
 
-          {!productsLoading && filteredProducts.length === 0 && (
+          {!productsLoading && filteredProducts.length === 0 && products.length > 0 && (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
-                {searchTerm || selectedCategory ? 
-                  'Nenhum produto encontrado com os filtros aplicados.' :
-                  'Nenhum produto disponível.'
-                }
+                Nenhum produto encontrado com os filtros aplicados.
               </p>
             </div>
           )}

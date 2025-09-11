@@ -109,7 +109,12 @@ export const useLabelPrinting = () => {
   const { data: availableTemplates = [] } = useQuery({
     queryKey: ['label-templates', settings.labelType],
     queryFn: async () => {
-      return await loadTemplates('etiqueta');
+      try {
+        return await loadTemplates('etiqueta');
+      } catch (error) {
+        console.error('Erro ao carregar templates:', error);
+        return [];
+      }
     }
   });
 
@@ -117,8 +122,21 @@ export const useLabelPrinting = () => {
   useEffect(() => {
     const selectDefault = async () => {
       if (!selectedTemplate && availableTemplates && availableTemplates.length > 0) {
-        const def = await getDefaultTemplate('etiqueta');
-        if (def) setSelectedTemplate(def);
+        try {
+          const def = await getDefaultTemplate('etiqueta');
+          if (def) {
+            setSelectedTemplate(def);
+          } else if (availableTemplates.length > 0) {
+            // Se não há template padrão, usar o primeiro disponível
+            setSelectedTemplate(availableTemplates[0]);
+          }
+        } catch (error) {
+          console.error('Erro ao selecionar template padrão:', error);
+          // Usar o primeiro template disponível como fallback
+          if (availableTemplates.length > 0) {
+            setSelectedTemplate(availableTemplates[0]);
+          }
+        }
       }
     };
     selectDefault();

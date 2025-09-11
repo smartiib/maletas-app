@@ -1,13 +1,9 @@
 
 import React from 'react';
-import { LabelDesigner } from '@/components/printing/LabelDesigner';
+import { LabelsPage } from '@/components/printing/LabelsPage';
 
 const Labels: React.FC = () => {
-  return (
-    <div className="h-screen overflow-hidden">
-      <LabelDesigner />
-    </div>
-  );
+  return <LabelsPage />;
 };
 
 export default Labels;
