@@ -27,20 +27,29 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
 
   const handleSubmit = async (data: any) => {
     try {
-      // Processar meta_data para incluir is_representative
+      // Processar meta_data para incluir is_representative e date_of_birth, preservando metadados existentes
+      const existingMeta = Array.isArray(customer?.meta_data) ? customer!.meta_data : [];
+      const metaMap = new Map<string, any>();
+      for (const m of existingMeta) {
+        if (m?.key) metaMap.set(m.key, m.value);
+      }
+      // Atualizar/definir metadados
+      metaMap.set('is_representative', data.is_representative || false);
+      if (data.date_of_birth) {
+        metaMap.set('date_of_birth', data.date_of_birth);
+      } else {
+        metaMap.delete('date_of_birth');
+      }
+      const meta_data = Array.from(metaMap.entries()).map(([key, value]) => ({ key, value }));
+
       const customerData = {
         ...data,
-        meta_data: [
-          {
-            key: 'is_representative',
-            value: data.is_representative || false
-          }
-        ]
+        meta_data
       };
       
-      // Remover is_representative do nível superior já que será em meta_data
+      // Remover campos do nível superior que irão em meta_data
       delete customerData.is_representative;
-      
+      delete customerData.date_of_birth;
       let savedCustomer;
       
       if (mode === 'create') {
@@ -106,9 +115,17 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
       }
       
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       const action = mode === 'create' ? 'criar' : 'atualizar';
-      logger.error(`Erro ao ${action} cliente`, `Falha ao ${action} cliente`);
+      const message: string = error?.message || `Falha ao ${action} cliente`;
+      logger.error(`Erro ao ${action} cliente`, message);
+      toast({
+        title: 'Erro ao salvar cliente',
+        description: message.includes('401')
+          ? 'Permissão negada pelo WooCommerce (401). Verifique se as chaves têm acesso Read/Write nas Configurações.'
+          : message,
+        variant: 'destructive',
+      });
     }
   };
 

@@ -294,8 +294,11 @@ export const useUpdateCustomer = () => {
   
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: any }) => wooCommerceAPI.updateCustomer(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['woocommerce-customers', currentOrganization?.id] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['woocommerce-customers', currentOrganization?.id] });
+      await queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'wc-customers-filtered',
+      });
     },
   });
 };
