@@ -1923,6 +1923,60 @@ export type Database = {
           },
         ]
       }
+      sync_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          data: Json
+          entity_id: number
+          entity_type: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          operation: string
+          organization_id: string
+          priority: number | null
+          processed_at: string | null
+          scheduled_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          data?: Json
+          entity_id: number
+          entity_type: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          operation: string
+          organization_id: string
+          priority?: number | null
+          processed_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          data?: Json
+          entity_id?: number
+          entity_type?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          operation?: string
+          organization_id?: string
+          priority?: number | null
+          processed_at?: string | null
+          scheduled_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sync_settings: {
         Row: {
           created_at: string

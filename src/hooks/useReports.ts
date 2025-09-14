@@ -1,7 +1,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useWooCommerceFilteredOrders } from '@/hooks/useWooCommerceFiltered';
+import { useLocalOrders } from '@/hooks/useLocalOrders';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useWooCommerceConfig } from '@/hooks/useWooCommerce';
 
@@ -98,7 +98,7 @@ export const useReportsData = () => {
   });
 
   // Buscar pedidos da loja (WooCommerce) - já filtrado por organização
-  const { data: orders = [] } = useWooCommerceFilteredOrders();
+  const { data: orders = [] } = useLocalOrders();
 
   // Função para calcular comissão baseada nos tiers
   const calculateCommission = (amount: number, commissionSettings: any) => {

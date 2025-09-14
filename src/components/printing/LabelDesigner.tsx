@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLabelPrinting } from '@/hooks/useLabelPrinting';
-import { useWooCommerceFilteredProducts } from '@/hooks/useWooCommerceFiltered';
-import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
+import { useLocalProducts } from '@/hooks/useLocalProducts';
+import { useLocalCategories } from '@/hooks/useLocalCategories';
 import { ProductLabelCard } from './ProductLabelCard';
 import { LabelPrintSidebar } from './LabelPrintSidebar';
 import { ProductVariationSelector } from './ProductVariationSelector';
@@ -15,8 +15,8 @@ import { Search, Filter, AlertCircle, Database } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const LabelDesigner: React.FC = () => {
-  const { data: products = [], isLoading: productsLoading, error: productsError } = useWooCommerceFilteredProducts();
-  const { data: categories = [] } = useWooCommerceFilteredCategories();
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useLocalProducts();
+  const { data: categories = [] } = useLocalCategories();
   
   const {
     printQueue,

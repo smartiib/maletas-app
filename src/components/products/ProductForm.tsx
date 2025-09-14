@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Product } from '@/types';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
+import { useLocalCategories } from '@/hooks/useLocalCategories';
 import { useProductVariations, useProductVariationsByIds, DbVariation } from '@/hooks/useProductVariations';
 import { Badge } from '@/components/ui/badge';
 import { Package, Gem } from 'lucide-react';
@@ -46,7 +46,7 @@ interface ProductFormProps {
 
 const ProductForm: React.FC<ProductFormProps> = ({ product, onSubmit, isLoading }) => {
   const { data: suppliers = [] } = useSuppliers();
-  const { data: categories = [] } = useWooCommerceFilteredCategories();
+  const { data: categories = [] } = useLocalCategories();
   
   // Jewelry info hooks
   const { data: jewelryInfo } = useProductJewelryInfo(product?.id ? Number(product.id) : undefined);

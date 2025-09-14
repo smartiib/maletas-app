@@ -3,11 +3,9 @@ import KPICard from "@/components/dashboard/KPICard";
 import SalesChart from "@/components/dashboard/SalesChart";
 import RecentActivity from "@/components/dashboard/RecentActivity";
 import QuickActions from "@/components/dashboard/QuickActions";
-import { 
-  useWooCommerceFilteredProducts, 
-  useWooCommerceFilteredOrders, 
-  useWooCommerceFilteredCustomers 
-} from "@/hooks/useWooCommerceFiltered";
+import { useLocalProducts } from "@/hooks/useLocalProducts";
+import { useLocalOrders } from "@/hooks/useLocalOrders";
+import { useLocalCustomers } from "@/hooks/useLocalCustomers";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -25,9 +23,9 @@ const Dashboard = () => {
   const isSuperAdmin = user?.email === 'douglas@agencia2b.com.br';
 
   // These hooks use the organization context internally, no need to pass organizationId
-  const { data: products = [], isLoading: productsLoading } = useWooCommerceFilteredProducts();
-  const { data: orders = [], isLoading: ordersLoading } = useWooCommerceFilteredOrders();
-  const { data: customers = [], isLoading: customersLoading } = useWooCommerceFilteredCustomers();
+  const { data: products = [], isLoading: productsLoading } = useLocalProducts();
+  const { data: orders = [], isLoading: ordersLoading } = useLocalOrders();
+  const { data: customers = [], isLoading: customersLoading } = useLocalCustomers();
 
   const { isConfigured } = useWooCommerceConfig();
   

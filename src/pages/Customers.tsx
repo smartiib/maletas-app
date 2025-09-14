@@ -13,7 +13,7 @@ import CustomerDetails from "@/components/customers/CustomerDetails";
 import { BirthdayWidget } from "@/components/customers/BirthdayWidget";
 import { BirthdayActions } from "@/components/customers/BirthdayActions";
 import { BirthdayCampaignDialog } from "@/components/customers/BirthdayCampaignDialog";
-import { useWooCommerceFilteredCustomers } from "@/hooks/useWooCommerceFiltered";
+import { useLocalCustomers } from "@/hooks/useLocalCustomers";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
@@ -34,7 +34,7 @@ const Customers = () => {
   const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
-  const { data: customers = [], isLoading } = useWooCommerceFilteredCustomers();
+  const { data: customers = [], isLoading } = useLocalCustomers();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, setViewMode } = useViewMode('customers');
   const { 

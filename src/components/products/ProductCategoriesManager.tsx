@@ -10,7 +10,7 @@ import {
   useCreateProductCategory,
   ProductCategory 
 } from '@/hooks/useProductCategories';
-import { useWooCommerceFilteredCategories } from '@/hooks/useWooCommerceFiltered';
+import { useLocalCategories } from '@/hooks/useLocalCategories';
 import { FolderTree, Plus, Folder } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
@@ -29,7 +29,7 @@ export const ProductCategoriesManager: React.FC<ProductCategoriesManagerProps> =
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
   const { data: customCategories = [] } = useProductCategories();
-  const { data: wooCategories = [] } = useWooCommerceFilteredCategories();
+  const { data: wooCategories = [] } = useLocalCategories();
   const createCategory = useCreateProductCategory();
 
   // Combine WooCommerce and custom categories

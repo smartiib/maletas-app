@@ -1,9 +1,8 @@
 
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useCreateCustomer, useUpdateCustomer } from '@/hooks/useWooCommerce';
+import { useCreateLocalCustomer, useUpdateLocalCustomer, LocalCustomer } from '@/hooks/useLocalCustomers';
 import { useCreateRepresentative, useUpdateRepresentative, useRepresentatives } from '@/hooks/useMaletas';
-import { Customer } from '@/services/woocommerce';
 import CustomerForm from './CustomerForm';
 import { logger } from '@/services/logger';
 import { toast } from '@/hooks/use-toast';
@@ -11,13 +10,13 @@ import { toast } from '@/hooks/use-toast';
 interface CustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  customer?: Customer;
+  customer?: LocalCustomer;
   mode: 'create' | 'edit';
 }
 
 const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, customer, mode }) => {
-  const createCustomer = useCreateCustomer();
-  const updateCustomer = useUpdateCustomer();
+  const createCustomer = useCreateLocalCustomer();
+  const updateCustomer = useUpdateLocalCustomer();
   const createRepresentative = useCreateRepresentative();
   const updateRepresentative = useUpdateRepresentative();
   const { data: representativesResponse } = useRepresentatives();
@@ -54,10 +53,10 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
       
       if (mode === 'create') {
         savedCustomer = await createCustomer.mutateAsync(customerData);
-        logger.success('Cliente Criado', `Cliente "${data.first_name} ${data.last_name}" foi criado com sucesso`);
+        logger.success('Cliente Criado', 'Cliente foi criado localmente e agendado para sincronização');
       } else if (customer) {
         savedCustomer = await updateCustomer.mutateAsync({ id: customer.id, data: customerData });
-        logger.success('Cliente Atualizado', `Cliente "${data.first_name} ${data.last_name}" foi atualizado com sucesso`);
+        logger.success('Cliente Atualizado', `Cliente ${customer.first_name} foi atualizado localmente`);
       }
 
       // Se foi marcado como representante, criar/atualizar na tabela representantes

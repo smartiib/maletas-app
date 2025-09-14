@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import OrderCard from "@/components/orders/OrderCard";
 import OrderDialog from "@/components/orders/OrderDialog";
 import OrderDetails from "@/components/orders/OrderDetails";
-import { useWooCommerceFilteredOrders } from "@/hooks/useWooCommerceFiltered";
+import { useLocalOrders } from "@/hooks/useLocalOrders";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
@@ -22,7 +22,7 @@ const Orders = () => {
   const [editingOrder, setEditingOrder] = useState<any>(null);
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
-  const { data: orders = [], isLoading } = useWooCommerceFilteredOrders();
+  const { data: orders = [], isLoading } = useLocalOrders();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('orders');
 

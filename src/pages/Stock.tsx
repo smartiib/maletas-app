@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
+import { useLocalProducts } from "@/hooks/useLocalProducts";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
@@ -15,7 +15,7 @@ const Stock = () => {
   const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
-  const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
+  const { data: products = [], isLoading } = useLocalProducts();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('stock');
 

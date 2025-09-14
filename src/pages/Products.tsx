@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import ProductDialog from "@/components/products/ProductDialog";
 import ProductCard from "@/components/products/ProductCard";
-import { useWooCommerceFilteredProducts } from "@/hooks/useWooCommerceFiltered";
+import { useLocalProducts } from "@/hooks/useLocalProducts";
 import { useWooCommerceConfig } from "@/hooks/useWooCommerce";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { EmptyWooCommerceState } from "@/components/woocommerce/EmptyWooCommerceState";
@@ -31,7 +31,7 @@ const Products = () => {
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>('all');
 
   const { currentOrganization, loading: orgLoading } = useOrganization();
-  const { data: products = [], isLoading } = useWooCommerceFilteredProducts();
+  const { data: products = [], isLoading } = useLocalProducts();
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('products');
 
