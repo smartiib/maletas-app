@@ -140,7 +140,11 @@ const CustomerDialog: React.FC<CustomerDialogProps> = ({ open, onOpenChange, cus
         </DialogHeader>
         
         <CustomerForm
-          customer={customer}
+          customer={customer ? {
+            ...customer,
+            total_spent: customer.total_spent?.toString() || "0",
+            date_created: customer.date_created || new Date().toISOString()
+          } : undefined}
           onSubmit={handleSubmit}
           isLoading={isLoading}
         />

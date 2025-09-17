@@ -27,10 +27,12 @@ const Orders = () => {
   const { viewMode, toggleViewMode } = useViewMode('orders');
 
   const filteredOrders = orders.filter((order) =>
-    order.number?.toString().includes(searchTerm) ||
-    order.billing?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing?.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    order.order_number?.toString().includes(searchTerm) ||
+    order.billing_address?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.billing_address?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.billing_address?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleViewOrder = (order: any) => {
@@ -175,7 +177,46 @@ const Orders = () => {
         {filteredOrders.map((order) => (
           <OrderCard 
             key={order.id} 
-            order={order} 
+            order={{
+              ...order,
+              id: order.id,
+              parent_id: 0,
+              number: order.order_number,
+              order_key: `wc_order_${order.id}`,
+              created_via: "manual",
+              version: "1.0",
+              status: order.status as any,
+              currency: order.currency || "BRL",
+              date_created: order.date_created || new Date().toISOString(),
+              date_modified: order.date_modified || new Date().toISOString(),
+              discount_total: "0",
+              discount_tax: "0",
+              shipping_total: "0",
+              shipping_tax: "0",
+              cart_tax: "0",
+              total: order.total?.toString() || "0",
+              total_tax: "0",
+              prices_include_tax: false,
+              customer_id: order.customer_id || 0,
+              customer_ip_address: "",
+              customer_user_agent: "",
+              customer_note: order.notes || "",
+              billing: order.billing_address || {} as any,
+              shipping: order.shipping_address || {} as any,
+              payment_method: order.payment_method || "",
+              payment_method_title: order.payment_method || "",
+              transaction_id: "",
+              date_paid: null,
+              date_completed: null,
+              cart_hash: "",
+              meta_data: [],
+              line_items: order.line_items || [],
+              tax_lines: [],
+              shipping_lines: [],
+              fee_lines: [],
+              coupon_lines: [],
+              refunds: []
+            }} 
             viewMode={viewMode}
             onView={handleViewOrder}
             onEdit={handleEditOrder}

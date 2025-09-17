@@ -231,7 +231,7 @@ const Reports = () => {
         />
         <ReportsKPI
           title="Vendas Loja"
-          value={`R$ ${(orders?.reduce((sum, order) => sum + parseFloat(order.total || '0'), 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+          value={`R$ ${(orders?.reduce((sum, order) => sum + (typeof order.total === 'number' ? order.total : parseFloat(String(order.total) || '0')), 0) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
           subtitle={`${orders?.length || 0} pedidos online`}
           icon={Store}
         />

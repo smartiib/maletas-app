@@ -10,12 +10,12 @@ import {
   DollarSign,
   ArrowRight
 } from 'lucide-react';
-import { Order, Product, Customer } from '@/services/woocommerce';
+import { LocalOrder, LocalProduct, LocalCustomer } from '@/types';
 
 interface RecentActivityProps {
-  orders: Order[];
-  customers: Customer[];
-  products: Product[];
+  orders: LocalOrder[];
+  customers: LocalCustomer[];
+  products: LocalProduct[];
 }
 
 const RecentActivity = ({ orders, customers, products }: RecentActivityProps) => {
@@ -34,16 +34,16 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
 
     // Adicionar pedidos recentes
     orders.slice(0, 3).forEach(order => {
-      const customerName = order.billing ? `${order.billing.first_name} ${order.billing.last_name}` : 'Cliente';
+      const customerName = order.billing_address ? `${order.billing_address.first_name} ${order.billing_address.last_name}` : order.customer_name;
       activities.push({
         id: `order-${order.id}`,
         type: 'order',
-        date: order.date_created,
-        title: `Pedido #${order.id}`,
+        date: order.date_created || new Date().toISOString(),
+        title: `Pedido #${order.order_number}`,
         subtitle: `Cliente: ${customerName}`,
         icon: ShoppingCart,
         badge: order.status,
-        value: `R$ ${parseFloat(order.total || '0').toFixed(2)}`
+        value: `R$ ${(typeof order.total === 'number' ? order.total : parseFloat(String(order.total) || '0')).toFixed(2)}`
       });
     });
 
@@ -52,7 +52,7 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
       activities.push({
         id: `customer-${customer.id}`,
         type: 'customer',
-        date: customer.date_created,
+        date: customer.date_created || new Date().toISOString(),
         title: 'Novo Cliente',
         subtitle: `${customer.first_name} ${customer.last_name}`,
         icon: User,
@@ -65,7 +65,7 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
       activities.push({
         id: `product-${product.id}`,
         type: 'product',
-        date: product.date_created,
+        date: product.date_created || new Date().toISOString(),
         title: 'Produto Cadastrado',
         subtitle: product.name,
         icon: Package,

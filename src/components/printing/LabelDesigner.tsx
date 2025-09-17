@@ -187,7 +187,12 @@ export const LabelDesigner: React.FC = () => {
               {filteredProducts.map((product) => (
                 <ProductLabelCard
                   key={product.id}
-                  product={product}
+                  product={{
+                    ...product,
+                    price: product.price?.toString() || "0",
+                    sale_price: product.sale_price?.toString() || "0",
+                    regular_price: product.regular_price?.toString() || "0"
+                  }}
                   onAddToQueue={(product, quantity) => addToQueue(product, quantity)}
                   onSelectVariations={() => handleSelectVariations(product)}
                   isInQueue={isProductInQueue(product.id)}

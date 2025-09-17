@@ -7,8 +7,8 @@ import { toast } from 'sonner';
 export interface LocalCustomer {
   id: number;
   email: string;
-  first_name?: string;
-  last_name?: string;
+  first_name: string;
+  last_name: string;
   role?: string;
   username?: string;
   billing?: any;

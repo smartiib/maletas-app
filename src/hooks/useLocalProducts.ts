@@ -7,16 +7,17 @@ import { toast } from 'sonner';
 export interface LocalProduct {
   id: number;
   name: string;
+  sku: string;
   slug?: string;
   type?: string;
   status?: string;
   featured?: boolean;
   description?: string;
   short_description?: string;
-  sku?: string;
   price?: number;
   regular_price?: number;
   sale_price?: number;
+  on_sale?: boolean;
   manage_stock?: boolean;
   stock_quantity?: number;
   stock_status?: string;

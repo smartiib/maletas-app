@@ -242,3 +242,171 @@ export interface SavedCart {
   items: CartItem[];
   savedAt: Date;
 }
+
+// Local Database Types
+export interface LocalCustomer {
+  id: number;
+  email: string;
+  first_name: string;
+  last_name: string;
+  role?: string;
+  username?: string;
+  billing?: BillingAddress;
+  shipping?: ShippingAddress;
+  is_paying_customer?: boolean;
+  avatar_url?: string;
+  meta_data?: MetaData[];
+  total_spent?: number;
+  orders_count?: number;
+  date_created?: string;
+  date_modified?: string;
+  organization_id?: string;
+  synced_at?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface LocalProduct {
+  id: number;
+  name: string;
+  sku: string;
+  slug?: string;
+  type?: string;
+  status?: string;
+  featured?: boolean;
+  description?: string;
+  short_description?: string;
+  price?: number;
+  regular_price?: number;
+  sale_price?: number;
+  on_sale?: boolean;
+  manage_stock?: boolean;
+  stock_quantity?: number;
+  stock_status?: string;
+  categories?: any[];
+  tags?: any[];
+  images?: any[];
+  attributes?: any[];
+  variations?: any[];
+  meta_data?: any[];
+  date_created?: string;
+  date_modified?: string;
+  organization_id?: string;
+}
+
+export interface LocalOrder {
+  id: number;
+  order_number: string;
+  status: string;
+  currency?: string;
+  total: number;
+  customer_id?: number;
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  billing_address?: any;
+  shipping_address?: any;
+  payment_method?: string;
+  payment_methods?: any;
+  notes?: string;
+  line_items?: any[];
+  metadata?: any;
+  date_created?: string;
+  date_modified?: string;
+  organization_id?: string;
+}
+
+// Type conversion utilities
+export const convertLocalCustomerToWooCommerce = (customer: LocalCustomer): Partial<Customer> => ({
+  ...customer,
+  total_spent: customer.total_spent?.toString() || "0",
+  date_created: customer.date_created || new Date().toISOString(),
+  date_modified: customer.date_modified || new Date().toISOString(),
+});
+
+export const convertLocalProductToWooCommerce = (product: LocalProduct): Partial<Product> => ({
+  ...product,
+  price: product.price?.toString() || "0",
+  regular_price: product.regular_price?.toString() || "0",
+  sale_price: product.sale_price?.toString() || "0",
+  catalog_visibility: "visible",
+  date_on_sale_from: null,
+  date_on_sale_to: null,
+  price_html: `$${product.price || 0}`,
+  purchasable: true,
+  total_sales: 0,
+  virtual: false,
+  downloadable: false,
+  downloads: [],
+  download_limit: -1,
+  download_expiry: -1,
+  external_url: "",
+  button_text: "",
+  tax_status: "taxable",
+  tax_class: "",
+  backorders: "no",
+  backorders_allowed: false,
+  backordered: false,
+  sold_individually: false,
+  weight: "",
+  dimensions: { length: "", width: "", height: "" },
+  shipping_required: true,
+  shipping_taxable: true,
+  shipping_class: "",
+  shipping_class_id: 0,
+  reviews_allowed: true,
+  average_rating: "0",
+  rating_count: 0,
+  related_ids: [],
+  upsell_ids: [],
+  cross_sell_ids: [],
+  parent_id: 0,
+  purchase_note: "",
+  tags: [],
+  default_attributes: [],
+  grouped_products: [],
+  menu_order: 0,
+  permalink: "",
+  date_created: product.date_created || new Date().toISOString(),
+  date_modified: product.date_modified || new Date().toISOString(),
+});
+
+export const convertLocalOrderToWooCommerce = (order: LocalOrder): Partial<Order> => ({
+  ...order,
+  id: order.id,
+  parent_id: 0,
+  number: order.order_number,
+  order_key: `wc_order_${order.id}`,
+  created_via: "manual",
+  version: "1.0",
+  status: order.status as OrderStatus,
+  currency: order.currency || "BRL",
+  date_created: order.date_created || new Date().toISOString(),
+  date_modified: order.date_modified || new Date().toISOString(),
+  discount_total: "0",
+  discount_tax: "0",
+  shipping_total: "0",
+  shipping_tax: "0",
+  cart_tax: "0",
+  total: order.total?.toString() || "0",
+  total_tax: "0",
+  prices_include_tax: false,
+  customer_ip_address: "",
+  customer_user_agent: "",
+  customer_note: order.notes || "",
+  billing: order.billing_address || {} as BillingAddress,
+  shipping: order.shipping_address || {} as ShippingAddress,
+  payment_method: order.payment_method || "",
+  payment_method_title: order.payment_method || "",
+  transaction_id: "",
+  date_paid: null,
+  date_completed: null,
+  cart_hash: "",
+  meta_data: [],
+  line_items: order.line_items || [],
+  tax_lines: [],
+  shipping_lines: [],
+  fee_lines: [],
+  coupon_lines: [],
+  refunds: [],
+});

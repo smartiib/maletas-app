@@ -89,7 +89,7 @@ const Customers = () => {
   const isRepresentative = (customer: any) => customer?.meta_data?.some((m: any) => m.key === 'is_representative' && (m.value === true || m.value === '1' || m.value === 1));
   const totalCustomers = customers?.length || 0;
   const representativesCount = customers?.filter(isRepresentative)?.length || 0;
-  const totalRevenue = customers?.reduce((sum, c) => sum + (parseFloat(c.total_spent || '0') || 0), 0) || 0;
+  const totalRevenue = customers?.reduce((sum, c) => sum + (parseFloat(c.total_spent?.toString() || '0') || 0), 0) || 0;
   const handleShowBirthdays = (filter: 'today' | 'upcoming' | 'thisMonth') => {
     setBirthdayFilter(filter);
     setSelectedMonth("");
@@ -327,7 +327,21 @@ const Customers = () => {
         {filteredCustomers.map((customer) => (
           <CustomerCard 
             key={customer.id} 
-            customer={customer} 
+            customer={{
+              ...customer,
+              first_name: customer.first_name || "",
+              last_name: customer.last_name || "",
+              role: customer.role || "customer",
+              username: customer.username || "",
+              billing: customer.billing || {},
+              shipping: customer.shipping || {},
+              is_paying_customer: customer.is_paying_customer || false,
+              avatar_url: customer.avatar_url || "",
+              meta_data: customer.meta_data || [],
+              date_created: customer.date_created || new Date().toISOString(),
+              date_modified: customer.date_modified || new Date().toISOString(),
+              total_spent: customer.total_spent?.toString() || "0"
+            }}
             viewMode={viewMode} 
             onView={handleView}
             onEdit={handleEdit}

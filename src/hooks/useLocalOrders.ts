@@ -6,28 +6,24 @@ import { toast } from 'sonner';
 // Types
 export interface LocalOrder {
   id: number;
-  number?: string;
+  order_number: string;
   status: string;
   currency?: string;
   total: number;
   customer_id?: number;
-  billing?: any;
-  shipping?: any;
-  line_items?: any[];
-  shipping_lines?: any[];
-  tax_lines?: any[];
-  fee_lines?: any[];
-  coupon_lines?: any[];
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  billing_address?: any;
+  shipping_address?: any;
   payment_method?: string;
-  payment_method_title?: string;
+  payment_methods?: any;
+  notes?: string;
+  line_items?: any[];
+  metadata?: any;
   date_created?: string;
   date_modified?: string;
-  date_completed?: string;
-  date_paid?: string;
-  meta_data?: any[];
   organization_id?: string;
-  customer_note?: string;
-  transaction_id?: string;
 }
 
 // Fetch all orders
