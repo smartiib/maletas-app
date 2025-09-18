@@ -25,13 +25,12 @@ export const IncrementalSyncDashboard = () => {
   const { config, isConfigured } = useWooCommerceConfig();
   const {
     syncStatus,
-    isLoadingSyncStatus,
+    isLoadingStatus,
     discoverProducts,
     fullSync,
     isDiscovering,
-    isSyncing,
+    isFullSyncing,
     progressState,
-    closeProgress
   } = useIncrementalSync();
 
   if (!isConfigured) {
@@ -232,7 +231,7 @@ export const IncrementalSyncDashboard = () => {
             <div className="space-y-3">
               <Button
                 onClick={handleDiscover}
-                disabled={isDiscovering || isSyncing}
+                disabled={isDiscovering || isFullSyncing}
                 className="w-full"
                 variant="outline"
               >
@@ -282,7 +281,7 @@ export const IncrementalSyncDashboard = () => {
 
       <SyncProgressDialog
         isOpen={progressState.isOpen}
-        onClose={closeProgress}
+        onClose={() => {}}
         syncType={progressState.syncType}
         status={progressState.status}
         progress={progressState.progress}
