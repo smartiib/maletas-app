@@ -92,7 +92,23 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
     try {
       const response = await fetch(url.toString());
       if (!response.ok) {
-        throw new Error(`WooCommerce API error: ${response.status}`);
+        let errorMessage = `WooCommerce API error: ${response.status}`;
+        
+        // Try to get error details from response
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage += ` - ${errorData.message}`;
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        
+        if (response.status === 401) {
+          errorMessage += '. Verifique suas credenciais do WooCommerce (Consumer Key/Secret).';
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const products = await response.json();
@@ -124,8 +140,35 @@ async function discoverChanges(request: SyncRequest): Promise<SyncDiscoveryResul
     throw new Error('WooCommerce configuration not found');
   }
 
+  // Validate WooCommerce URL format
+  if (!config.url.includes('/wp-json/wc/v3/') && !config.url.endsWith('/')) {
+    config.url = config.url.replace(/\/$/, '') + '/';
+  }
+
   // 1. Fetch WooCommerce products
-  const wooProducts = await fetchWooCommerceProducts(config);
+  let wooProducts;
+  try {
+    wooProducts = await fetchWooCommerceProducts(config);
+  } catch (error) {
+    // Update sync status with error
+    await supabase
+      .from('sync_status')
+      .upsert({
+        organization_id: organizationId,
+        sync_type: 'products',
+        status: 'error',
+        last_discover_at: new Date().toISOString(),
+        metadata: {
+          error: error.message,
+          error_type: 'woocommerce_auth_error'
+        },
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'organization_id,sync_type'
+      });
+    
+    throw error;
+  }
   logger.log(`Found ${wooProducts.length} products in WooCommerce`);
 
   // 2. Fetch local products

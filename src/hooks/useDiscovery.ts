@@ -82,8 +82,15 @@ export const useDiscovery = () => {
       );
     },
     onError: (error) => {
+      const errorMessage = error.message;
+      let description = errorMessage;
+      
+      if (errorMessage.includes('401') || errorMessage.includes('credenciais')) {
+        description = 'Erro de autenticação com WooCommerce. Verifique suas credenciais nas configurações.';
+      }
+      
       toast.error('Erro na descoberta', { 
-        description: error.message 
+        description 
       });
     }
   });
