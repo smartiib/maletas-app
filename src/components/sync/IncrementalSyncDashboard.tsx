@@ -250,10 +250,10 @@ export const IncrementalSyncDashboard = () => {
 
               <Button
                 onClick={handleFullSync}
-                disabled={isDiscovering || isSyncing}
+                disabled={isDiscovering || isFullSyncing}
                 className="w-full"
               >
-                {isSyncing ? (
+                {isFullSyncing ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     Sincronizando...
