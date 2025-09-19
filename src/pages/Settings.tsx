@@ -10,12 +10,6 @@ const Settings = () => {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground">
-            Gerencie suas configurações e integrações
-          </p>
-        </div>
 
         <Tabs defaultValue="woocommerce" className="space-y-4">
           <TabsList>
