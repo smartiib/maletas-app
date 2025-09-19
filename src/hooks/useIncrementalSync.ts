@@ -27,7 +27,7 @@ export const useIncrementalSync = () => {
   } = useSyncProgress();
 
   // Usar hooks especializados
-  const { syncStatus, isLoadingStatus, discover, isDiscovering } = useDiscovery();
+  const { syncStatus, isLoadingStatus, discover, discoverAsync, isDiscovering } = useDiscovery();
   const { syncFromWooCommerce, isSyncing } = useSyncFromWooCommerce();
   const { queueStatus, processQueue, isProcessingQueue, addToQueue } = useSyncQueue();
 
@@ -42,21 +42,9 @@ export const useIncrementalSync = () => {
       });
 
       // 1. Descobrir mudanças
-      discover(config);
-      
-      // Aguardar descoberta completar
-      await new Promise<void>(resolve => {
-        const checkDiscovery = () => {
-          if (!isDiscovering) {
-            resolve();
-          } else {
-            setTimeout(checkDiscovery, 500);
-          }
-        };
-        checkDiscovery();
-      });
+      const discovery = await discoverAsync(config);
 
-      if (!syncStatus) {
+      if (!discovery) {
         throw new Error('Falha na descoberta');
       }
 
@@ -66,9 +54,9 @@ export const useIncrementalSync = () => {
       });
 
       // 2. Sincronizar produtos do WooCommerce
-      const missingIds = syncStatus.metadata?.missingIds || [];
-      const changedIds = syncStatus.metadata?.changedIds || [];
-      const allIds = [...missingIds, ...changedIds];
+      const missingIds = discovery.missingIds || [];
+      const changedIds = discovery.changedIds || [];
+      const allIds = Array.from(new Set([...missingIds, ...changedIds]));
 
       if (allIds.length > 0) {
         syncFromWooCommerce({ 

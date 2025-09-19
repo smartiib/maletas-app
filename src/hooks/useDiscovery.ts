@@ -92,6 +92,7 @@ export const useDiscovery = () => {
     syncStatus: syncStatusQuery.data,
     isLoadingStatus: syncStatusQuery.isLoading,
     discover: discoverMutation.mutate,
+    discoverAsync: discoverMutation.mutateAsync,
     isDiscovering: discoverMutation.isPending
   };
 };
