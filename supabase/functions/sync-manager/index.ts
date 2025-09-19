@@ -86,11 +86,17 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
     url.searchParams.set('page', String(page));
     url.searchParams.set('status', 'any');
     url.searchParams.set('_fields', 'id,date_modified,name,sku,type,status,price,regular_price,sale_price,stock_quantity,stock_status');
-    url.searchParams.set('consumer_key', config.consumer_key);
-    url.searchParams.set('consumer_secret', config.consumer_secret);
+    // Using Basic Auth header instead of query params for better compatibility
+    // url.searchParams.set('consumer_key', config.consumer_key);
+    // url.searchParams.set('consumer_secret', config.consumer_secret);
 
     try {
-      const response = await fetch(url.toString());
+      const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Basic ${auth}`
+        }
+      });
       if (!response.ok) {
         let errorMessage = `WooCommerce API error: ${response.status}`;
         
@@ -354,10 +360,16 @@ async function syncFromWooCommerce(request: SyncRequest) {
       for (const productId of batch) {
         try {
           const url = new URL(`${config.url}/wp-json/wc/v3/products/${productId}`);
-          url.searchParams.set('consumer_key', config.consumer_key);
-          url.searchParams.set('consumer_secret', config.consumer_secret);
+          // Using Basic Auth header instead of query params
+          // url.searchParams.set('consumer_key', config.consumer_key);
+          // url.searchParams.set('consumer_secret', config.consumer_secret);
 
-          const response = await fetch(url.toString());
+          const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
+          const response = await fetch(url.toString(), {
+            headers: {
+              'Authorization': `Basic ${auth}`
+            }
+          });
           if (response.ok) {
             const product = await response.json();
             products.push(product);
