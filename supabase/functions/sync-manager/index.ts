@@ -94,11 +94,14 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
       // Try multiple authentication methods for compatibility
       let response;
       
+      // Create timeout controller
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
+      
       // Method 1: Try Basic Auth with proper encoding
       try {
         const credentials = `${config.consumer_key}:${config.consumer_secret}`;
-        const encodedCredentials = new TextEncoder().encode(credentials);
-        const base64Credentials = btoa(String.fromCharCode(...encodedCredentials));
+        const base64Credentials = btoa(credentials);
         
         response = await fetch(url.toString(), {
           method: 'GET',
@@ -107,14 +110,19 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
             'Content-Type': 'application/json',
             'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
-          signal: AbortSignal.timeout(30000) // 30 second timeout
+          signal: controller.signal
         });
+        clearTimeout(timeoutId);
       } catch (authError) {
+        clearTimeout(timeoutId);
         logger.warn(`Basic Auth failed, trying query params for page ${page}`, authError);
         
         // Method 2: Fallback to query parameters
         url.searchParams.set('consumer_key', config.consumer_key);
         url.searchParams.set('consumer_secret', config.consumer_secret);
+        
+        const controller2 = new AbortController();
+        const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
         
         response = await fetch(url.toString(), {
           method: 'GET',
@@ -122,8 +130,9 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
             'Content-Type': 'application/json',
             'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
-          signal: AbortSignal.timeout(30000)
+          signal: controller2.signal
         });
+        clearTimeout(timeoutId2);
       }
       if (!response.ok) {
         let errorMessage = `WooCommerce API error: ${response.status}`;
@@ -402,10 +411,13 @@ async function syncFromWooCommerce(request: SyncRequest) {
           // Try multiple authentication methods
           let response;
           
+          // Create timeout controller
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 15000);
+          
           try {
             const credentials = `${config.consumer_key}:${config.consumer_secret}`;
-            const encodedCredentials = new TextEncoder().encode(credentials);
-            const base64Credentials = btoa(String.fromCharCode(...encodedCredentials));
+            const base64Credentials = btoa(credentials);
             
             response = await fetch(url.toString(), {
               method: 'GET',
@@ -414,12 +426,17 @@ async function syncFromWooCommerce(request: SyncRequest) {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Lovable-Sync-Manager/1.0'
               },
-              signal: AbortSignal.timeout(15000)
+              signal: controller.signal
             });
+            clearTimeout(timeoutId);
           } catch (authError) {
+            clearTimeout(timeoutId);
             // Fallback to query parameters
             url.searchParams.set('consumer_key', config.consumer_key);
             url.searchParams.set('consumer_secret', config.consumer_secret);
+            
+            const controller2 = new AbortController();
+            const timeoutId2 = setTimeout(() => controller2.abort(), 15000);
             
             response = await fetch(url.toString(), {
               method: 'GET',
@@ -427,8 +444,9 @@ async function syncFromWooCommerce(request: SyncRequest) {
                 'Content-Type': 'application/json',
                 'User-Agent': 'Lovable-Sync-Manager/1.0'
               },
-              signal: AbortSignal.timeout(15000)
+              signal: controller2.signal
             });
+            clearTimeout(timeoutId2);
           }
           if (response.ok) {
             const product = await response.json();
@@ -652,13 +670,15 @@ async function processQueue(request: SyncRequest) {
 async function processProductQueueItem(config: WooCommerceConfig, item: any): Promise<boolean> {
   // Prepare authentication
   const credentials = `${config.consumer_key}:${config.consumer_secret}`;
-  const encodedCredentials = new TextEncoder().encode(credentials);
-  const auth = btoa(String.fromCharCode(...encodedCredentials));
+  const auth = btoa(credentials);
   
   try {
     switch (item.operation) {
       case 'create': {
         const url = `${config.url}/wp-json/wc/v3/products`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
         const response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -667,8 +687,10 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
             'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
           body: JSON.stringify(item.data),
-          signal: AbortSignal.timeout(30000)
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const createdProduct = await response.json();
@@ -688,6 +710,9 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
       
       case 'update': {
         const url = `${config.url}/wp-json/wc/v3/products/${item.entity_id}`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
         const response = await fetch(url, {
           method: 'PUT',
           headers: {
@@ -696,8 +721,10 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
             'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
           body: JSON.stringify(item.data),
-          signal: AbortSignal.timeout(30000)
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           // Update local sync timestamp
@@ -713,6 +740,9 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
       
       case 'delete': {
         const url = `${config.url}/wp-json/wc/v3/products/${item.entity_id}?force=true`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        
         const response = await fetch(url, {
           method: 'DELETE',
           headers: {
@@ -720,8 +750,10 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
             'Content-Type': 'application/json',
             'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
-          signal: AbortSignal.timeout(30000)
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           // Remove from local database
