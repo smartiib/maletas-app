@@ -91,12 +91,40 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
     // url.searchParams.set('consumer_secret', config.consumer_secret);
 
     try {
-      const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Basic ${auth}`
-        }
-      });
+      // Try multiple authentication methods for compatibility
+      let response;
+      
+      // Method 1: Try Basic Auth with proper encoding
+      try {
+        const credentials = `${config.consumer_key}:${config.consumer_secret}`;
+        const encodedCredentials = new TextEncoder().encode(credentials);
+        const base64Credentials = btoa(String.fromCharCode(...encodedCredentials));
+        
+        response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Basic ${base64Credentials}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'Lovable-Sync-Manager/1.0'
+          },
+          signal: AbortSignal.timeout(30000) // 30 second timeout
+        });
+      } catch (authError) {
+        logger.warn(`Basic Auth failed, trying query params for page ${page}`, authError);
+        
+        // Method 2: Fallback to query parameters
+        url.searchParams.set('consumer_key', config.consumer_key);
+        url.searchParams.set('consumer_secret', config.consumer_secret);
+        
+        response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Lovable-Sync-Manager/1.0'
+          },
+          signal: AbortSignal.timeout(30000)
+        });
+      }
       if (!response.ok) {
         let errorMessage = `WooCommerce API error: ${response.status}`;
         
@@ -146,10 +174,17 @@ async function discoverChanges(request: SyncRequest): Promise<SyncDiscoveryResul
     throw new Error('WooCommerce configuration not found');
   }
 
-  // Validate WooCommerce URL format
-  if (!config.url.includes('/wp-json/wc/v3/') && !config.url.endsWith('/')) {
-    config.url = config.url.replace(/\/$/, '') + '/';
+  // Validate and normalize WooCommerce URL format
+  let normalizedUrl = config.url.trim();
+  if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+    normalizedUrl = 'https://' + normalizedUrl;
   }
+  if (!normalizedUrl.endsWith('/')) {
+    normalizedUrl += '/';
+  }
+  config.url = normalizedUrl;
+  
+  logger.log('Using WooCommerce URL:', config.url);
 
   // 1. Fetch WooCommerce products
   let wooProducts;
@@ -364,12 +399,37 @@ async function syncFromWooCommerce(request: SyncRequest) {
           // url.searchParams.set('consumer_key', config.consumer_key);
           // url.searchParams.set('consumer_secret', config.consumer_secret);
 
-          const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
-          const response = await fetch(url.toString(), {
-            headers: {
-              'Authorization': `Basic ${auth}`
-            }
-          });
+          // Try multiple authentication methods
+          let response;
+          
+          try {
+            const credentials = `${config.consumer_key}:${config.consumer_secret}`;
+            const encodedCredentials = new TextEncoder().encode(credentials);
+            const base64Credentials = btoa(String.fromCharCode(...encodedCredentials));
+            
+            response = await fetch(url.toString(), {
+              method: 'GET',
+              headers: {
+                'Authorization': `Basic ${base64Credentials}`,
+                'Content-Type': 'application/json',
+                'User-Agent': 'Lovable-Sync-Manager/1.0'
+              },
+              signal: AbortSignal.timeout(15000)
+            });
+          } catch (authError) {
+            // Fallback to query parameters
+            url.searchParams.set('consumer_key', config.consumer_key);
+            url.searchParams.set('consumer_secret', config.consumer_secret);
+            
+            response = await fetch(url.toString(), {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'Lovable-Sync-Manager/1.0'
+              },
+              signal: AbortSignal.timeout(15000)
+            });
+          }
           if (response.ok) {
             const product = await response.json();
             products.push(product);
@@ -590,7 +650,10 @@ async function processQueue(request: SyncRequest) {
  * Process individual product queue item
  */
 async function processProductQueueItem(config: WooCommerceConfig, item: any): Promise<boolean> {
-  const auth = btoa(`${config.consumer_key}:${config.consumer_secret}`);
+  // Prepare authentication
+  const credentials = `${config.consumer_key}:${config.consumer_secret}`;
+  const encodedCredentials = new TextEncoder().encode(credentials);
+  const auth = btoa(String.fromCharCode(...encodedCredentials));
   
   try {
     switch (item.operation) {
@@ -600,9 +663,11 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
           method: 'POST',
           headers: {
             'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
-          body: JSON.stringify(item.data)
+          body: JSON.stringify(item.data),
+          signal: AbortSignal.timeout(30000)
         });
         
         if (response.ok) {
@@ -627,9 +692,11 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
           method: 'PUT',
           headers: {
             'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'User-Agent': 'Lovable-Sync-Manager/1.0'
           },
-          body: JSON.stringify(item.data)
+          body: JSON.stringify(item.data),
+          signal: AbortSignal.timeout(30000)
         });
         
         if (response.ok) {
@@ -650,8 +717,10 @@ async function processProductQueueItem(config: WooCommerceConfig, item: any): Pr
           method: 'DELETE',
           headers: {
             'Authorization': `Basic ${auth}`,
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+            'User-Agent': 'Lovable-Sync-Manager/1.0'
+          },
+          signal: AbortSignal.timeout(30000)
         });
         
         if (response.ok) {
@@ -694,12 +763,34 @@ async function processOrderQueueItem(config: WooCommerceConfig, item: any): Prom
  * Main request handler
  */
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: {
+        ...corsHeaders,
+        'Access-Control-Max-Age': '86400', // Cache preflight for 24 hours
+      }
+    });
   }
 
   try {
-    const request: SyncRequest = await req.json();
+    let request: SyncRequest;
+    
+    // Parse JSON with timeout
+    try {
+      const requestText = await req.text();
+      request = JSON.parse(requestText);
+    } catch (parseError) {
+      logger.error('Failed to parse request JSON', parseError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid JSON request'
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    
     logger.log('Received request', { operation: request.operation, organizationId: request.organizationId });
 
     let result;
