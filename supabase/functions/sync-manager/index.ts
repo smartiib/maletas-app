@@ -113,6 +113,13 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
           signal: controller.signal
         });
         clearTimeout(timeoutId);
+        
+        // Check for auth errors and try fallback
+        if (!response.ok && (response.status === 401 || response.status === 403)) {
+          const errorText = await response.text();
+          logger.warn(`Auth failed with Basic header (${response.status}), trying query params. Error: ${errorText}`);
+          throw new Error(`Auth failed: ${response.status}`);
+        }
       } catch (authError) {
         clearTimeout(timeoutId);
         logger.warn(`Basic Auth failed, trying query params for page ${page}`, authError);
@@ -135,12 +142,26 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
         clearTimeout(timeoutId2);
       }
       if (!response.ok) {
-        let errorMessage = `WooCommerce API error: ${response.status}`;
-        
-        // Try to get error details from response
+        const errorBody = await response.text();
+        let parsedError;
         try {
-          const errorData = await response.json();
-          if (errorData.message) {
+          parsedError = JSON.parse(errorBody);
+        } catch (e) {
+          parsedError = { message: errorBody };
+        }
+        
+        logger.error(`Error fetching WooCommerce products page ${page}`, {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorBody,
+          parsedError
+        });
+        
+        const errorMessage = parsedError?.message || response.statusText || 'Unknown error';
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(`Erro de autenticação WooCommerce (${response.status}): ${errorMessage}. Verifique suas credenciais nas configurações.`);
+        }
+        throw new Error(`WooCommerce API error: ${response.status} - ${errorMessage}`);
             errorMessage += ` - ${errorData.message}`;
           }
         } catch (e) {

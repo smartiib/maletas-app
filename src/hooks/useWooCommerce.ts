@@ -145,19 +145,57 @@ export const useWooCommerceConfig = () => {
 
   const testConnection = useMutation({
     mutationFn: async (config: { apiUrl: string; consumerKey: string; consumerSecret: string }) => {
-      // Test the connection by making a simple API call
-      const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`, {
-        headers: {
-          'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
-        }
-      });
+      let lastError;
       
-      if (!response.ok) {
-        throw new Error('Falha na conexão com WooCommerce');
+      // Try Basic Auth first
+      try {
+        const response = await fetch(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`, {
+          headers: {
+            'Authorization': `Basic ${btoa(`${config.consumerKey}:${config.consumerSecret}`)}`
+          }
+        });
+        
+        if (response.ok) {
+          toast.success('Conexão testada com sucesso!');
+          return { success: true };
+        }
+        
+        const errorBody = await response.text();
+        let errorData;
+        try {
+          errorData = JSON.parse(errorBody);
+        } catch (e) {
+          errorData = { message: errorBody };
+        }
+        
+        lastError = `${response.status}: ${errorData?.message || response.statusText}`;
+        
+        // If auth error, try query params fallback
+        if (response.status === 401 || response.status === 403) {
+          const urlWithParams = new URL(`${config.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/system_status`);
+          urlWithParams.searchParams.set('consumer_key', config.consumerKey);
+          urlWithParams.searchParams.set('consumer_secret', config.consumerSecret);
+          
+          const fallbackResponse = await fetch(urlWithParams.toString());
+          if (fallbackResponse.ok) {
+            toast.success('Conexão testada com sucesso! (usando parâmetros de consulta)');
+            return { success: true };
+          }
+          
+          const fallbackErrorBody = await fallbackResponse.text();
+          let fallbackErrorData;
+          try {
+            fallbackErrorData = JSON.parse(fallbackErrorBody);
+          } catch (e) {
+            fallbackErrorData = { message: fallbackErrorBody };
+          }
+          lastError = `${fallbackResponse.status}: ${fallbackErrorData?.message || fallbackResponse.statusText}`;
+        }
+      } catch (error) {
+        lastError = error.message;
       }
       
-      toast.success('Conexão testada com sucesso!');
-      return { success: true };
+      throw new Error(`Falha na conexão com WooCommerce: ${lastError}`);
     },
     meta: {
       onError: (error: any) => {
@@ -214,17 +252,35 @@ export const useWooCommerceConfig = () => {
       if (!cfg?.isConfigured) return [];
 
       try {
-        const response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
+        // Try Basic Auth first
+        let response = await fetch(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`, {
           headers: {
             'Authorization': `Basic ${btoa(`${cfg.consumerKey}:${cfg.consumerSecret}`)}`
           }
         });
 
-        if (!response.ok) throw new Error('Failed to fetch webhooks');
+        // If auth error, try query params fallback
+        if (!response.ok && (response.status === 401 || response.status === 403)) {
+          const urlWithParams = new URL(`${cfg.apiUrl.replace(/\/$/, '')}/wp-json/wc/v3/webhooks`);
+          urlWithParams.searchParams.set('consumer_key', cfg.consumerKey);
+          urlWithParams.searchParams.set('consumer_secret', cfg.consumerSecret);
+          response = await fetch(urlWithParams.toString());
+        }
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          let errorData;
+          try {
+            errorData = JSON.parse(errorBody);
+          } catch (e) {
+            errorData = { message: errorBody };
+          }
+          throw new Error(`${response.status}: ${errorData?.message || 'Failed to fetch webhooks'}`);
+        }
         return await response.json();
       } catch (error) {
         console.error('Error fetching webhooks:', error);
-        return [];
+        throw error;
       }
     },
     enabled: !!configQuery.data?.isConfigured,

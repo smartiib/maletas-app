@@ -85,8 +85,13 @@ export const useDiscovery = () => {
       const errorMessage = error.message;
       let description = errorMessage;
       
-      if (errorMessage.includes('401') || errorMessage.includes('credenciais')) {
+      // Extract specific error messages from Edge Function responses
+      if (errorMessage.includes('Erro de autenticação WooCommerce')) {
+        description = errorMessage;
+      } else if (errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('credenciais')) {
         description = 'Erro de autenticação com WooCommerce. Verifique suas credenciais nas configurações.';
+      } else if (errorMessage.includes('WooCommerce API error')) {
+        description = errorMessage;
       }
       
       toast.error('Erro na descoberta', { 
