@@ -510,7 +510,7 @@ async function syncFromWooCommerce(request: SyncRequest) {
 
         const { error: upsertError } = await supabase
           .from('wc_products')
-          .upsert(productsData, { onConflict: 'id,organization_id' });
+          .upsert(productsData, { onConflict: 'id' });
 
         if (upsertError) {
           logger.error('Failed to upsert products', upsertError);
