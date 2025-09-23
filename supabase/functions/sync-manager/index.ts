@@ -162,17 +162,6 @@ async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[
           throw new Error(`Erro de autenticação WooCommerce (${response.status}): ${errorMessage}. Verifique suas credenciais nas configurações.`);
         }
         throw new Error(`WooCommerce API error: ${response.status} - ${errorMessage}`);
-            errorMessage += ` - ${errorData.message}`;
-          }
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-        
-        if (response.status === 401) {
-          errorMessage += '. Verifique suas credenciais do WooCommerce (Consumer Key/Secret).';
-        }
-        
-        throw new Error(errorMessage);
       }
 
       const products = await response.json();
