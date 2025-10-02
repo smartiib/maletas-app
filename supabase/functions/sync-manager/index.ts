@@ -32,6 +32,7 @@ interface SyncDiscoveryResult {
   toDeleteInWooCommerce: number[];
   conflicts: any[];
   lastModified: string | null;
+  allIds: number[]; // full list of WooCommerce product IDs
 }
 
 const logger = {
@@ -372,7 +373,8 @@ async function discoverChanges(request: SyncRequest): Promise<SyncDiscoveryResul
     toUpdateInWooCommerce,
     toDeleteInWooCommerce,
     conflicts,
-    lastModified
+    lastModified,
+    allIds: wooProducts.map((p: any) => p.id)
   };
 
   logger.log('Discovery completed', {

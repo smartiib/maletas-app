@@ -23,12 +23,13 @@ export const useIncrementalSync = () => {
     progressState,
     startSync,
     updateProgress,
-    completeSync
+    completeSync,
+    closeProgress
   } = useSyncProgress();
 
   // Usar hooks especializados
   const { syncStatus, isLoadingStatus, discover, discoverAsync, isDiscovering } = useDiscovery();
-  const { syncFromWooCommerce, isSyncing } = useSyncFromWooCommerce();
+  const { syncFromWooCommerce, syncFromWooCommerceAsync, isSyncing } = useSyncFromWooCommerce();
   const { queueStatus, processQueue, isProcessingQueue, addToQueue } = useSyncQueue();
 
   // Mutation para sincronização completa (descoberta + sync)
@@ -59,9 +60,11 @@ export const useIncrementalSync = () => {
       // 2. Sincronizar TODOS os produtos do WooCommerce (não apenas missing/changed)
       const missingIds = discovery.missingIds || [];
       const changedIds = discovery.changedIds || [];
-      const allIds = Array.from(new Set([...missingIds, ...changedIds]));
+      const idsToSync = discovery.allIds && discovery.allIds.length > 0
+        ? Array.from(new Set(discovery.allIds))
+        : Array.from(new Set([...missingIds, ...changedIds]));
 
-      console.log(`📦 Produtos a sincronizar: ${allIds.length} (missing: ${missingIds.length}, changed: ${changedIds.length})`);
+      console.log(`📦 Produtos a sincronizar: ${idsToSync.length} (missing: ${missingIds.length}, changed: ${changedIds.length})`);
 
       let syncResult = { processed: 0, errors: 0, failedIds: [] as number[], total: 0 };
 

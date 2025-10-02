@@ -18,6 +18,7 @@ interface DiscoveryResult {
   toDeleteInWooCommerce: number[];
   conflicts: any[];
   lastModified: string | null;
+  allIds?: number[];
 }
 
 export const useDiscovery = () => {
