@@ -38,7 +38,7 @@ export const useSyncFromWooCommerce = () => {
 
       startSync('Sincronização do WooCommerce');
 
-      // Process in smaller chunks to provide better progress feedback
+      // Process in smaller chunks sequentially
       const CHUNK_SIZE = batchSize;
       let totalProcessed = 0;
       let totalErrors = 0;
@@ -50,7 +50,7 @@ export const useSyncFromWooCommerce = () => {
         const totalChunks = Math.ceil(entityIds.length / CHUNK_SIZE);
 
         updateProgress({
-          progress: Math.round((i / entityIds.length) * 90),
+          progress: Math.round((i / entityIds.length) * 95),
           currentStep: `Processando lote ${chunkNumber}/${totalChunks} (${chunk.length} produtos)`,
           itemsProcessed: totalProcessed,
           totalItems: entityIds.length
@@ -73,9 +73,12 @@ export const useSyncFromWooCommerce = () => {
             allFailedIds.push(...chunk);
           } else if (data) {
             const result = data as { processed: number; errors: number; failedIds: number[] };
-            totalProcessed += result.processed;
-            totalErrors += result.errors;
-            allFailedIds.push(...result.failedIds);
+            totalProcessed += result.processed || 0;
+            totalErrors += result.errors || 0;
+            if (result.failedIds && result.failedIds.length > 0) {
+              allFailedIds.push(...result.failedIds);
+            }
+            console.log(`✅ Lote ${chunkNumber}/${totalChunks}: ${result.processed} processados, ${result.errors} erros`);
           }
         } catch (error) {
           console.error(`Exceção no lote ${chunkNumber}:`, error);
@@ -83,15 +86,17 @@ export const useSyncFromWooCommerce = () => {
           allFailedIds.push(...chunk);
         }
 
-        // Small delay between chunks
+        // Small delay between chunks to avoid overwhelming the API
         if (i + CHUNK_SIZE < entityIds.length) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
       updateProgress({
         progress: 100,
-        currentStep: `Sincronização concluída: ${totalProcessed} processados, ${totalErrors} erros`,
+        currentStep: totalErrors === 0 
+          ? `✅ Sincronização concluída: ${totalProcessed} produtos` 
+          : `⚠️ Concluído: ${totalProcessed} OK, ${totalErrors} erros`,
         itemsProcessed: totalProcessed,
         totalItems: entityIds.length
       });
@@ -99,27 +104,30 @@ export const useSyncFromWooCommerce = () => {
       return {
         processed: totalProcessed,
         errors: totalErrors,
-        failedIds: Array.from(new Set(allFailedIds))
+        failedIds: Array.from(new Set(allFailedIds)),
+        total: entityIds.length
       };
     },
     onSuccess: (result) => {
-      const successRate = result.processed + result.errors > 0 
-        ? (result.processed / (result.processed + result.errors)) * 100 
-        : 0;
-
       queryClient.invalidateQueries({ queryKey: ['sync-status', currentOrganization?.id] });
       queryClient.invalidateQueries({ queryKey: ['wc-products-filtered', currentOrganization?.id] });
       queryClient.invalidateQueries({ queryKey: ['local-products', currentOrganization?.id] });
 
-      const isSuccess = result.errors === 0;
-      completeSync(isSuccess, isSuccess ? undefined : `${result.errors} produtos com erro`);
-
-      toast[isSuccess ? 'success' : 'warning'](
-        `Sincronização ${isSuccess ? 'concluída' : 'parcial'}`,
-        {
-          description: `${result.processed} produtos sincronizados${result.errors > 0 ? `, ${result.errors} com erro` : ''}`
-        }
+      const isSuccess = result.errors === 0 && result.processed === result.total;
+      completeSync(
+        isSuccess, 
+        isSuccess ? undefined : `${result.errors} de ${result.total} produtos falharam`
       );
+
+      if (isSuccess) {
+        toast.success('Sincronização concluída!', {
+          description: `${result.processed} produtos sincronizados com sucesso`
+        });
+      } else {
+        toast.warning('Sincronização parcial', {
+          description: `${result.processed} OK, ${result.errors} com erro${result.failedIds.length > 0 ? ` (IDs: ${result.failedIds.slice(0, 5).join(', ')}...)` : ''}`
+        });
+      }
     },
     onError: (error) => {
       completeSync(false, error.message);
@@ -131,6 +139,7 @@ export const useSyncFromWooCommerce = () => {
 
   return {
     syncFromWooCommerce: syncFromWooCommerceMutation.mutate,
+    syncFromWooCommerceAsync: syncFromWooCommerceMutation.mutateAsync,
     isSyncing: syncFromWooCommerceMutation.isPending,
     progressState
   };

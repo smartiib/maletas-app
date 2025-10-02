@@ -48,64 +48,98 @@ export const useIncrementalSync = () => {
         throw new Error('Falha na descoberta');
       }
 
+      const discoveredTotal = discovery.totalItems || 0;
+      console.log(`🔍 Descobertos ${discoveredTotal} produtos no WooCommerce`);
+
       updateProgress({
-        progress: 30,
-        currentStep: 'Sincronizando do WooCommerce...'
+        progress: 20,
+        currentStep: `Sincronizando ${discoveredTotal} produtos...`
       });
 
-      // 2. Sincronizar produtos do WooCommerce
+      // 2. Sincronizar TODOS os produtos do WooCommerce (não apenas missing/changed)
       const missingIds = discovery.missingIds || [];
       const changedIds = discovery.changedIds || [];
       const allIds = Array.from(new Set([...missingIds, ...changedIds]));
 
-      if (allIds.length > 0) {
-        syncFromWooCommerce({ 
-          config, 
-          entityIds: allIds,
-          batchSize: 25 
-        });
+      console.log(`📦 Produtos a sincronizar: ${allIds.length} (missing: ${missingIds.length}, changed: ${changedIds.length})`);
 
-        // Aguardar sincronização completar
-        await new Promise<void>(resolve => {
-          const checkSync = () => {
-            if (!isSyncing) {
-              resolve();
-            } else {
-              setTimeout(checkSync, 500);
-            }
-          };
-          checkSync();
-        });
+      let syncResult = { processed: 0, errors: 0, failedIds: [] as number[], total: 0 };
+
+      if (allIds.length > 0) {
+        try {
+          // Usar mutateAsync para aguardar a conclusão
+          syncResult = await new Promise<any>((resolve, reject) => {
+            syncFromWooCommerce(
+              { 
+                config, 
+                entityIds: allIds,
+                batchSize: 25 
+              },
+              {
+                onSuccess: (data) => resolve(data),
+                onError: (error) => reject(error)
+              }
+            );
+          });
+
+          console.log(`✅ Sincronização WooCommerce concluída: ${syncResult.processed}/${syncResult.total}`);
+        } catch (error) {
+          console.error('❌ Erro na sincronização:', error);
+          throw error;
+        }
       }
 
       updateProgress({
-        progress: 80,
-        currentStep: 'Processando mudanças locais...'
+        progress: 90,
+        currentStep: 'Verificando resultado...'
       });
 
-      // 3. Processar queue de mudanças locais
-      processQueue({ batchSize: 10, maxRetries: 3 });
+      // Verificar se todos foram sincronizados
+      const expectedCount = allIds.length;
+      const actualCount = syncResult.processed;
+      
+      if (actualCount < expectedCount) {
+        console.warn(`⚠️ Sincronização incompleta: ${actualCount}/${expectedCount}`);
+        
+        // Tentar ressincronizar produtos falhados (apenas 1 retry)
+        if (syncResult.failedIds && syncResult.failedIds.length > 0 && syncResult.failedIds.length <= 50) {
+          console.log(`🔄 Tentando ressincronizar ${syncResult.failedIds.length} produtos falhados...`);
+          
+          try {
+            const retryResult = await new Promise<any>((resolve, reject) => {
+              syncFromWooCommerce(
+                { 
+                  config, 
+                  entityIds: syncResult.failedIds,
+                  batchSize: 10
+                },
+                {
+                  onSuccess: (data) => resolve(data),
+                  onError: (error) => reject(error)
+                }
+              );
+            });
 
-      // Aguardar processamento completar
-      await new Promise<void>(resolve => {
-        const checkQueue = () => {
-          if (!isProcessingQueue) {
-            resolve();
-          } else {
-            setTimeout(checkQueue, 500);
+            syncResult.processed += retryResult.processed;
+            syncResult.errors = retryResult.errors;
+            syncResult.failedIds = retryResult.failedIds;
+          } catch (retryError) {
+            console.error('❌ Erro no retry:', retryError);
           }
-        };
-        checkQueue();
-      });
+        }
+      }
 
       updateProgress({
         progress: 100,
-        currentStep: 'Sincronização concluída!'
+        currentStep: syncResult.errors === 0 
+          ? '✅ Sincronização concluída!' 
+          : `⚠️ Concluído com ${syncResult.errors} erros`
       });
 
       return {
-        wooCommerceSync: { processed: allIds.length, errors: 0, failedIds: [] },
-        queueProcessed: true
+        wooCommerceSync: syncResult,
+        discoveredTotal,
+        queueProcessed: false
       };
     },
     onSuccess: () => {
