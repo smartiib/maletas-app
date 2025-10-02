@@ -31,6 +31,7 @@ export const IncrementalSyncDashboard = () => {
     isDiscovering,
     isFullSyncing,
     progressState,
+    closeProgress
   } = useIncrementalSync();
 
   if (!isConfigured) {
@@ -281,7 +282,7 @@ export const IncrementalSyncDashboard = () => {
 
       <SyncProgressDialog
         isOpen={progressState.isOpen}
-        onClose={() => {}}
+        onClose={closeProgress}
         syncType={progressState.syncType}
         status={progressState.status}
         progress={progressState.progress}

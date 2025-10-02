@@ -68,14 +68,14 @@ export const useIncrementalSync = () => {
 
       let syncResult = { processed: 0, errors: 0, failedIds: [] as number[], total: 0 };
 
-      if (allIds.length > 0) {
+      if (idsToSync.length > 0) {
         try {
           // Usar mutateAsync para aguardar a conclusão
           syncResult = await new Promise<any>((resolve, reject) => {
             syncFromWooCommerce(
               { 
                 config, 
-                entityIds: allIds,
+                entityIds: idsToSync,
                 batchSize: 25 
               },
               {
@@ -98,7 +98,7 @@ export const useIncrementalSync = () => {
       });
 
       // Verificar se todos foram sincronizados
-      const expectedCount = allIds.length;
+      const expectedCount = idsToSync.length;
       const actualCount = syncResult.processed;
       
       if (actualCount < expectedCount) {
@@ -211,6 +211,7 @@ export const useIncrementalSync = () => {
     addToQueue,
     
     // Estado de progresso
-    progressState
+    progressState,
+    closeProgress
   };
 };
