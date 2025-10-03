@@ -96,15 +96,17 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Verificar se já existe um organization_user com este e-mail (regra atual do app)
+    // Verificar se já existe um organization_user com este e-mail NESTA organização
     const { data: existingOrgUser } = await admin
       .from("organization_users")
-      .select("id")
+      .select("id, organization_id")
       .eq("email", email)
+      .eq("organization_id", organizationId)
       .maybeSingle();
 
     if (existingOrgUser) {
-      return new Response(JSON.stringify({ error: "E-mail já está em uso" }), {
+      console.error("[create-organization-user] Email já usado nesta organização", { email, organizationId });
+      return new Response(JSON.stringify({ error: "E-mail já está em uso nesta organização" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
