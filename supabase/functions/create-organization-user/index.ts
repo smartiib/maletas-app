@@ -62,8 +62,11 @@ Deno.serve(async (req: Request) => {
 
     const { organizationId, email, name, password }: CreateUserBody = await req.json();
 
+    console.log("[create-organization-user] Dados recebidos:", { organizationId, email, name, hasPassword: !!password });
+
     // Validar dados
     if (!organizationId || !email || !name || !password) {
+      console.error("[create-organization-user] Dados obrigatórios faltando:", { organizationId, email, name, hasPassword: !!password });
       return new Response(JSON.stringify({ error: "Dados obrigatórios não fornecidos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -78,7 +81,15 @@ Deno.serve(async (req: Request) => {
       .eq("organization_id", organizationId)
       .maybeSingle();
 
+    console.log("[create-organization-user] Verificação de permissão:", { 
+      userId: authData.user.id, 
+      organizationId, 
+      hasPermission: !!userOrg,
+      error: userOrgError?.message 
+    });
+
     if (userOrgError || !userOrg) {
+      console.error("[create-organization-user] Sem permissão:", { userOrgError, userOrg });
       return new Response(JSON.stringify({ error: "Sem permissão para esta organização" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
