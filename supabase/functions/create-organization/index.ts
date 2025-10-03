@@ -49,13 +49,12 @@ Deno.serve(async (req: Request) => {
 
     const orgData: CreateOrgBody = await req.json();
 
-    // Inserir organização (apenas campos que existem na tabela)
+    // Inserir organização (apenas colunas existentes)
     const { data: org, error: orgError } = await admin
       .from("organizations")
       .insert({
         name: orgData.name,
-        slug: orgData.slug,
-        is_active: true,
+        slug: orgData.slug
       })
       .select()
       .single();
