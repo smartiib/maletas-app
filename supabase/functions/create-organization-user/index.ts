@@ -105,9 +105,18 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (existingOrgUser) {
-      console.error("[create-organization-user] Email já usado nesta organização", { email, organizationId });
-      return new Response(JSON.stringify({ error: "E-mail já está em uso nesta organização" }), {
-        status: 400,
+      console.log("[create-organization-user] Usuário já existente nesta organização, retornando sucesso idempotente");
+      return new Response(JSON.stringify({
+        success: true,
+        user: {
+          id: existingOrgUser.id,
+          email,
+          name,
+          is_active: true,
+        },
+        info: "already_exists"
+      }), {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
