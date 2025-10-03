@@ -33,8 +33,17 @@ Deno.serve(async (req: Request) => {
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
-    // Validar autenticação do usuário usando o cliente anon
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser();
+    // Validar autenticação do usuário usando o token do header
+    const authHeader = req.headers.get("Authorization") || "";
+    if (!authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Não autenticado" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
     if (authError || !authData?.user) {
       console.error("[change-password] Erro de autenticação:", authError);
       return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
@@ -82,7 +91,25 @@ Deno.serve(async (req: Request) => {
       .eq("organization_id", user.organization_id)
       .maybeSingle();
 
-    if (userOrgError || !userOrg) {
+    let hasPermission = !!userOrg && !userOrgError;
+
+    if (!hasPermission) {
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", authData.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.warn("[change-password] profileError:", profileError);
+      }
+
+      if (profile && (profile.role === "owner" || profile.role === "admin")) {
+        hasPermission = true;
+      }
+    }
+
+    if (!hasPermission) {
       return new Response(JSON.stringify({ error: "Sem permissão para esta organização" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
