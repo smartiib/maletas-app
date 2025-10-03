@@ -20,21 +20,23 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+  
+  // Cliente para validar o JWT do usuário
+  const supabaseAuth = createClient(supabaseUrl, anonKey, {
+    global: {
+      headers: { Authorization: req.headers.get("Authorization")! },
+    },
+  });
+  
+  // Cliente com service role para operações administrativas
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
-    // Validar autenticação do usuário
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Não autenticado" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: authData, error: authError } = await supabase.auth.getUser(token);
+    // Validar autenticação do usuário usando o cliente anon
+    const { data: authData, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !authData?.user) {
+      console.error("[change-password] Erro de autenticação:", authError);
       return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
