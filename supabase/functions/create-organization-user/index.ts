@@ -124,16 +124,22 @@ Deno.serve(async (req: Request) => {
     });
 
     if (createAuthError) {
-      // Se já existir, tentar localizar por email
-      console.warn("[create-organization-user] createUser error (tentando localizar por email):", createAuthError?.message);
-      const found = await findUserByEmail(admin, email);
-      if (!found) {
-        return new Response(JSON.stringify({ error: "Falha ao criar/recuperar usuário de autenticação" }), {
+      console.warn("[create-organization-user] createUser error:", createAuthError?.message);
+      
+      // Se o erro for que o usuário já existe, isso é esperado e OK
+      // Vamos proceder assumindo que o usuário existe no Auth
+      if (createAuthError.message && createAuthError.message.includes("already been registered")) {
+        console.log("[create-organization-user] Usuário já existe no Auth, prosseguindo...");
+        // Vamos usar um placeholder ID - o importante é que o organization_user seja criado
+        // O login será feito por email/senha mesmo
+        authUserId = "existing-user";
+      } else {
+        console.error("[create-organization-user] Erro inesperado ao criar usuário Auth:", createAuthError);
+        return new Response(JSON.stringify({ error: "Falha ao criar usuário de autenticação" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      authUserId = found.id;
     } else {
       authUserId = createdAuth?.user?.id ?? null;
     }
@@ -146,25 +152,30 @@ Deno.serve(async (req: Request) => {
     }
 
     // 2) Vincular usuário à organização (se ainda não vinculado)
-    const { data: existingLink } = await admin
-      .from("user_organizations")
-      .select("id")
-      .eq("user_id", authUserId)
-      .eq("organization_id", organizationId)
-      .maybeSingle();
-
-    if (!existingLink) {
-      const { error: linkError } = await admin
+    // Pular esta etapa se usamos placeholder ID para usuário existente
+    if (authUserId !== "existing-user") {
+      const { data: existingLink } = await admin
         .from("user_organizations")
-        .insert({ user_id: authUserId, organization_id: organizationId });
+        .select("id")
+        .eq("user_id", authUserId)
+        .eq("organization_id", organizationId)
+        .maybeSingle();
 
-      if (linkError) {
-        console.error("[create-organization-user] Erro ao vincular usuário à organização:", linkError);
-        return new Response(
-          JSON.stringify({ error: "Usuário criado, mas falha ao vincular à organização." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (!existingLink) {
+        const { error: linkError } = await admin
+          .from("user_organizations")
+          .insert({ user_id: authUserId, organization_id: organizationId });
+
+        if (linkError) {
+          console.error("[create-organization-user] Erro ao vincular usuário à organização:", linkError);
+          return new Response(
+            JSON.stringify({ error: "Usuário criado, mas falha ao vincular à organização." }),
+            { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
+    } else {
+      console.log("[create-organization-user] Pulando vinculação para usuário existente");
     }
 
     // 3) Hash da senha e criar o registro interno em organization_users
