@@ -169,16 +169,8 @@ const Maletas = () => {
       const { PdfTemplateService } = await import('@/services/pdfTemplates');
       const pdfData = await PdfTemplateService.generatePdf(maleta.id, 'romaneio');
       
-      // Verificar se pdfData é um ArrayBuffer ou já um Blob
-      let blob: Blob;
-      if (pdfData instanceof ArrayBuffer) {
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      } else if (pdfData instanceof Uint8Array) {
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      } else {
-        // Se for outro tipo, tentar converter
-        blob = new Blob([pdfData], { type: 'application/pdf' });
-      }
+      // Converter Uint8Array para Blob
+      const blob = new Blob([pdfData], { type: 'application/pdf' });
       
       const url = URL.createObjectURL(blob);
       

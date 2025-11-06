@@ -42,8 +42,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const token = authHeader.replace("Bearer ", "");
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser(token);
+    const { data: authData, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !authData?.user) {
       console.error("[change-password] Erro de autenticação:", authError);
       return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
