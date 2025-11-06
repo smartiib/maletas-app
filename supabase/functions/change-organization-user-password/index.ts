@@ -20,16 +20,8 @@ Deno.serve(async (req: Request) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
   
-  // Cliente para validar o JWT do usuário
-  const supabaseAuth = createClient(supabaseUrl, anonKey, {
-    global: {
-      headers: { Authorization: req.headers.get("Authorization")! },
-    },
-  });
-  
-  // Cliente com service role para operações administrativas
+  // Cliente com service role para todas operações
   const supabase = createClient(supabaseUrl, serviceKey);
 
   try {
@@ -42,8 +34,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: authData, error: authError } = await supabaseAuth.auth.getUser();
-    if (authError || !authData?.user) {
+    const token = authHeader.replace("Bearer ", "");
+    
+    // Validar o token JWT e obter o usuário usando service role
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !authUser) {
       console.error("[change-password] Erro de autenticação:", authError);
       return new Response(JSON.stringify({ error: "Usuário não autenticado" }), {
         status: 401,
@@ -86,7 +81,7 @@ Deno.serve(async (req: Request) => {
     const { data: userOrg, error: userOrgError } = await supabase
       .from("user_organizations")
       .select("id")
-      .eq("user_id", authData.user.id)
+      .eq("user_id", authUser.id)
       .eq("organization_id", user.organization_id)
       .maybeSingle();
 
@@ -96,7 +91,7 @@ Deno.serve(async (req: Request) => {
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
-        .eq("user_id", authData.user.id)
+        .eq("user_id", authUser.id)
         .maybeSingle();
 
       if (profileError) {
