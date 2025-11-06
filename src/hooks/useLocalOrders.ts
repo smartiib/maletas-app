@@ -38,7 +38,12 @@ export const useLocalOrders = (filters?: {
   return useQuery({
     queryKey: ['local-orders', currentOrganization?.id, filters],
     queryFn: async () => {
-      if (!currentOrganization) return [];
+      if (!currentOrganization) {
+        console.log('[useLocalOrders] Sem organização');
+        return [];
+      }
+
+      console.log('[useLocalOrders] Buscando pedidos para org:', currentOrganization.id);
 
       let query = supabase
         .from('wc_orders')
@@ -65,9 +70,11 @@ export const useLocalOrders = (filters?: {
       const { data, error } = await query;
 
       if (error) {
-        console.error('Erro ao buscar pedidos locais:', error);
+        console.error('[useLocalOrders] Erro ao buscar pedidos locais:', error);
         throw error;
       }
+
+      console.log('[useLocalOrders] Pedidos encontrados:', data?.length || 0);
 
       return data as LocalOrder[] || [];
     },
