@@ -2918,6 +2918,7 @@ export type Database = {
         Args: { user_uuid?: string }
         Returns: string[]
       }
+      is_super_admin: { Args: { uid: string }; Returns: boolean }
       user_belongs_to_organization: {
         Args: { org_id: string; user_uuid?: string }
         Returns: boolean
