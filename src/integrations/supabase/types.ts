@@ -782,6 +782,7 @@ export type Database = {
           asaas_customer_id: string | null
           created_at: string
           id: string
+          is_active: boolean
           name: string
           settings: Json
           slug: string
@@ -791,6 +792,7 @@ export type Database = {
           asaas_customer_id?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
           settings?: Json
           slug: string
@@ -800,6 +802,7 @@ export type Database = {
           asaas_customer_id?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           settings?: Json
           slug?: string
@@ -2909,14 +2912,8 @@ export type Database = {
         }
         Returns: string
       }
-      generate_maleta_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generate_order_number: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generate_maleta_number: { Args: never; Returns: string }
+      generate_order_number: { Args: never; Returns: string }
       get_user_organizations: {
         Args: { user_uuid?: string }
         Returns: string[]
