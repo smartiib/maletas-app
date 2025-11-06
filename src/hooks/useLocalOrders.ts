@@ -43,7 +43,7 @@ export const useLocalOrders = (filters?: {
       let query = supabase
         .from('wc_orders')
         .select('*')
-        .eq('organization_id', currentOrganization.id)
+        .or(`organization_id.eq.${currentOrganization.id},organization_id.is.null`)
         .order('date_created', { ascending: false });
 
       // Apply filters
