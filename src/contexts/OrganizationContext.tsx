@@ -28,7 +28,21 @@ interface OrganizationProviderProps {
 export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ children }) => {
   const { user } = useAuth();
   const { isOrganizationAuthenticated, organizationUser } = useOrganizationAuthContext();
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
+  
+  // Carregar organização do localStorage SINCRONAMENTE no estado inicial
+  const getInitialOrganization = (): Organization | null => {
+    try {
+      const savedOrg = localStorage.getItem('currentOrganization');
+      if (savedOrg) {
+        return JSON.parse(savedOrg);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar organização do localStorage:', error);
+    }
+    return null;
+  };
+  
+  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(getInitialOrganization);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -49,6 +63,9 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
 
       setOrganizations([userOrganization]);
       setCurrentOrganization(userOrganization);
+      // Salvar no localStorage
+      localStorage.setItem('currentOrganization', JSON.stringify(userOrganization));
+      localStorage.setItem('currentOrganizationId', userOrganization.id);
       setLoading(false);
       return;
     }
@@ -82,6 +99,7 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       // Se não há organização atual e existem organizações, seleciona a primeira
       if (!currentOrganization && data && data.length > 0) {
         setCurrentOrganization(data[0]);
+        localStorage.setItem('currentOrganization', JSON.stringify(data[0]));
         localStorage.setItem('currentOrganizationId', data[0].id);
       }
     } catch (error) {
@@ -98,27 +116,16 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
       // Para usuários organizacionais, carregar automaticamente sua organização
       refreshOrganizations();
     } else if (user && isSuperAdmin && !isOrganizationAuthenticated) {
-      // Tentar restaurar organização do localStorage primeiro para super admin
-      const savedOrgId = localStorage.getItem('currentOrganizationId');
-      
-      if (savedOrgId) {
-        supabase
-          .from('organizations')
-          .select('*')
-          .eq('id', savedOrgId)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setCurrentOrganization(data);
-            }
-          });
-      }
-      
+      // Para super admin, apenas atualizar a lista de organizações
+      // A organização atual já foi carregada do localStorage no estado inicial
       refreshOrganizations();
     } else {
       // Limpar dados para usuários não autenticados
       setOrganizations([]);
       setCurrentOrganization(null);
+      // Limpar localStorage
+      localStorage.removeItem('currentOrganization');
+      localStorage.removeItem('currentOrganizationId');
       setLoading(false);
     }
   }, [user, isSuperAdmin, isOrganizationAuthenticated, organizationUser]);
@@ -127,6 +134,8 @@ export const OrganizationProvider: React.FC<OrganizationProviderProps> = ({ chil
     // Apenas super admin pode trocar organização
     if (isSuperAdmin && !isOrganizationAuthenticated) {
       setCurrentOrganization(org);
+      // Salvar organização completa no localStorage
+      localStorage.setItem('currentOrganization', JSON.stringify(org));
       localStorage.setItem('currentOrganizationId', org.id);
     }
   };

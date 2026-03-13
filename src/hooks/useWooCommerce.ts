@@ -294,7 +294,7 @@ export const useWooCommerceConfig = () => {
       const webhookData = {
         name: 'Stock Sync Webhook',
         topic: 'product.updated',
-        delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+        delivery_url: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woocommerce-stock-webhook`,
         status: 'active'
       };
 

@@ -11,7 +11,6 @@ import {
   DollarSign,
   TrendingUp,
   UserCheck,
-  Archive,
   FileText,
   Tag,
   Settings,
@@ -89,11 +88,6 @@ const Sidebar: React.FC<SidebarProps> = ({
       title: 'Fornecedores',
       icon: UserCheck,
       path: '/suppliers',
-    },
-    {
-      title: 'Estoque',
-      icon: Archive,
-      path: '/stock',
     },
     {
       title: 'Relatórios',

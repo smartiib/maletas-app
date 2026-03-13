@@ -26,7 +26,6 @@ import Billing from '@/pages/Billing';
 import Settings from '@/pages/Settings';
 import Logs from '@/pages/Logs';
 import PdfTemplates from '@/pages/PdfTemplates';
-import Stock from '@/pages/Stock';
 import Labels from '@/pages/Labels';
 import NotFound from '@/pages/NotFound';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -96,11 +95,6 @@ const App: React.FC = () => {
                   <Route path="/reports" element={
                     <ProtectedRoute>
                       <DashboardLayout><Reports /></DashboardLayout>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/stock" element={
-                    <ProtectedRoute>
-                      <DashboardLayout><Stock /></DashboardLayout>
                     </ProtectedRoute>
                   } />
                   <Route path="/labels" element={

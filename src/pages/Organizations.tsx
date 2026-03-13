@@ -32,7 +32,7 @@ interface Organization {
   city?: string;
   state?: string;
   zip_code?: string;
-  is_active: boolean;
+  settings?: any;
   asaas_customer_id?: string;
   created_at: string;
   updated_at: string;
@@ -109,10 +109,17 @@ export default function Organizations() {
   const toggleOrganizationStatus = async (org: Organization) => {
     setToggleLoading(org.id);
     try {
-      const newStatus = !org.is_active;
+      const newStatus = !(org.settings?.is_active ?? true);
+      
+      // Atualizar o campo is_active dentro de settings (JSONB)
+      const updatedSettings = {
+        ...(org.settings || {}),
+        is_active: newStatus
+      };
+      
       const { error } = await supabase
         .from('organizations')
-        .update({ is_active: newStatus })
+        .update({ settings: updatedSettings })
         .eq('id', org.id);
 
       if (error) {
@@ -224,8 +231,8 @@ export default function Organizations() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <Badge variant={org.is_active ? 'default' : 'secondary'}>
-                      {org.is_active ? 'Ativo' : 'Inativo'}
+                    <Badge variant={(org.settings?.is_active ?? true) ? 'default' : 'secondary'}>
+                      {(org.settings?.is_active ?? true) ? 'Ativo' : 'Inativo'}
                     </Badge>
                   </div>
                 </div>
@@ -268,7 +275,7 @@ export default function Organizations() {
                     size="sm"
                     onClick={() => toggleOrganizationStatus(org)}
                     disabled={toggleLoading === org.id}
-                    className={org.is_active ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
+                    className={(org.settings?.is_active ?? true) ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'}
                   >
                     <Power className="h-4 w-4" />
                   </Button>

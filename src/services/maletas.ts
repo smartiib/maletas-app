@@ -256,13 +256,20 @@ class MaletasAPI {
       throw error;
     }
 
-    // Update maleta status
-    await supabase
+    // Update maleta status to finalized after processing return
+    console.log('[processMaletaReturn] Atualizando status da maleta para finalized:', id);
+    const { error: updateError } = await supabase
       .from('maletas')
-      .update({ status: 'returned' })
+      .update({ status: 'finalized' })
       .eq('id', id)
       .eq('organization_id', organizationId);
 
+    if (updateError) {
+      console.error('Erro ao atualizar status da maleta:', updateError);
+      throw updateError;
+    }
+
+    console.log('[processMaletaReturn] Status atualizado com sucesso para finalized');
     return data;
   }
 

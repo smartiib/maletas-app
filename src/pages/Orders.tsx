@@ -26,14 +26,25 @@ const Orders = () => {
   const { isConfigured } = useWooCommerceConfig();
   const { viewMode, toggleViewMode } = useViewMode('orders');
 
-  const filteredOrders = orders.filter((order) =>
-    order.order_number?.toString().includes(searchTerm) ||
-    order.billing_address?.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing_address?.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.billing_address?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOrders = orders.filter((order) => {
+    // Se não há termo de busca, retorna todos
+    if (!searchTerm) return true;
+    
+    const search = searchTerm.toLowerCase();
+    return (
+      order.order_number?.toString().includes(search) ||
+      order.billing_address?.first_name?.toLowerCase().includes(search) ||
+      order.billing_address?.last_name?.toLowerCase().includes(search) ||
+      order.billing_address?.email?.toLowerCase().includes(search) ||
+      order.customer_name?.toLowerCase().includes(search) ||
+      order.customer_email?.toLowerCase().includes(search)
+    );
+  });
+
+  // Debug: log orders data
+  console.log('[Orders] Total orders:', orders.length);
+  console.log('[Orders] Sample order:', orders[0]);
+  console.log('[Orders] Filtered orders:', filteredOrders.length);
 
   const handleViewOrder = (order: any) => {
     setSelectedOrder(order);
@@ -174,14 +185,14 @@ const Orders = () => {
         ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
         : "space-y-4"
       }>
-        {filteredOrders.map((order) => (
-          <OrderCard 
-            key={order.id} 
-            order={{
-              ...order,
+        {filteredOrders.map((order) => {
+          try {
+            // Transform local order to WooCommerce Order format
+            const orderAny = order as any;
+            const transformedOrder = {
               id: order.id,
               parent_id: 0,
-              number: order.order_number,
+              number: order.order_number || orderAny.number || String(order.id),
               order_key: `wc_order_${order.id}`,
               created_via: "manual",
               version: "1.0",
@@ -194,20 +205,26 @@ const Orders = () => {
               shipping_total: "0",
               shipping_tax: "0",
               cart_tax: "0",
-              total: order.total?.toString() || "0",
+              total: String(order.total || 0),
+              subtotal: String(order.total || 0),
               total_tax: "0",
               prices_include_tax: false,
               customer_id: order.customer_id || 0,
               customer_ip_address: "",
               customer_user_agent: "",
-              customer_note: order.notes || "",
-              billing: order.billing_address || {} as any,
-              shipping: order.shipping_address || {} as any,
+              customer_note: order.notes || orderAny.customer_note || "",
+              billing: orderAny.billing || order.billing_address || {
+                first_name: order.customer_name?.split(' ')[0] || '',
+                last_name: order.customer_name?.split(' ').slice(1).join(' ') || '',
+                email: order.customer_email || '',
+                phone: order.customer_phone || ''
+              },
+              shipping: orderAny.shipping || order.shipping_address || {},
               payment_method: order.payment_method || "",
-              payment_method_title: order.payment_method || "",
+              payment_method_title: orderAny.payment_method_title || order.payment_method || "",
               transaction_id: "",
-              date_paid: null,
-              date_completed: null,
+              date_paid: orderAny.date_paid || null,
+              date_completed: orderAny.date_completed || null,
               cart_hash: "",
               meta_data: [],
               line_items: order.line_items || [],
@@ -216,12 +233,22 @@ const Orders = () => {
               fee_lines: [],
               coupon_lines: [],
               refunds: []
-            }} 
-            viewMode={viewMode}
-            onView={handleViewOrder}
-            onEdit={handleEditOrder}
-          />
-        ))}
+            };
+
+            return (
+              <OrderCard 
+                key={order.id} 
+                order={transformedOrder as any}
+                viewMode={viewMode}
+                onView={() => handleViewOrder(order)}
+                onEdit={() => handleEditOrder(order)}
+              />
+            );
+          } catch (error) {
+            console.error('[Orders] Error rendering order:', order.id, error);
+            return null;
+          }
+        })}
       </div>
 
       {filteredOrders.length === 0 && searchTerm && (

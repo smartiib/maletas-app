@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, User, Mail, Calendar, Edit, Trash2, Key } from 'lucide-react';
+import { Plus, User, Mail, Calendar, Edit, Trash2, Key, Shield } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -28,9 +28,11 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useOrganizationUsers } from '@/hooks/useOrganizationUsers';
 import { useForm } from 'react-hook-form';
+import { PermissionsManager } from '@/components/permissions/PermissionsManager';
 
 interface OrganizationUser {
   id: string;
+  user_id?: string;
   organization_id: string;
   email: string;
   name: string;
@@ -66,6 +68,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isPermissionsDialogOpen, setIsPermissionsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<OrganizationUser | null>(null);
   const [loadingUsers, setLoadingUsers] = useState(true);
   
@@ -151,6 +154,11 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
   const handleChangePassword = (user: OrganizationUser) => {
     setEditingUser(user);
     setIsPasswordDialogOpen(true);
+  };
+
+  const handleManagePermissions = (user: OrganizationUser) => {
+    setEditingUser(user);
+    setIsPermissionsDialogOpen(true);
   };
 
   const handleDeleteUser = async (user: OrganizationUser) => {
@@ -317,7 +325,17 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                   <Button
                     variant="ghost"
                     size="sm"
+                    onClick={() => handleManagePermissions(user)}
+                    title="Gerenciar Permissões"
+                  >
+                    <Shield className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => handleEditUser(user)}
+                    title="Editar Usuário"
                   >
                     <Edit className="h-4 w-4" />
                   </Button>
@@ -326,6 +344,7 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
                     variant="ghost"
                     size="sm"
                     onClick={() => handleChangePassword(user)}
+                    title="Alterar Senha"
                   >
                     <Key className="h-4 w-4" />
                   </Button>
@@ -481,6 +500,24 @@ export function OrganizationUsersManager({ organizationId }: OrganizationUsersMa
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para Gerenciar Permissões */}
+      <Dialog open={isPermissionsDialogOpen} onOpenChange={setIsPermissionsDialogOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Permissões</DialogTitle>
+            <DialogDescription>
+              Configure as permissões personalizadas para "{editingUser?.name}"
+            </DialogDescription>
+          </DialogHeader>
+          {editingUser && (
+            <PermissionsManager 
+              mode="user" 
+              userId={editingUser.user_id || editingUser.id}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </Card>

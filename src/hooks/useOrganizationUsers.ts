@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface OrganizationUser {
   id: string;
+  user_id?: string;
   organization_id: string;
   email: string;
   name: string;

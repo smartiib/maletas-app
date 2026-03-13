@@ -39,8 +39,8 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
         id: `order-${order.id}`,
         type: 'order',
         date: order.date_created || new Date().toISOString(),
-        title: `Pedido #${order.order_number}`,
-        subtitle: `Cliente: ${customerName}`,
+        title: `Pedido #${order.order_number || 'Indefinido'}`,
+        subtitle: `Cliente: ${customerName || 'Não informado'}`,
         icon: ShoppingCart,
         badge: order.status,
         value: `R$ ${(typeof order.total === 'number' ? order.total : parseFloat(String(order.total) || '0')).toFixed(2)}`
@@ -96,6 +96,19 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
     return `${diffInDays}d atrás`;
   };
 
+  const translateStatus = (status?: string) => {
+    const translations: Record<string, string> = {
+      'processing': 'processando',
+      'pending': 'pendente',
+      'completed': 'concluído',
+      'cancelled': 'cancelado',
+      'on-hold': 'em espera',
+      'failed': 'falhou',
+      'refunded': 'reembolsado'
+    };
+    return status ? (translations[status] || status) : '';
+  };
+
   const getBadgeVariant = (type: string, badge?: string) => {
     if (type === 'order') {
       switch (badge) {
@@ -148,7 +161,7 @@ const RecentActivity = ({ orders, customers, products }: RecentActivityProps) =>
                         variant={getBadgeVariant(activity.type, activity.badge)}
                         className="text-xs"
                       >
-                        {activity.badge}
+                        {activity.type === 'order' ? translateStatus(activity.badge) : activity.badge}
                       </Badge>
                     )}
                   </div>

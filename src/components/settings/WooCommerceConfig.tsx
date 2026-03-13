@@ -13,35 +13,37 @@ import { toast } from 'sonner';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
 // Configuração padrão dos webhooks necessários
+const WEBHOOK_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/woocommerce-stock-webhook`;
+
 const REQUIRED_WEBHOOKS = [
   {
     name: 'Stock Sync - Product Updated',
     topic: 'product.updated',
-    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    delivery_url: WEBHOOK_BASE_URL,
     status: 'active'
   },
   {
     name: 'Stock Sync - Order Created',
     topic: 'order.created', 
-    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    delivery_url: WEBHOOK_BASE_URL,
     status: 'active'
   },
   {
     name: 'Stock Sync - Order Updated',
     topic: 'order.updated',
-    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook', 
+    delivery_url: WEBHOOK_BASE_URL,
     status: 'active'
   },
   {
     name: 'Customer Sync - Customer Created',
     topic: 'customer.created',
-    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    delivery_url: WEBHOOK_BASE_URL,
     status: 'active'
   },
   {
     name: 'Customer Sync - Customer Updated', 
     topic: 'customer.updated',
-    delivery_url: 'https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook',
+    delivery_url: WEBHOOK_BASE_URL,
     status: 'active'
   }
 ];
@@ -372,7 +374,7 @@ export const WooCommerceConfig = () => {
             <div className="text-xs text-muted-foreground border-t pt-3">
               <div><strong>URL do Webhook:</strong></div>
               <div className="font-mono bg-muted p-2 rounded mt-1 break-all">
-                https://umrrchfsbazjqopaxkoi.supabase.co/functions/v1/woocommerce-stock-webhook
+                {WEBHOOK_BASE_URL}
               </div>
               <div className="mt-2">
                 <div><strong>Webhooks Necessários:</strong></div>

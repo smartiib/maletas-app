@@ -75,110 +75,131 @@ async function getWooCommerceConfig(organizationId: string): Promise<WooCommerce
 
 /**
  * Fetch all product metadata from WooCommerce
+ * Improved to handle all product statuses including drafts
  */
 async function fetchWooCommerceProducts(config: WooCommerceConfig): Promise<any[]> {
   const allProducts: any[] = [];
-  let page = 1;
   const perPage = 100;
+  const maxPages = 50; // Safety limit
+  
+  // Fetch products with different statuses to ensure we get everything
+  const statuses = ['publish', 'draft', 'pending', 'private'];
+  
+  logger.log('Starting product fetch from WooCommerce');
+  
+  for (const status of statuses) {
+    let page = 1;
+    let hasMore = true;
+    
+    logger.log(`Fetching products with status: ${status}`);
+    
+    while (hasMore && page <= maxPages) {
+      const url = new URL(`${config.url}/wp-json/wc/v3/products`);
+      url.searchParams.set('per_page', String(perPage));
+      url.searchParams.set('page', String(page));
+      url.searchParams.set('status', status);
+      url.searchParams.set('_fields', 'id,date_modified,name,sku,type,status,price,regular_price,sale_price,stock_quantity,stock_status');
 
-  while (true) {
-    const url = new URL(`${config.url}/wp-json/wc/v3/products`);
-    url.searchParams.set('per_page', String(perPage));
-    url.searchParams.set('page', String(page));
-    url.searchParams.set('status', 'any');
-    url.searchParams.set('_fields', 'id,date_modified,name,sku,type,status,price,regular_price,sale_price,stock_quantity,stock_status');
-    // Using Basic Auth header instead of query params for better compatibility
-    // url.searchParams.set('consumer_key', config.consumer_key);
-    // url.searchParams.set('consumer_secret', config.consumer_secret);
-
-    try {
-      // Try multiple authentication methods for compatibility
-      let response;
-      
-      // Create timeout controller
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-      
-      // Method 1: Try Basic Auth with proper encoding
       try {
-        const credentials = `${config.consumer_key}:${config.consumer_secret}`;
-        const base64Credentials = btoa(credentials);
+        let response;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
         
-        response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            'Authorization': `Basic ${base64Credentials}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'Lovable-Sync-Manager/1.0'
-          },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        // Check for auth errors and try fallback
-        if (!response.ok && (response.status === 401 || response.status === 403)) {
-          const errorText = await response.text();
-          logger.warn(`Auth failed with Basic header (${response.status}), trying query params. Error: ${errorText}`);
-          throw new Error(`Auth failed: ${response.status}`);
-        }
-      } catch (authError) {
-        clearTimeout(timeoutId);
-        logger.warn(`Basic Auth failed, trying query params for page ${page}`, authError);
-        
-        // Method 2: Fallback to query parameters
-        url.searchParams.set('consumer_key', config.consumer_key);
-        url.searchParams.set('consumer_secret', config.consumer_secret);
-        
-        const controller2 = new AbortController();
-        const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
-        
-        response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Lovable-Sync-Manager/1.0'
-          },
-          signal: controller2.signal
-        });
-        clearTimeout(timeoutId2);
-      }
-      if (!response.ok) {
-        const errorBody = await response.text();
-        let parsedError;
+        // Try Basic Auth first
         try {
-          parsedError = JSON.parse(errorBody);
-        } catch (e) {
-          parsedError = { message: errorBody };
+          const credentials = `${config.consumer_key}:${config.consumer_secret}`;
+          const base64Credentials = btoa(credentials);
+          
+          response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+              'Authorization': `Basic ${base64Credentials}`,
+              'Content-Type': 'application/json',
+              'User-Agent': 'Lovable-Sync-Manager/1.0'
+            },
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          
+          if (!response.ok && (response.status === 401 || response.status === 403)) {
+            throw new Error(`Auth failed: ${response.status}`);
+          }
+        } catch (authError) {
+          clearTimeout(timeoutId);
+          
+          // Fallback to query parameters
+          url.searchParams.set('consumer_key', config.consumer_key);
+          url.searchParams.set('consumer_secret', config.consumer_secret);
+          
+          const controller2 = new AbortController();
+          const timeoutId2 = setTimeout(() => controller2.abort(), 30000);
+          
+          response = await fetch(url.toString(), {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Agent': 'Lovable-Sync-Manager/1.0'
+            },
+            signal: controller2.signal
+          });
+          clearTimeout(timeoutId2);
         }
         
-        logger.error(`Error fetching WooCommerce products page ${page}`, {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorBody,
-          parsedError
-        });
-        
-        const errorMessage = parsedError?.message || response.statusText || 'Unknown error';
-        if (response.status === 401 || response.status === 403) {
-          throw new Error(`Erro de autenticação WooCommerce (${response.status}): ${errorMessage}. Verifique suas credenciais nas configurações.`);
+        if (!response.ok) {
+          const errorBody = await response.text();
+          let parsedError;
+          try {
+            parsedError = JSON.parse(errorBody);
+          } catch (e) {
+            parsedError = { message: errorBody };
+          }
+          
+          logger.error(`Error fetching products (status: ${status}, page: ${page})`, {
+            status: response.status,
+            statusText: response.statusText,
+            parsedError
+          });
+          
+          const errorMessage = parsedError?.message || response.statusText || 'Unknown error';
+          if (response.status === 401 || response.status === 403) {
+            throw new Error(`Erro de autenticação WooCommerce (${response.status}): ${errorMessage}. Verifique suas credenciais nas configurações.`);
+          }
+          throw new Error(`WooCommerce API error: ${response.status} - ${errorMessage}`);
         }
-        throw new Error(`WooCommerce API error: ${response.status} - ${errorMessage}`);
+
+        const products = await response.json();
+        
+        if (!products || products.length === 0) {
+          logger.log(`No more products found for status ${status} at page ${page}`);
+          hasMore = false;
+          break;
+        }
+        
+        // Filter out duplicates (by ID)
+        const existingIds = new Set(allProducts.map(p => p.id));
+        const newProducts = products.filter((p: any) => !existingIds.has(p.id));
+        
+        if (newProducts.length > 0) {
+          allProducts.push(...newProducts);
+          logger.log(`Fetched ${newProducts.length} products (status: ${status}, page: ${page}, total: ${allProducts.length})`);
+        }
+        
+        // Check if there are more pages
+        if (products.length < perPage) {
+          hasMore = false;
+        } else {
+          page++;
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
+        
+      } catch (error) {
+        logger.error(`Error fetching products (status: ${status}, page: ${page})`, error);
+        throw error;
       }
-
-      const products = await response.json();
-      if (!products || products.length === 0) break;
-
-      allProducts.push(...products);
-      if (products.length < perPage) break;
-      page++;
-
-      await new Promise(resolve => setTimeout(resolve, 100));
-    } catch (error) {
-      logger.error(`Error fetching WooCommerce products page ${page}`, error);
-      throw error;
     }
   }
-
+  
+  logger.log(`Total products fetched: ${allProducts.length}`);
   return allProducts;
 }
 

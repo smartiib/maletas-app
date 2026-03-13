@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Minus, Package } from 'lucide-react';
-import { useWooCommerceProduct } from '@/hooks/useWooCommerce';
+import { useProductVariations, useProductVariationsByIds } from '@/hooks/useProductVariations';
 
 interface ProductVariationSelectorProps {
   isOpen: boolean;
@@ -35,7 +35,6 @@ export const ProductVariationSelector: React.FC<ProductVariationSelectorProps> =
   onAddToQueue
 }) => {
   const [selections, setSelections] = useState<VariationSelection[]>([]);
-  const { data: productDetails } = useWooCommerceProduct(product?.id.toString() || '');
 
   // Reset selections when dialog opens
   useEffect(() => {
@@ -44,9 +43,58 @@ export const ProductVariationSelector: React.FC<ProductVariationSelectorProps> =
     }
   }, [isOpen]);
 
+  // Mesma lógica da página de Produtos
+  const hasVariations = product?.type === 'variable' && Array.isArray(product?.variations) && product.variations.length > 0;
+  
+  const variationIds = useMemo<number[]>(() => {
+    if (!hasVariations) return [];
+    return (product.variations || [])
+      .map((v: any) => (typeof v === 'object' && v?.id ? Number(v.id) : Number(v)))
+      .filter((id: any) => typeof id === 'number' && !Number.isNaN(id));
+  }, [hasVariations, product]);
+
+  // Buscar por parent_id
+  const { data: variationsByParent = [], isLoading: isLoadingParent } = useProductVariations(
+    hasVariations ? Number(product?.id) : undefined
+  );
+
+  // Identificar IDs faltantes
+  const missingIds = useMemo(() => {
+    if (!hasVariations) return [];
+    if (!variationsByParent?.length) return variationIds;
+    const fetched = new Set<number>(variationsByParent.map(v => Number(v.id)));
+    return variationIds.filter(id => !fetched.has(id));
+  }, [hasVariations, variationIds, variationsByParent]);
+
+  // Buscar por IDs faltantes
+  const { data: variationsByIds = [], isLoading: isLoadingIds } = useProductVariationsByIds(
+    missingIds.length > 0 ? missingIds : undefined
+  );
+
+  // Combinar resultados
+  const loadedVariations = useMemo(() => {
+    const map = new Map<number, any>();
+    (variationsByParent || []).forEach(v => map.set(Number(v.id), v));
+    (variationsByIds || []).forEach(v => map.set(Number(v.id), v));
+    const arr = Array.from(map.values());
+    console.log('[ProductVariationSelector] Loaded variations:', {
+      productId: product?.id,
+      variationIds,
+      parentCount: variationsByParent?.length || 0,
+      byIdsCount: variationsByIds?.length || 0,
+      finalCount: arr.length,
+    });
+    return arr;
+  }, [variationsByParent, variationsByIds, variationIds, product?.id]);
+
+  const isLoadingVariations = isLoadingParent || isLoadingIds;
+
   if (!product) return null;
 
-  const variations = productDetails?.variations || product.variations || [];
+  const variations = loadedVariations.length > 0 ? loadedVariations : (product.variations || []);
+  
+  // Debug: log variations data
+  console.log('[ProductVariationSelector] Final variations to display:', variations);
 
   const updateQuantity = (variationId: number, quantity: number) => {
     setSelections(prev => {
@@ -95,13 +143,44 @@ export const ProductVariationSelector: React.FC<ProductVariationSelectorProps> =
   };
 
   const getVariationName = (variation: any) => {
-    if (!variation.attributes || !Array.isArray(variation.attributes)) {
-      return `Variação ${variation.id}`;
+    console.log('[ProductVariationSelector] Formatting variation:', variation);
+    
+    // Normalizar atributos (mesma função da página de Produtos)
+    const normalizeAttributes = (src: any): Array<{ name: string; option: string }> => {
+      if (!src) return [];
+      let arr = src;
+      if (typeof arr === 'string') {
+        try {
+          arr = JSON.parse(arr);
+        } catch {
+          return [];
+        }
+      }
+      if (!Array.isArray(arr)) return [];
+      return arr
+        .map((a: any) => {
+          const name = a?.name ?? a?.slug ?? a?.taxonomy ?? '';
+          const option = a?.option ?? (Array.isArray(a?.options) ? a.options[0] : a?.value ?? a?.term ?? '');
+          return {
+            name: String(name || ''),
+            option: String(option || ''),
+          };
+        })
+        .filter((a: any) => a.name && a.option);
+    };
+    
+    const attrs = normalizeAttributes(variation.attributes);
+    
+    if (attrs.length > 0) {
+      return attrs.map(a => `${a.name}: ${a.option}`).join(', ');
     }
     
-    return variation.attributes
-      .map((attr: any) => `${attr.name}: ${attr.option}`)
-      .join(', ') || `Variação ${variation.id}`;
+    // Fallback: usar SKU se disponível
+    if (variation.sku) {
+      return variation.sku;
+    }
+    
+    return `Variação ${variation.id}`;
   };
 
   const formatPrice = (price: string | number) => {
@@ -154,7 +233,22 @@ export const ProductVariationSelector: React.FC<ProductVariationSelectorProps> =
           <div className="space-y-3">
             <Label className="text-base font-medium">Variações Disponíveis:</Label>
             
-            {variations.map((variation: any) => {
+            {isLoadingVariations ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Carregando variações...
+              </div>
+            ) : variations.length === 0 ? (
+              <div className="text-center py-8">
+                <div className="text-muted-foreground mb-2">
+                  ⚠️ As variações deste produto não estão sincronizadas no banco local.
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Execute uma sincronização completa para importar as variações.
+                </div>
+              </div>
+            ) : null}
+            
+            {!isLoadingVariations && variations.map((variation: any) => {
               const quantity = getQuantity(variation.id);
               
               return (

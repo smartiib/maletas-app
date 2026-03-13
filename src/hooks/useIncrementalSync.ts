@@ -29,7 +29,7 @@ export const useIncrementalSync = () => {
 
   // Usar hooks especializados
   const { syncStatus, isLoadingStatus, discover, discoverAsync, isDiscovering } = useDiscovery();
-  const { syncFromWooCommerce, syncFromWooCommerceAsync, isSyncing } = useSyncFromWooCommerce();
+  const { syncFromWooCommerce, syncFromWooCommerceAsync, isSyncing } = useSyncFromWooCommerce({ updateProgress });
   const { queueStatus, processQueue, isProcessingQueue, addToQueue } = useSyncQueue();
 
   // Mutation para sincronização completa (descoberta + sync)
@@ -54,7 +54,7 @@ export const useIncrementalSync = () => {
 
       updateProgress({
         progress: 20,
-        currentStep: `Sincronizando ${discoveredTotal} produtos...`
+        currentStep: `Preparando sincronização de ${discoveredTotal} produtos...`
       });
 
       // 2. Sincronizar TODOS os produtos do WooCommerce (não apenas missing/changed)
